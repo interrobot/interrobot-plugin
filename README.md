@@ -1,6 +1,6 @@
 # InterroBot Plugin
 
-This TypeScript/JavaScript library is used in the creation of plugins (aka reports) that extract data from, or visualize a website in aggregate, across pages. Plugins run as an extention to the [InterroBot](https://interro.bot) web crawler, available for Win10/11.
+This JavaScript library is used in the creation of plugins (aka reports) that present data or visualizations for a website in aggregate, across site content. Plugins run as an extension to the [InterroBot](https://interro.bot) web crawler, available for Win10/11.
 
 InterroBot sets a sort of aesthetic standard with the core plugins, but there are no rules. Throw off the CSS if it makes you happy. Connect to web analytics, LLM, or SAAS for extra insight. Keep your plugins to yourself, resell them to clients, or give them away to an adoring world... 
 
@@ -25,9 +25,9 @@ A bit of everything you need to get to brass tacks with a tricky development or 
 *assets*: Array of assets (js/css/png/etc.)  
 *links*: Array of outlinks
 
-## Licencing
+## Licensing
 
-MPL 2.0, with exceptions. This repo contains two JavaScript to TypeScript ports, contained within `./src/lib`. As they arrived under existing licences, they will remain under those.
+MPL 2.0, with exceptions. This repo contains two JavaScript to TypeScript ports, contained within `./src/lib`. As they arrived under existing licenses, they will remain under those.
 
-* *Typo.js*: TypeScript port will continue licensing under original [Modified BSD License](https://raw.githubusercontent.com/cfinke/Typo.js/master/license.txt) license.
-* *Snowball.js*: TypeScript port will continue licensing under original [MPL 1.1](https://raw.githubusercontent.com/fortnightlabs/snowball-js/master/LICENSE) license.
+* *Typo.js*: TypeScript port will continue licensing under the original [Modified BSD License](https://raw.githubusercontent.com/cfinke/Typo.js/master/license.txt) license.
+* *Snowball.js*: TypeScript port will continue licensing under the original [MPL 1.1](https://raw.githubusercontent.com/fortnightlabs/snowball-js/master/LICENSE) license.
