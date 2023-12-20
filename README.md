@@ -22,7 +22,7 @@ A bit of everything you need to get to brass tacks with a tricky development or 
 
 ### HTML-only
 
-*assets*: Array of assets (js/css/png/etc.)
+*assets*: Array of assets (js/css/png/etc.)  
 *links*: Array of outlinks
 
 ## Licencing
