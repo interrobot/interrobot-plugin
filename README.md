@@ -27,10 +27,7 @@ A bit of everything you need to get to brass tacks with a tricky development or 
 
 ## Licencing
 
-Except where otherwise stated, MPL 2.0.
+MPL 2.0, with exceptions. This repo contains two JavaScript to TypeScript ports, contained within `./src/lib`. As they arrived under existing licences, they will remain under those.
 
-This repo contains two JavaScript to TypeScript ports, contained in `./src/lib`. As they arrived under existing licences, they will remain under those.
-
-*Typo.js*: TypeScript port will continue licensing under original [Modified BSD License](https://raw.githubusercontent.com/cfinke/Typo.js/master/license.txt) license.
-
-*Snowball.js*: TypeScript port will continue licensing under original [MPL 1.1](https://raw.githubusercontent.com/fortnightlabs/snowball-js/master/LICENSE) license.
+* *Typo.js*: TypeScript port will continue licensing under original [Modified BSD License](https://raw.githubusercontent.com/cfinke/Typo.js/master/license.txt) license.
+* *Snowball.js*: TypeScript port will continue licensing under original [MPL 1.1](https://raw.githubusercontent.com/fortnightlabs/snowball-js/master/LICENSE) license.
