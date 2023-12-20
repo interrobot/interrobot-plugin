@@ -1,0 +1,13 @@
+{
+    "compileOnSave": true,
+    "compilerOptions": {
+        "module": "CommonJS",
+        "target": "ES2019",
+        "lib": ["ES2019", "DOM", "DOM.Iterable"],
+        "declaration": true,
+        "outDir": "./dist/js/commonjs",
+        "moduleResolution": "node"
+    },
+    "include": ["src/**/*"],
+    "exclude": ["node_modules"],
+}

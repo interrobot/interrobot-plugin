@@ -1,0 +1,13 @@
+{
+    "compileOnSave": true,
+    "compilerOptions": {
+        "module": "ESNext",
+        "target": "ESNext",
+        "lib": ["ESNext", "DOM", "DOM.Iterable"],
+        "declaration": true,
+        "outDir": "./examples/js",
+        "moduleResolution": "node",
+    },
+    "include": ["src/**/*"],  
+    "exclude": ["node_modules"],
+}

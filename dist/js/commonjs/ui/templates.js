@@ -1,0 +1,51 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Templates = void 0;
+const html_js_1 = require("../core/html.js");
+class Templates {
+    static standardHeading(project, title) {
+        return `<div class="main__heading">
+            <div class="main__heading__icon">
+                <img id="projectIcon" src="${project.getImageDataUri()}" alt="Icon for @crawlView.DisplayTitle" />
+            </div>
+            <div class="main__heading__title">
+                <h1>${html_js_1.HtmlUtils.htmlEncode(title)}</h1>
+                <div><span>${html_js_1.HtmlUtils.htmlEncode(project.getDisplayTitle())}</span></div>
+            </div>
+        </div>`;
+    }
+    static standardForm(formHtml) {
+        return `<div class="main__form">${formHtml}</div>`;
+    }
+    static standardResults() {
+        return `<div class="main__results"></div>`;
+    }
+    static cellRendererSameAsLast(cellValue, rowData) {
+        var _a;
+        if (!("ID" in rowData)) {
+            throw ("ID must be present to use cellHandlerSameAsLast");
+        }
+        const keys = Object.keys(rowData);
+        const values = Object.values(rowData);
+        const valueIndex = values.indexOf(cellValue);
+        const cellHeading = keys[valueIndex];
+        const currentId = rowData["ID"].toString();
+        const lastId = (_a = Templates.cellHandlerSameAsLastMemo[cellHeading]) !== null && _a !== void 0 ? _a : "";
+        const classes = [];
+        if (lastId === currentId) {
+            classes.push("sameaslast");
+        }
+        Templates.cellHandlerSameAsLastMemo[cellHeading] = currentId;
+        return { "classes": classes, "content": `${html_js_1.HtmlUtils.htmlEncode(cellValue)}` };
+    }
+    static cellRendererSameAsLastLink(cellValue, rowData) {
+        const result = Templates.cellRendererSameAsLast(cellValue, rowData);
+        result["content"] = `<a class= "ulink" 
+            data-id="${html_js_1.HtmlUtils.htmlEncode(rowData["ID"])}" 
+            href="${html_js_1.HtmlUtils.htmlEncode(cellValue)}">${html_js_1.HtmlUtils.htmlEncode(cellValue)}</a>`;
+        return result;
+    }
+}
+exports.Templates = Templates;
+// use table headers as distinct memos in order to handle many per row
+Templates.cellHandlerSameAsLastMemo = {};
