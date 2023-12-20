@@ -12,16 +12,8 @@ $ python server.py
 serving at port http://127.0.0.1:8084 | Ctrl + Break (aka Pause) to end
 ```
 
-If using a real server, you'll need to allow your page to be iframed, via CORS policy. These headers should be set on your plugin iframe pages alone, and not you're whole website. Remember that you'll need to allow the InterroBot desktop client running on a local IP address, and not the interro.bot domain. The allow statement should apply to * (any website).
-
-Apache Server Example:
-
-```
-Header set X-Frame-Options "allow-from *"
-```
-
-InterroBot runs 
+If using a production server, you'll need to allow your page to be iframed. These headers should be set on your plugin iframe pages alone, and not your whole website. Remember that you'll need to allow the InterroBot desktop client running on a local IP address and locally available port, and not the interro.bot domain. The CSP (Content-Security-Policy) or X-Frame-Options allow statement should allow iframing from the InterroBot client, running on loopback (127.0.0.1:5001-5100). Allowing the interro.bot domain will do nothing productive.
 
 ## Basic Example
 
-A note of caution, the basic.html page is a blank if not loaded into InterroBot. You must first run interrobot, and load the plugin from within the app. From there, you get the URL arguments and access to the API necessary to do anything interesting. Developer tools are accessible from InterroBot itself, if you need them.
+A note of caution, the basic.html page is a blank if not loaded into InterroBot. You must first run InterroBot, and load the plugin from within the app. From there, you get the URL arguments and access to the API necessary to do anything interesting. Developer tools are accessible from InterroBot itself, if you need them.
