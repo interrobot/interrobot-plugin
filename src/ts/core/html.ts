@@ -44,7 +44,7 @@ class HtmlUtils {
         return texts.join(" ");
     }
 
-    public static isUrl(str: string): boolean {
+    public static isUrl(str: string): boolean {        
         return str.match(HtmlUtils.urlRegex) !== null;
         /*
         // return (URL as any).canParse();

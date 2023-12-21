@@ -1,5 +1,6 @@
 ﻿import { Plugin } from "../core/plugin.js";
 import { HtmlUtils } from "../core/html.js";
+
 class HTMLResultsTablePage {
     public readonly label: string;
     public readonly offset: number;

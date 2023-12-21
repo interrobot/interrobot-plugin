@@ -24,10 +24,6 @@ class Plugin {
         in the source to update these display values.`,
     }
 
-    private static origin: string;
-    
-    private static contentScrollHeight: number;   
-
     public static getHostOrigin(): string {
         if (!Plugin.origin) {
             const urlSearchParams = new URLSearchParams(window.location.search);
@@ -86,6 +82,8 @@ class Plugin {
     }
 
     public data: PluginData;
+    private static origin: string;    
+    private static contentScrollHeight: number;   
     private projectId: number = -1;
     private mode: DarkMode = DarkMode.Light;
     private project: Project;
