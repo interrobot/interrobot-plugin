@@ -1,0 +1,27 @@
+# https://gist.github.com/sambacha/90a5fab2342743e2c8eccf8424aaa45c
+
+*.key
+*.keys
+*.priv
+*.rsa
+*.key.json
+.env
+.env.production
+*.ssh
+*.ssh-key
+.key-mrc
+*.ca
+*.crt
+*.csr
+*.der
+*.kdb
+*.kdbx
+*.org
+*.p12
+*.pem
+*.rnd
+*.ssleay
+*.smime
+
+*.log
+node_modules/
