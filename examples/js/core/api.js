@@ -9,7 +9,6 @@ var SearchQueryType;
     SearchQueryType[SearchQueryType["Any"] = 2] = "Any";
 })(SearchQueryType || (SearchQueryType = {}));
 class PluginData {
-    // public readonly src: string;
     autoformInputs;
     defaultData;
     data;
@@ -38,7 +37,6 @@ class PluginData {
                 if (autoform[name] !== value) {
                     // console.log(`${name} | ${value} | ${autoform}`);
                     autoform[name] = value;
-                    // console.log(autoform);
                     await this.setDataField("autoform", autoform, true);
                 }
             };
@@ -95,7 +93,6 @@ class PluginData {
         try {
             const jsonResponse = await result.json();
             const jsonResponseData = jsonResponse["data"];
-            // console.log(jsonResponse);
             const merged = {};
             for (let k in this.defaultData) {
                 merged[k] = this.defaultData[k];
@@ -129,7 +126,6 @@ class PluginData {
                 default:
                     break;
             }
-            // console.log(this.data["autoform"]); console.log(input); console.log(val);
             if (input && val) {
                 input.value = val;
             }
@@ -265,13 +261,11 @@ class SearchResult {
     type;
     links;
     assets;
-    // typescript makes this stupid, sorry, use getContent/getHeaders
-    // maintain ability to clear, think large sites, lots of ram
     content;
     headers;
     processedContent;
-    optionalFields = ["status", "time", "norobots", "name", "type", "content",
-        "headers", "links", "assets"];
+    optionalFields = ["status", "time", "norobots", "name",
+        "type", "content", "headers", "links", "assets"];
     static normalizeContentWords(input) {
         const out = [];
         if (input !== "") {

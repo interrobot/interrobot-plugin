@@ -1,14 +1,14 @@
 import { Project, PluginData } from "./api.js";
 declare class Plugin {
     static readonly meta: {};
-    private static origin;
-    private static contentScrollHeight;
     static getHostOrigin(): string;
     static postContentHeight(): void;
     static postOpenResourceLink(projectId: number, resourceId: number, openInBrowser: boolean): void;
     static postMeta(meta: {}): void;
     static logTiming(msg: string, millis: number): void;
     data: PluginData;
+    private static origin;
+    private static contentScrollHeight;
     private projectId;
     private mode;
     private project;

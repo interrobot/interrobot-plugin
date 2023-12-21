@@ -33,7 +33,6 @@ class PluginData {
                 if (autoform[name] !== value) {
                     // console.log(`${name} | ${value} | ${autoform}`);
                     autoform[name] = value;
-                    // console.log(autoform);
                     await this.setDataField("autoform", autoform, true);
                 }
             };
@@ -91,7 +90,6 @@ class PluginData {
         try {
             const jsonResponse = await result.json();
             const jsonResponseData = jsonResponse["data"];
-            // console.log(jsonResponse);
             const merged = {};
             for (let k in this.defaultData) {
                 merged[k] = this.defaultData[k];
@@ -125,7 +123,6 @@ class PluginData {
                 default:
                     break;
             }
-            // console.log(this.data["autoform"]); console.log(input); console.log(val);
             if (input && val) {
                 input.value = val;
             }
@@ -252,8 +249,8 @@ class SearchResult {
         return words.join(" ");
     }
     constructor(jsonResult) {
-        this.optionalFields = ["status", "time", "norobots", "name", "type", "content",
-            "headers", "links", "assets"];
+        this.optionalFields = ["status", "time", "norobots", "name",
+            "type", "content", "headers", "links", "assets"];
         this.result = jsonResult["result"];
         this.id = jsonResult["id"];
         this.url = jsonResult["url"];

@@ -32,6 +32,7 @@ class Templates {
         const currentId = rowData["ID"].toString();
         const lastId = (_a = Templates.cellHandlerSameAsLastMemo[cellHeading]) !== null && _a !== void 0 ? _a : "";
         const classes = [];
+        // css class dims subsequent cell data when it is same id as last (the previous row)
         if (lastId === currentId) {
             classes.push("sameaslast");
         }

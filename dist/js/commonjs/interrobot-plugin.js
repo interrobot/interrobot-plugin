@@ -7,6 +7,9 @@ const plugin = require("./core/plugin.js");
 const processing = require("./ui/processing.js");
 const table = require("./ui/table.js");
 const templates = require("./ui/templates.js");
+// a project needs an index file. It's fine to skip this
+// in favor of standard imports against a directory path,
+// as does the basic example.
 var Core;
 (function (Core) {
     Core.Project = api.Project;

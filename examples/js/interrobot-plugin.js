@@ -4,6 +4,9 @@ import * as plugin from "./core/plugin.js";
 import * as processing from "./ui/processing.js";
 import * as table from "./ui/table.js";
 import * as templates from "./ui/templates.js";
+// a project needs an index file. It's fine to skip this
+// in favor of standard imports against a directory path,
+// as does the basic example.
 export var Core;
 (function (Core) {
     Core.Project = api.Project;

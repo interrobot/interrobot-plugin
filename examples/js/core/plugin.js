@@ -19,8 +19,6 @@ class Plugin {
         your own creation.\n\nThis is the default plugin description. Set meta: {} values
         in the source to update these display values.`,
     };
-    static origin;
-    static contentScrollHeight;
     static getHostOrigin() {
         if (!Plugin.origin) {
             const urlSearchParams = new URLSearchParams(window.location.search);
@@ -72,6 +70,8 @@ class Plugin {
         console.log(`🤖 [${seconds}s] ${msg}`);
     }
     data;
+    static origin;
+    static contentScrollHeight;
     projectId = -1;
     mode = DarkMode.Light;
     project;

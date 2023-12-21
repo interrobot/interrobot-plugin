@@ -4,6 +4,17 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Ngrams = void 0;
 class Ngrams {
+    static expandWords(words) {
+        const monograms = words.join(" ");
+        return monograms;
+    }
+    static searchVariants(input) {
+        const words = input.split(" ");
+        const variants = [input];
+        variants.push.apply(variants, Ngrams.bigrams(words));
+        variants.push.apply(variants, Ngrams.trigrams(words));
+        return variants;
+    }
     static ngrams(words, length) {
         const numWords = words.length;
         const lastIndex = numWords - 1;
@@ -19,19 +30,6 @@ class Ngrams {
             }
         }
         return out;
-    }
-    static expandWords(words) {
-        // bigrams/trigrams of fulltext content is slow and doesn't sufficently
-        // improve results enough to justify the perf hit. just use simple words
-        const monograms = words.join(" ");
-        return monograms;
-    }
-    static searchVariants(input) {
-        const words = input.split(" ");
-        const variants = [input];
-        variants.push.apply(variants, Ngrams.bigrams(words));
-        variants.push.apply(variants, Ngrams.trigrams(words));
-        return variants;
     }
     static bigrams(words) {
         return Ngrams.ngrams(words, 2);
