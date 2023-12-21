@@ -1,0 +1,25 @@
+{
+    "name": "interrobot-plugin",
+    "version": "0.8.0",
+    "description": "Used in the creation of plugins (aka reports) that present data or visualizations for a website in aggregate, across site content. For use with InterroBot application.",
+    "main": "js/commonjs/interrobot-plugin.js",
+    "module": "js/es6/interrobot-plugin.js",
+    "repository": {
+      "type": "git",
+      "url": "git+https://github.com/interrobot/interrobot-plugin.git"
+    },
+    "files": [
+      "js"
+    ],
+    "keywords": [
+      "javascript",
+      "InterroBot",
+      "plugin",
+      "webdev",
+      "SEO",
+      "crawler",
+      "spider"
+    ],
+    "author": "Ben Caulfield",
+    "license": "MPL-2.0"
+}
