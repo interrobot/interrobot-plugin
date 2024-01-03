@@ -1,8 +1,14 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.HtmlResultsTable = void 0;
+exports.SortOrder = exports.HTMLResultsTableSort = exports.HtmlResultsTable = void 0;
 const plugin_js_1 = require("../core/plugin.js");
 const html_js_1 = require("../core/html.js");
+var SortOrder;
+(function (SortOrder) {
+    SortOrder[SortOrder["Ascending"] = 0] = "Ascending";
+    SortOrder[SortOrder["Descending"] = 1] = "Descending";
+})(SortOrder || (SortOrder = {}));
+exports.SortOrder = SortOrder;
 class HTMLResultsTablePage {
     constructor(label, offset, limit) {
         this.label = label;
@@ -10,6 +16,15 @@ class HTMLResultsTablePage {
         this.limit = limit;
     }
 }
+class HTMLResultsTableSort {
+    constructor(primaryHeading, primarySort, secondaryHeading, secondarySort) {
+        this.primaryHeading = primaryHeading;
+        this.primarySort = primarySort;
+        this.secondaryHeading = secondaryHeading;
+        this.secondarySort = secondarySort;
+    }
+}
+exports.HTMLResultsTableSort = HTMLResultsTableSort;
 class HTMLResultsTableButton {
     static createElement(parentElement, documentId, data, contents, classes, clickHandler) {
         const button = new HTMLResultsTableButton(documentId, data, contents, classes, clickHandler);
@@ -27,16 +42,41 @@ class HTMLResultsTableButton {
     }
 }
 class HtmlResultsTable {
-    static createElement(parentElement, projectId, perPage, header, headings, results, rowRenderer, cellRenderer, cellHandler, exportExtra) {
-        const pagedTable = new HtmlResultsTable(projectId, perPage, header, headings, results, rowRenderer, cellRenderer, cellHandler, exportExtra);
+    static createElement(parentElement, projectId, perPage, header, headings, results, resultsSort, rowRenderer, cellRenderer, cellHandler, exportExtra) {
+        const pagedTable = new HtmlResultsTable(projectId, perPage, header, headings, results, resultsSort, rowRenderer, cellRenderer, cellHandler, exportExtra);
         parentElement.appendChild(pagedTable.baseElement);
         plugin_js_1.Plugin.postContentHeight();
         return pagedTable;
     }
-    constructor(projectId, perPage, header, headings, results, rowRenderer, cellRenderer, cellHandler, exportExtra) {
+    static generateFormatedColumnNumber(num) {
+        return `${(num).toString().padStart(2, '0')}.`;
+    }
+    static sortResultsHelper(a, aNum, aIsNum, b, bNum, bIsNum, sortOrder) {
+        // return this.resultsSort.primarySort;
+        if (aIsNum && bIsNum) {
+            // sort numeric
+            if (sortOrder === SortOrder.Ascending) {
+                return aNum - bNum;
+            }
+            else {
+                return bNum - aNum;
+            }
+        }
+        else {
+            // sort alpha
+            if (sortOrder === SortOrder.Ascending) {
+                return a.localeCompare(b);
+            }
+            else {
+                return b.localeCompare(a);
+            }
+        }
+    }
+    constructor(projectId, perPage, header, headings, results, resultsSort, rowRenderer, cellRenderer, cellHandler, exportExtra) {
         this.baseElement = document.createElement("div");
         this.header = header;
         this.results = results;
+        this.resultsSort = resultsSort;
         this.headings = headings;
         this.perPage = perPage;
         this.projectId = projectId;
@@ -52,12 +92,40 @@ class HtmlResultsTable {
             plugin_js_1.Plugin.postContentHeight();
         };
         this.outlinkHandler = (ev) => {
-            this.projectId;
             const anchor = ev.target;
             const openInBrowser = true;
             plugin_js_1.Plugin.postOpenResourceLink(this.projectId, Number(anchor.dataset.id), openInBrowser);
             ev.preventDefault();
             ev.stopPropagation();
+        };
+        this.inlinkHandler = (ev) => {
+            const anchor = ev.target;
+            const openInBrowser = false;
+            plugin_js_1.Plugin.postOpenResourceLink(this.projectId, Number(anchor.dataset.id), openInBrowser);
+            ev.preventDefault();
+            ev.stopPropagation();
+        };
+        this.sortableHandler = (ev) => {
+            ev.preventDefault();
+            if (this.results.length === 0) {
+                return;
+            }
+            const anchor = ev.currentTarget;
+            let sortHeading = anchor.dataset["heading"];
+            let sortOrder;
+            if (this.resultsSort.primaryHeading === sortHeading) {
+                // already set, toggle
+                sortOrder = this.resultsSort.primarySort === SortOrder.Ascending ? SortOrder.Descending : SortOrder.Ascending;
+            }
+            else {
+                // not set, start with ascending
+                sortOrder = SortOrder.Ascending;
+            }
+            this.resultsSort.primaryHeading = sortHeading;
+            this.resultsSort.primarySort = sortOrder;
+            this.resultsOffset = 0;
+            this.sortResults();
+            this.renderSection();
         };
         this.downloadMenuHandler = (ev) => {
             const dlLinks = this.baseElement.querySelector(".info__dl");
@@ -110,6 +178,62 @@ class HtmlResultsTable {
         };
         this.renderSection();
     }
+    getHeadingIndex(headingLabel) {
+        // returns -1 if not found
+        return this.headings.indexOf(headingLabel);
+    }
+    getResults() {
+        return this.results;
+    }
+    getHeadings() {
+        return this.headings;
+    }
+    getResultsSort() {
+        return this.resultsSort;
+    }
+    sortResults() {
+        const primaryHeading = this.resultsSort.primaryHeading;
+        const primarySort = this.resultsSort.primarySort;
+        const primarySortOnIndex = this.getHeadingIndex(primaryHeading);
+        const secondaryHeading = this.resultsSort.secondaryHeading;
+        const secondarySort = this.resultsSort.secondarySort;
+        const secondarySortOnIndex = this.getHeadingIndex(secondaryHeading);
+        if (primarySortOnIndex === -1) {
+            console.warn(`Heading '${this.resultsSort.primaryHeading}' not found, aborting sort`);
+            return;
+        }
+        // console.log(`${primaryHeading} | ${primarySort} | ${secondaryHeading} | ${secondarySort}`);
+        const compoundSort = (a, b) => {
+            // two fields sort, e.g. id/crawl-order (numeric, acending) primary, term (alpha, acending) secondary
+            const primaryAVal = a[primarySortOnIndex];
+            const primaryAValNumber = parseInt(primaryAVal, 10);
+            const primaryAValIsNumber = !(isNaN(primaryAValNumber));
+            const primaryBVal = b[primarySortOnIndex];
+            const primaryBValNumber = parseInt(primaryBVal, 10);
+            const primaryBValIsNumber = !(isNaN(primaryBValNumber));
+            if (primaryAVal === primaryBVal) {
+                // tiebreaker on primary sort, sort secondary
+                const secondaryAVal = a[secondarySortOnIndex];
+                const secondaryAValNumber = parseInt(secondaryAVal, 10);
+                const secondaryAValIsNumber = !(isNaN(secondaryAValNumber));
+                const secondaryBVal = b[secondarySortOnIndex];
+                const secondaryBValNumber = parseInt(secondaryBVal, 10);
+                const secondaryBValIsNumber = !(isNaN(secondaryBValNumber));
+                return HtmlResultsTable.sortResultsHelper(secondaryAVal, secondaryAValNumber, secondaryAValIsNumber, secondaryBVal, secondaryBValNumber, secondaryBValIsNumber, secondarySort);
+            }
+            else {
+                // sort primary
+                return HtmlResultsTable.sortResultsHelper(primaryAVal, primaryAValNumber, primaryAValIsNumber, primaryBVal, primaryBValNumber, primaryBValIsNumber, primarySort);
+            }
+        };
+        this.results.sort(compoundSort);
+        // relabel result ##.
+        if (this.headings[0] === "") {
+            for (let i = 0; i < this.results.length; i++) {
+                this.results[i][0] = HtmlResultsTable.generateFormatedColumnNumber(i + 1);
+            }
+        }
+    }
     getColumnClass(heading) {
         return `column__${heading ? heading.replace(/[^\w]+/g, "").toLowerCase() : "empty"}`;
     }
@@ -123,30 +247,44 @@ class HtmlResultsTable {
     }
     renderTableHeadings(headings) {
         const out = [];
+        const svg = `<svg version="1.1" class="chevrons" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	        x="0px" y="0px" width="12px" height="20px" viewBox="6 2 12 20" enable-background="new 6 2 12 20" xml:space="preserve">
+	        <polyline class="d2" fill="none" stroke="#000000" stroke-miterlimit="10" points="7.32,16.655 12.015,21.208 16.566,16.633"/>
+	        <polyline class="d1" fill="none" stroke="#000000" stroke-miterlimit="10" points="7.314,13.274 12.01,17.827 16.561,13.253"/>
+	        <polyline class="u2" fill="none" stroke="#000000" stroke-miterlimit="10" points="16.685,10.594 12.115,6.041 7.439,10.615"/>
+	        <polyline class="u1" fill="none" stroke="#000000" stroke-miterlimit="10" points="16.679,7.345 12.11,2.792 7.434,7.365"/>
+        </svg>`;
         for (let heading of headings) {
-            out.push(`<th class="${html_js_1.HtmlUtils.htmlEncode(this.getColumnClass(heading))} ">${html_js_1.HtmlUtils.htmlEncode(heading)}</th>`);
+            const encodedColumnClass = html_js_1.HtmlUtils.htmlEncode(this.getColumnClass(heading));
+            const encodedLabel = `Sort by ${html_js_1.HtmlUtils.htmlEncode(heading)}`;
+            const link = `<a title="${encodedLabel}" class="sortable" data-heading="${html_js_1.HtmlUtils.htmlEncode(heading)}" href="#">
+                ${svg}<span class="reader">${encodedLabel}</span></a>`;
+            const sortable = encodedColumnClass !== "column__empty" ? link : "";
+            out.push(`<th class="${encodedColumnClass}">${html_js_1.HtmlUtils.htmlEncode(heading)} ${sortable}</th>`);
         }
         return out.join("");
     }
     renderTableData() {
         // table data, limiting to pagination offset and perpage
         const filteredExpandedRows = [];
-        const headingIdIndex = this.headings.indexOf("ID");
-        for (let row of this.results.slice(this.resultsOffset, this.resultsOffset + this.perPage)) {
-            const rowCallbackData = this.headings.reduce((obj, key, index) => ({ ...obj, [key]: row[index] }), {});
+        const headingIdIndex = this.getHeadingIndex("ID");
+        const resultsSlice = this.results.slice(this.resultsOffset, this.resultsOffset + this.perPage);
+        for (let i = 0; i < resultsSlice.length; i++) {
+            const row = resultsSlice[i];
+            const rowHeadingMapped = this.headings.reduce((obj, key, index) => ({ ...obj, [key]: row[index] }), {});
             const rowCells = [];
             const rowClasses = [];
             if (this.rowRenderer) {
-                const result = this.rowRenderer(rowCallbackData);
+                const result = this.rowRenderer(row, this.headings);
                 if ("classes" in result) {
                     rowClasses.push.apply(rowClasses, result["classes"]);
                 }
             }
-            for (let i = 0; i < row.length; i++) {
+            for (let j = 0; j < row.length; j++) {
                 const classes = [];
-                const cellHeading = this.headings[i];
+                const cellHeading = this.headings[j];
                 classes.push(this.getColumnClass(cellHeading));
-                const cell = row[i];
+                const cell = row[j];
                 const cellNum = Number(cell);
                 // NOT NOT a number, people. cmon || spaceless fraction
                 const cellIsNumeric = !(isNaN(cellNum)) || cell.match(/^\d+\/\d+$/) !== null;
@@ -162,7 +300,8 @@ class HtmlResultsTable {
                 const cellCallback = this.cellRenderer && cellHeading in this.cellRenderer ? this.cellRenderer[cellHeading] : null;
                 if (cellCallback) {
                     // pass in custom ui (buttons, whatever) here, in cellCallback
-                    const callbackResult = cellCallback(cell, rowCallbackData);
+                    // too many of these reduces laying around                    
+                    const callbackResult = cellCallback(cell, rowHeadingMapped, i);
                     cellContents = callbackResult.content;
                     classes.push(...callbackResult.classes);
                 }
@@ -183,6 +322,12 @@ class HtmlResultsTable {
     renderSection() {
         // clean up old handlers, if they exist, before creating new
         this.removeHandlers();
+        if (this.resultsSort.primarySort !== null && this.resultsSort.primaryHeading !== null) {
+            this.sortResults();
+        }
+        else {
+            console.warn(`Nothing to sort`);
+        }
         // table data, limiting to pagination offset and perpage
         const filteredExpandedRows = this.renderTableData();
         // no data scenario
@@ -235,6 +380,16 @@ class HtmlResultsTable {
                 </tbody>
             </table>`;
         this.baseElement.innerHTML = section;
+        const sortables = this.baseElement.querySelectorAll(`a.sortable`);
+        for (let i = 0; i < sortables.length; i++) {
+            const sortAnchor = sortables[i];
+            sortAnchor.classList.remove("ascending", "descending");
+            if (sortAnchor.dataset.heading === this.resultsSort.primaryHeading) {
+                const sortClass = this.resultsSort.primarySort == SortOrder.Ascending ? "ascending" : "descending";
+                // console.log(`${sortAnchor.dataset.heading} ${this.resultsSort.primaryHeading} ${sortClass}`);
+                sortAnchor.classList.add(sortClass);
+            }
+        }
         this.addHandlers();
     }
     addHandlers() {
@@ -269,6 +424,16 @@ class HtmlResultsTable {
         for (let i = 0; i < outLinks.length; i++) {
             const outLink = outLinks[i];
             outLink[navLinkMethod]("click", this.outlinkHandler);
+        }
+        const inLinks = this.baseElement.querySelectorAll("td.column__id a");
+        for (let i = 0; i < inLinks.length; i++) {
+            const inLink = inLinks[i];
+            inLink[navLinkMethod]("click", this.inlinkHandler);
+        }
+        const sortables = this.baseElement.querySelectorAll("th a.sortable");
+        for (let i = 0; i < sortables.length; i++) {
+            const sortable = sortables[i];
+            sortable[navLinkMethod]("click", this.sortableHandler);
         }
     }
     getPagination() {

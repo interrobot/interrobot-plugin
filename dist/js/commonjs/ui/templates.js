@@ -20,7 +20,7 @@ class Templates {
     static standardResults() {
         return `<div class="main__results"></div>`;
     }
-    static cellRendererSameAsLast(cellValue, rowData) {
+    static cellRendererSameAsLast(cellValue, rowData, i) {
         var _a;
         if (!("ID" in rowData)) {
             throw ("ID must be present to use cellHandlerSameAsLast");
@@ -33,18 +33,42 @@ class Templates {
         const lastId = (_a = Templates.cellHandlerSameAsLastMemo[cellHeading]) !== null && _a !== void 0 ? _a : "";
         const classes = [];
         // css class dims subsequent cell data when it is same id as last (the previous row)
-        if (lastId === currentId) {
+        // i > 0 gaurds a flipping of column sort column bugging out (last becomes first)
+        if (i > 0 && lastId === currentId) {
             classes.push("sameaslast");
         }
         Templates.cellHandlerSameAsLastMemo[cellHeading] = currentId;
         return { "classes": classes, "content": `${html_js_1.HtmlUtils.htmlEncode(cellValue)}` };
     }
-    static cellRendererSameAsLastLink(cellValue, rowData) {
-        const result = Templates.cellRendererSameAsLast(cellValue, rowData);
+    static cellRendererSameAsLastLink(cellValue, rowData, i) {
+        const result = Templates.cellRendererSameAsLast(cellValue, rowData, i);
         result["content"] = `<a class= "ulink" 
             data-id="${html_js_1.HtmlUtils.htmlEncode(rowData["ID"])}" 
             href="${html_js_1.HtmlUtils.htmlEncode(cellValue)}">${html_js_1.HtmlUtils.htmlEncode(cellValue)}</a>`;
         return result;
+    }
+    static cellRendererLinkedId(cellValue, rowData, i) {
+        const urlSearchParams = new URLSearchParams(window.location.search);
+        const params = Object.fromEntries(urlSearchParams.entries());
+        const origin = params.origin;
+        const projectId = params.project;
+        if (!origin || !projectId) {
+            throw ("missing required url arguments");
+        }
+        const interrobotPageDetail = `${origin}/search/${projectId}/resource/${cellValue}/`;
+        const result = {
+            "classes": [],
+            "content": `<a class= "ulink" href="${interrobotPageDetail}"
+                data-id="${html_js_1.HtmlUtils.htmlEncode(rowData["ID"])}" 
+                href="${html_js_1.HtmlUtils.htmlEncode(interrobotPageDetail)}">${html_js_1.HtmlUtils.htmlEncode(cellValue)}</a>`
+        };
+        return result;
+    }
+    static cellRendererWrappedContent(cellValue, rowData, i) {
+        return {
+            "classes": ["wrap"],
+            "content": `${html_js_1.HtmlUtils.htmlEncode(cellValue)}`,
+        };
     }
 }
 exports.Templates = Templates;

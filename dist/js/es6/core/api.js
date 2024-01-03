@@ -90,12 +90,17 @@ class PluginData {
         try {
             const jsonResponse = await result.json();
             const jsonResponseData = jsonResponse["data"];
+            const jsonResponseDataEmpty = Object.keys(jsonResponseData).length === 0;
             const merged = {};
             for (let k in this.defaultData) {
                 merged[k] = this.defaultData[k];
             }
             for (let k in jsonResponseData) {
                 merged[k] = jsonResponseData[k];
+            }
+            // if nothing is in the database, push the defaults (inc. meta)
+            if (jsonResponseDataEmpty) {
+                await this.updateData();
             }
             this.data = merged;
             this.dataLoaded = new Date();
@@ -274,7 +279,7 @@ class SearchResult {
         return this.content;
     }
     getContentTextOnly() {
-        // out is the haystack string builder, start with the url path
+        // out is the haystack string builder
         const out = [];
         let element = null;
         const texts = HtmlUtils.getDocumentCleanTextIterator(this.getContent());
@@ -282,8 +287,12 @@ class SearchResult {
         while (element !== null) {
             let elementValue = SearchResult.normalizeContentString(element.nodeValue);
             if (elementValue !== "") {
-                // elementValue can be a word, a sentence, or more
-                out.push.apply(out, elementValue.split(" "));
+                // filter empties
+                const elementValueWords = elementValue.split(" ").filter((word) => word !== "");
+                if (elementValueWords.length > 0) {
+                    // out.push.apply(out, elementValue.split(" "));
+                    out.push.apply(out, elementValueWords);
+                }
             }
             element = texts.iterateNext();
         }
@@ -307,7 +316,7 @@ class SearchResult {
         this.headers = "";
     }
 }
-SearchResult.wordPunctuationRe = /\s+(?=[\.,;:!\?])/g;
+SearchResult.wordPunctuationRe = /\s+(?=[\.,;:!\?] )/g;
 SearchResult.wordWhitespaceRe = /\s+/g;
 class Project {
     constructor(id, created, modified, url, imageDataUri) {

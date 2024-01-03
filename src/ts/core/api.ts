@@ -105,8 +105,10 @@ class PluginData {
         const endpoint = this.getDataEndpoint();
         const result = await fetch(endpoint);
         try {
-            const jsonResponse: JSON = await result.json();
+            const jsonResponse: JSON = await result.json();            
             const jsonResponseData: JSON = jsonResponse["data"];
+            const jsonResponseDataEmpty: boolean = Object.keys(jsonResponseData).length === 0;
+            
             const merged: {} = {};
             for (let k in this.defaultData) {
                 merged[k] = this.defaultData[k];
@@ -114,6 +116,12 @@ class PluginData {
             for (let k in jsonResponseData) {
                 merged[k] = jsonResponseData[k];
             }
+
+            // if nothing is in the database, push the defaults (inc. meta)
+            if (jsonResponseDataEmpty){
+                await this.updateData();
+            }
+            
             this.data = merged;
             this.dataLoaded = new Date();
         } catch {
@@ -294,7 +302,7 @@ class Search {
 
 class SearchResult {
 
-    private static readonly wordPunctuationRe: RegExp = /\s+(?=[\.,;:!\?])/g;
+    private static readonly wordPunctuationRe: RegExp = /\s+(?=[\.,;:!\?] )/g;
     private static readonly wordWhitespaceRe: RegExp = /\s+/g;
 
     // core
@@ -359,22 +367,28 @@ class SearchResult {
     }
 
     public getContentTextOnly() {
-        // out is the haystack string builder, start with the url path
+
+        // out is the haystack string builder
         const out: string[] = [];
         let element: Node = null;
-        const texts: XPathResult = HtmlUtils.getDocumentCleanTextIterator(this.getContent())
+        const texts: XPathResult = HtmlUtils.getDocumentCleanTextIterator(this.getContent());
+        
         element = texts.iterateNext();
         while (element !== null) {
             let elementValue: string = SearchResult.normalizeContentString(element.nodeValue);
             if (elementValue !== "") {
-                // elementValue can be a word, a sentence, or more
-                out.push.apply(out, elementValue.split(" "));
+                // filter empties
+                const elementValueWords: string[] = elementValue.split(" ").filter((word): boolean => word !== "");
+                if (elementValueWords.length > 0) {
+                    // out.push.apply(out, elementValue.split(" "));
+                    out.push.apply(out, elementValueWords);
+                }
             }
             element = texts.iterateNext();
         }
 
         // tidy up html to text, doesn't have to be perfect
-        let pageText = out.join(" ")
+        let pageText = out.join(" ");
         pageText = pageText.replace(SearchResult.wordPunctuationRe, "");
         pageText = pageText.replace(SearchResult.wordWhitespaceRe, " ");
         return pageText;
