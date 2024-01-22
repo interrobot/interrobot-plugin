@@ -14,46 +14,53 @@ class PluginData {
 
     private autoformInputs: HTMLElement[];
     private defaultData: {};
-    private data: {};
+    private data: {[key: string]: any};
     private dataLoaded: Date;
-    private meta: {};
+    private meta: { [key: string]: string };
+    private projectId: number;
 
-    public constructor(meta: {}, defaultData: {}, autoformInputs: HTMLElement[]) {
+    public constructor(projectId: number, meta: {}, defaultData: {}, autoformInputs: HTMLElement[]) {
 
         this.meta = meta;
         this.defaultData = defaultData;
         this.autoformInputs = autoformInputs;
+        this.projectId = projectId;
 
         // init and copy in default data
+        // autoform { [projectId: number]: {[inputName: string]: any } }
         this.data = {
-            generator: null,
             apiVersion: "1.1",
             autoform: {},
         };
-        for (let key in defaultData) {
-            this.data[key] = defaultData[key];
-        }
+        this.data.autoform[this.projectId] = {};
 
         if (autoformInputs.length > 0) {
 
-            const autoform = {};
-            const changeHandler = async (el: any) => {
-                
+            const changeHandler = async (el: any) => {                
                 let name: string = el.getAttribute("name");
-                const value: string = el.value;
+                const value = el.checked === undefined ? el.value : el.checked;
                 const data: {} = await this.getData();
-                const autoform: {} = data["autoform"] ?? {};
-                if (autoform[name] !== value) {
-                    // console.log(`${name} | ${value} | ${autoform}`);
-                    autoform[name] = value;
-                    await this.setDataField("autoform", autoform, true);
+                const autoformData: {} = data["autoform"] ?? {};
+                
+                const projectAutoformData: {} = autoformData[this.projectId] ?? {};
+                if (projectAutoformData[name] !== value) {
+                    // console.log(`${name} | ${value} | ${autoformData}`);
+                    
+                    projectAutoformData[name] = value;
+                    // necessary?
+                    // autoformData[projectId] = projectAutoformData;
+                    await this.setDataField("autoform", autoformData, true);
                 }
             }
-            
+
+            // const autoform = {};
+            // if (autoform[this.projectId] === null) {
+            //     autoform[this.projectId] = {};
+            // }
             for (let el of this.autoformInputs) {
                 const tag: string = el.tagName.toLowerCase();
-                const name: string = el.getAttribute("name");
-                autoform[name] = null;
+                // const name: string = el.getAttribute("name");
+                // autoform[name] = null;
                 
                 switch (tag) {
                     case "input":
@@ -101,39 +108,65 @@ class PluginData {
     }
 
     public async loadData(): Promise<void> {
-        
         const endpoint = this.getDataEndpoint();
+        const now = new Date().getTime();
         const result = await fetch(endpoint);
+        
         try {
-            const jsonResponse: JSON = await result.json();            
+            const jsonResponse: JSON = await result.json();
+            Plugin.logTiming(`Loaded options: ${endpoint}`, now);
+            console.log(jsonResponse);
             const jsonResponseData: JSON = jsonResponse["data"];
             const jsonResponseDataEmpty: boolean = Object.keys(jsonResponseData).length === 0;
             
             const merged: {} = {};
-            for (let k in this.defaultData) {
+            for (let k in this.defaultData) {                
+                const val: any = this.defaultData[k];
                 merged[k] = this.defaultData[k];
             }
+
+            // stored options overwrites default data, if available
             for (let k in jsonResponseData) {
+                const val: any = this.defaultData[k];
                 merged[k] = jsonResponseData[k];
             }
 
             // if nothing is in the database, push the defaults (inc. meta)
-            if (jsonResponseDataEmpty){
+            if (jsonResponseDataEmpty) {
+                this.data = merged;
                 await this.updateData();
             }
-            
+
             this.data = merged;
             this.dataLoaded = new Date();
         } catch {
             console.warn(`failed to load plugin data @ ${endpoint}`);
         }
 
-        for (let el of this.autoformInputs) {
-            const name = (el as HTMLInputElement).name;
-            if (!("autoform" in this.data)){
+        if (this.autoformInputs.length > 0) {
+            // init autoform if necessary
+            const defaultProjectData: {} = {};
+            if (!("autoform" in this.data)) {
                 this.data["autoform"] = {};
+            } else {
+                // legacy PluginData stored form data, handle
+                for (let key in this.data["autoform"]) {
+                    if (isNaN(parseInt(key, 10))) {
+                        delete this.data["autoform"][key];
+                    }
+                    // else presumed number (projectId) -- already project aware
+                }
+                // end legacy
             }
-            const val = this.data["autoform"][name] ?? null;
+            // init project level autoform, this is where input values stored
+            if (!(this.projectId in this.data["autoform"])) {
+                this.data["autoform"][this.projectId] = defaultProjectData;
+            }
+        }
+        // loop html elements, and set values to stored
+        for (let el of this.autoformInputs) {
+            const name = (el as HTMLInputElement).name;            
+            const val = this.data["autoform"][this.projectId][name] ?? null;
             let input;
             switch (el.tagName.toLowerCase()) {
                 case "input":
@@ -150,15 +183,19 @@ class PluginData {
             }
 
             if (input && val) {
-                input.value = val;
+                if (input.checked === undefined) {
+                    input.value = val;
+                } else {
+                    input.checked = val;
+                }
             }
         }
         return;
     }
 
     private async updateData(): Promise<void> {
-        const updateEndpoint = this.getDataEndpoint();
-        const data: any = await this.getData();
+        const updateEndpoint = this.getDataEndpoint();        
+        const data: {} = await this.getData();        
         data["meta"] = this.meta;
         const dataUpload: string = JSON.stringify(data);
         const result = await fetch(updateEndpoint, {

@@ -276,22 +276,22 @@ class HtmlResultsTable {
 
             // two fields sort, e.g. id/crawl-order (numeric, acending) primary, term (alpha, acending) secondary
             const primaryAVal: string = a[primarySortOnIndex];            
-            const primaryAValNumber: number = parseInt(primaryAVal, 10);
+            const primaryAValNumber: number = parseFloat(primaryAVal);
             const primaryAValIsNumber: boolean = !(isNaN(primaryAValNumber));
 
             const primaryBVal: string = b[primarySortOnIndex];
-            const primaryBValNumber: number = parseInt(primaryBVal, 10);
+            const primaryBValNumber: number = parseFloat(primaryBVal);
             const primaryBValIsNumber: boolean = !(isNaN(primaryBValNumber));
 
             if (primaryAVal === primaryBVal) {
 
                 // tiebreaker on primary sort, sort secondary
                 const secondaryAVal: string = a[secondarySortOnIndex];
-                const secondaryAValNumber: number = parseInt(secondaryAVal, 10);
+                const secondaryAValNumber: number = parseFloat(secondaryAVal);
                 const secondaryAValIsNumber: boolean = !(isNaN(secondaryAValNumber));
 
                 const secondaryBVal: string = b[secondarySortOnIndex];
-                const secondaryBValNumber: number = parseInt(secondaryBVal, 10);
+                const secondaryBValNumber: number = parseFloat(secondaryBVal);
                 const secondaryBValIsNumber: boolean = !(isNaN(secondaryBValNumber));
 
                 return HtmlResultsTable.sortResultsHelper(secondaryAVal, secondaryAValNumber, secondaryAValIsNumber,
@@ -391,7 +391,6 @@ class HtmlResultsTable {
 
                 if (cellCallback) {
                     // pass in custom ui (buttons, whatever) here, in cellCallback
-                    // too many of these reduces laying around                    
                     const callbackResult = cellCallback(cell, rowHeadingMapped, i);
                     cellContents = callbackResult.content;
                     classes.push(...callbackResult.classes);
@@ -402,6 +401,7 @@ class HtmlResultsTable {
                     cellContents = `<a class="ulink" data-id="${HtmlUtils.htmlEncode(row[headingIdIndex])}" 
                         href="${HtmlUtils.htmlEncode(cell)}">${HtmlUtils.htmlEncode(cell)}</a>`;
                 }
+                // console.log(cell);
 
                 // cellContents is not escaped to allow cellContents to work with HTML tags
                 rowCells.push(`<td class="${HtmlUtils.htmlEncode(classes.join(" "))}">${cellContents}</td>`);

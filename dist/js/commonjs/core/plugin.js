@@ -94,7 +94,7 @@ class Plugin {
         window.addEventListener("resize", Plugin.postContentHeight);
     }
     async initData(meta, defaultData, autoform) {
-        this.data = new api_js_1.PluginData(meta, defaultData, autoform);
+        this.data = new api_js_1.PluginData(this.getProjectId(), meta, defaultData, autoform);
         await this.data.loadData();
     }
     async initAndGetData(meta, defaultData, autoform) {
@@ -107,7 +107,6 @@ class Plugin {
             const project = await api_js_1.Project.getApiProject(this.projectId);
             if (project === null) {
                 const errorMessage = `project id=${this.projectId} not found`;
-                console.error(errorMessage);
                 throw new Error(errorMessage);
             }
             this.project = project;

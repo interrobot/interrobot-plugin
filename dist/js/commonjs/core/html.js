@@ -10,7 +10,8 @@ class HtmlUtils {
     static getDocumentCleanText(html) {
         // remove dom nodes that hurt more than they help wrt search
         const dom = this.getDocument(html);
-        const textUnfriendly = dom.querySelectorAll("script, style, svg, noscript");
+        // iframes can contain (invalid html) text... seen with own eyes, html treated as text
+        const textUnfriendly = dom.querySelectorAll("script, style, svg, noscript, iframe");
         for (let i = textUnfriendly.length - 1; i >= 0; i--) {
             textUnfriendly[i].parentElement.removeChild(textUnfriendly[i]);
         }
@@ -54,5 +55,5 @@ class HtmlUtils {
     }
 }
 exports.HtmlUtils = HtmlUtils;
-HtmlUtils.urlsRegex = /(http(s)?:\/\/.)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/g;
-HtmlUtils.urlRegex = /^(http(s)?:\/\/.)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)$/;
+HtmlUtils.urlsRegex = /((([A-Za-z]{3,9}:(?:\/\/)?)(?:[\-;:&=\+\$,\w]+@)?[A-Za-z0-9\.\-]+|(?:www\.|[\-;:&=\+\$,\w]+@)[A-Za-z0-9\.\-]+)((?:\/[\+~%\/\.\w\-_]*)?\??(?:[\-\+=&;%@\.\w_]*)#?(?:[\.\!\/\\\w]*))?)/g;
+HtmlUtils.urlRegex = /^((([A-Za-z]{3,9}:(?:\/\/)?)(?:[\-;:&=\+\$,\w]+@)?[A-Za-z0-9\.\-]+|(?:www\.|[\-;:&=\+\$,\w]+@)[A-Za-z0-9\.\-]+)((?:\/[\+~%\/\.\w\-_]*)?\??(?:[\-\+=&;%@\.\w_]*)#?(?:[\.\!\/\\\w]*))?)$/;

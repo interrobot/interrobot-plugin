@@ -81,9 +81,11 @@ class Plugin {
         console.log(`🤖 [${seconds}s] ${msg}`);
     }
 
-    public data: PluginData;
+    
     private static origin: string;    
     private static contentScrollHeight: number;   
+
+    public data: PluginData;
     private projectId: number = -1;
     private mode: DarkMode = DarkMode.Light;
     private project: Project;
@@ -126,8 +128,8 @@ class Plugin {
         window.addEventListener("resize", Plugin.postContentHeight);
     }
     
-    public async initData(meta: {}, defaultData: any, autoform: HTMLElement[]): Promise<void> {
-        this.data = new PluginData(meta, defaultData, autoform);
+    public async initData(meta: {}, defaultData: {}, autoform: HTMLElement[]): Promise<void> {
+        this.data = new PluginData(this.getProjectId(), meta, defaultData, autoform);
         await this.data.loadData();
     }
 
@@ -142,7 +144,6 @@ class Plugin {
             const project: Project = await Project.getApiProject(this.projectId);
             if (project === null) {
                 const errorMessage = `project id=${this.projectId} not found`;
-                console.error(errorMessage);
                 throw new Error(errorMessage);
             }
             this.project = project;

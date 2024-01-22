@@ -9,7 +9,8 @@ declare class PluginData {
     private data;
     private dataLoaded;
     private meta;
-    constructor(meta: {}, defaultData: {}, autoformInputs: HTMLElement[]);
+    private projectId;
+    constructor(projectId: number, meta: {}, defaultData: {}, autoformInputs: HTMLElement[]);
     setDataField(key: string, value: any, push: boolean): Promise<void>;
     getData(): Promise<{}>;
     loadData(): Promise<void>;

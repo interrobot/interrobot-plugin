@@ -3,8 +3,8 @@
 
 class HtmlUtils {
 
-    private static readonly urlsRegex: RegExp = /(http(s)?:\/\/.)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/g;
-    private static readonly urlRegex: RegExp = /^(http(s)?:\/\/.)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)$/;
+    private static readonly urlsRegex: RegExp = /((([A-Za-z]{3,9}:(?:\/\/)?)(?:[\-;:&=\+\$,\w]+@)?[A-Za-z0-9\.\-]+|(?:www\.|[\-;:&=\+\$,\w]+@)[A-Za-z0-9\.\-]+)((?:\/[\+~%\/\.\w\-_]*)?\??(?:[\-\+=&;%@\.\w_]*)#?(?:[\.\!\/\\\w]*))?)/g;
+    private static readonly urlRegex: RegExp = /^((([A-Za-z]{3,9}:(?:\/\/)?)(?:[\-;:&=\+\$,\w]+@)?[A-Za-z0-9\.\-]+|(?:www\.|[\-;:&=\+\$,\w]+@)[A-Za-z0-9\.\-]+)((?:\/[\+~%\/\.\w\-_]*)?\??(?:[\-\+=&;%@\.\w_]*)#?(?:[\.\!\/\\\w]*))?)$/;
 
     public static getDocument(html: string): Document {
         return new DOMParser().parseFromString(html, "text/html");
@@ -13,7 +13,8 @@ class HtmlUtils {
     public static getDocumentCleanText(html: string): Document {
         // remove dom nodes that hurt more than they help wrt search
         const dom: Document = this.getDocument(html);
-        const textUnfriendly = dom.querySelectorAll("script, style, svg, noscript");
+        // iframes can contain (invalid html) text... seen with own eyes, html treated as text
+        const textUnfriendly = dom.querySelectorAll("script, style, svg, noscript, iframe");
         for (let i = textUnfriendly.length - 1; i >= 0; i--) {
             textUnfriendly[i].parentElement.removeChild(textUnfriendly[i]);
         }
@@ -44,7 +45,8 @@ class HtmlUtils {
         return texts.join(" ");
     }
 
-    public static isUrl(str: string): boolean {        
+    public static isUrl(str: string): boolean {     
+        
         return str.match(HtmlUtils.urlRegex) !== null;
         /*
         // return (URL as any).canParse();

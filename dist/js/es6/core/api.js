@@ -9,37 +9,42 @@ var SearchQueryType;
     SearchQueryType[SearchQueryType["Any"] = 2] = "Any";
 })(SearchQueryType || (SearchQueryType = {}));
 class PluginData {
-    constructor(meta, defaultData, autoformInputs) {
+    constructor(projectId, meta, defaultData, autoformInputs) {
         this.meta = meta;
         this.defaultData = defaultData;
         this.autoformInputs = autoformInputs;
+        this.projectId = projectId;
         // init and copy in default data
+        // autoform { [projectId: number]: {[inputName: string]: any } }
         this.data = {
-            generator: null,
             apiVersion: "1.1",
             autoform: {},
         };
-        for (let key in defaultData) {
-            this.data[key] = defaultData[key];
-        }
+        this.data.autoform[this.projectId] = {};
         if (autoformInputs.length > 0) {
-            const autoform = {};
             const changeHandler = async (el) => {
-                var _a;
+                var _a, _b;
                 let name = el.getAttribute("name");
-                const value = el.value;
+                const value = el.checked === undefined ? el.value : el.checked;
                 const data = await this.getData();
-                const autoform = (_a = data["autoform"]) !== null && _a !== void 0 ? _a : {};
-                if (autoform[name] !== value) {
-                    // console.log(`${name} | ${value} | ${autoform}`);
-                    autoform[name] = value;
-                    await this.setDataField("autoform", autoform, true);
+                const autoformData = (_a = data["autoform"]) !== null && _a !== void 0 ? _a : {};
+                const projectAutoformData = (_b = autoformData[this.projectId]) !== null && _b !== void 0 ? _b : {};
+                if (projectAutoformData[name] !== value) {
+                    // console.log(`${name} | ${value} | ${autoformData}`);
+                    projectAutoformData[name] = value;
+                    // necessary?
+                    // autoformData[projectId] = projectAutoformData;
+                    await this.setDataField("autoform", autoformData, true);
                 }
             };
+            // const autoform = {};
+            // if (autoform[this.projectId] === null) {
+            //     autoform[this.projectId] = {};
+            // }
             for (let el of this.autoformInputs) {
                 const tag = el.tagName.toLowerCase();
-                const name = el.getAttribute("name");
-                autoform[name] = null;
+                // const name: string = el.getAttribute("name");
+                // autoform[name] = null;
                 switch (tag) {
                     case "input":
                         const input = el;
@@ -86,20 +91,27 @@ class PluginData {
     async loadData() {
         var _a;
         const endpoint = this.getDataEndpoint();
+        const now = new Date().getTime();
         const result = await fetch(endpoint);
         try {
             const jsonResponse = await result.json();
+            Plugin.logTiming(`Loaded options: ${endpoint}`, now);
+            console.log(jsonResponse);
             const jsonResponseData = jsonResponse["data"];
             const jsonResponseDataEmpty = Object.keys(jsonResponseData).length === 0;
             const merged = {};
             for (let k in this.defaultData) {
+                const val = this.defaultData[k];
                 merged[k] = this.defaultData[k];
             }
+            // stored options overwrites default data, if available
             for (let k in jsonResponseData) {
+                const val = this.defaultData[k];
                 merged[k] = jsonResponseData[k];
             }
             // if nothing is in the database, push the defaults (inc. meta)
             if (jsonResponseDataEmpty) {
+                this.data = merged;
                 await this.updateData();
             }
             this.data = merged;
@@ -108,12 +120,31 @@ class PluginData {
         catch {
             console.warn(`failed to load plugin data @ ${endpoint}`);
         }
-        for (let el of this.autoformInputs) {
-            const name = el.name;
+        if (this.autoformInputs.length > 0) {
+            // init autoform if necessary
+            const defaultProjectData = {};
             if (!("autoform" in this.data)) {
                 this.data["autoform"] = {};
             }
-            const val = (_a = this.data["autoform"][name]) !== null && _a !== void 0 ? _a : null;
+            else {
+                // legacy PluginData stored form data, handle
+                for (let key in this.data["autoform"]) {
+                    if (isNaN(parseInt(key, 10))) {
+                        delete this.data["autoform"][key];
+                    }
+                    // else presumed number (projectId) -- already project aware
+                }
+                // end legacy
+            }
+            // init project level autoform, this is where input values stored
+            if (!(this.projectId in this.data["autoform"])) {
+                this.data["autoform"][this.projectId] = defaultProjectData;
+            }
+        }
+        // loop html elements, and set values to stored
+        for (let el of this.autoformInputs) {
+            const name = el.name;
+            const val = (_a = this.data["autoform"][this.projectId][name]) !== null && _a !== void 0 ? _a : null;
             let input;
             switch (el.tagName.toLowerCase()) {
                 case "input":
@@ -129,7 +160,12 @@ class PluginData {
                     break;
             }
             if (input && val) {
-                input.value = val;
+                if (input.checked === undefined) {
+                    input.value = val;
+                }
+                else {
+                    input.checked = val;
+                }
             }
         }
         return;
