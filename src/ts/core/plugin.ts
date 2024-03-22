@@ -53,13 +53,12 @@ class Plugin {
         }
     }
 
-    public static postOpenResourceLink(projectId: number, resourceId: number, openInBrowser: boolean): void {
+    public static postOpenResourceLink(resourceId: number, openInBrowser: boolean): void {
         const msg = {
             target: "interrobot",
             data: {
                 reportLink: {
                     openInBrowser: openInBrowser,
-                    projectId: projectId,
                     resourceId: resourceId,
                 }
             },
@@ -71,16 +70,50 @@ class Plugin {
         // meta { url, title, category, version, author, description}
         const msg = {
             target: "interrobot",
-            data: { reportMeta: meta },
+            data: {
+                reportMeta: meta
+            },
         };
         window.parent.postMessage(msg, "*");
+    }
+
+    public static async postApiRequest(apiMethod: string, apiKwargs: {}): Promise<any> {
+
+        // meta { url, title, category, version, author, description}
+        let result: any = null;
+        const getPromisedResult = async () => {
+            return new Promise((resolve: Function) => {
+                const listener = async (ev: MessageEvent) => {
+                    const evData: any = ev.data;
+                    if (evData.data && evData.data.hasOwnProperty("apiResponse")) {
+                        result = evData.data.apiResponse;
+                        window.removeEventListener("message", listener);
+                        resolve();
+                    }
+                }
+                const msg = {
+                    target: "interrobot",
+                    data: {
+                        apiRequest: {
+                            method: apiMethod,
+                            kwargs: apiKwargs,
+                        }
+                    },
+                };
+                // listen for response to postmessage api request with listener()
+                window.addEventListener("message", listener);
+                window.parent.window.postMessage(msg, window.parent.origin);                
+            });
+        }
+        
+        await getPromisedResult();
+        return result;
     }
 
     public static logTiming(msg: string, millis: number): void {
         const seconds = (millis / 1000).toFixed(3);
         console.log(`🤖 [${seconds}s] ${msg}`);
     }
-
     
     private static origin: string;    
     private static contentScrollHeight: number;   
@@ -172,7 +205,7 @@ class Plugin {
         this.render(`
             <div class="main__heading">
                 <div class="main__heading__icon">
-                    <img id="projectIcon" src="${project.getImageDataUri()}" alt="Icon for @crawlView.DisplayTitle" />
+                    <img id="projectIcon" src="${project.getImageDataUri()}" alt="Project icon for ${project.getDisplayTitle()}" />
                 </div>
                 <div class="main__heading__title">
                     <h1>${Plugin.meta["title"]}</h1>
@@ -245,7 +278,6 @@ class Plugin {
     protected async report(titleWords) {
 
         // sort titleWords by count, then by term
-        // const titleWordsRemap = new Map<string, number>([...titleWords.entries()].sort(
         const titleWordsRemap = new Map<string, number>([...titleWords.entries()].sort(            
             (a, b) => {
                 const aVal: number = a[1];

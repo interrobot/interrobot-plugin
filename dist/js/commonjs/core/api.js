@@ -34,21 +34,13 @@ class PluginData {
                 const autoformData = (_a = data["autoform"]) !== null && _a !== void 0 ? _a : {};
                 const projectAutoformData = (_b = autoformData[this.projectId]) !== null && _b !== void 0 ? _b : {};
                 if (projectAutoformData[name] !== value) {
-                    // console.log(`${name} | ${value} | ${autoformData}`);
                     projectAutoformData[name] = value;
-                    // necessary?
-                    // autoformData[projectId] = projectAutoformData;
+                    // necessary? autoformData[projectId] = projectAutoformData;
                     await this.setDataField("autoform", autoformData, true);
                 }
             };
-            // const autoform = {};
-            // if (autoform[this.projectId] === null) {
-            //     autoform[this.projectId] = {};
-            // }
             for (let el of this.autoformInputs) {
                 const tag = el.tagName.toLowerCase();
-                // const name: string = el.getAttribute("name");
-                // autoform[name] = null;
                 switch (tag) {
                     case "input":
                         const input = el;
@@ -94,14 +86,17 @@ class PluginData {
     }
     async loadData() {
         var _a;
-        const endpoint = this.getDataEndpoint();
-        const now = new Date().getTime();
-        const result = await fetch(endpoint);
+        const kwargs = {
+            "pluginUrl": window.location.href,
+        };
+        const startTime = new Date().getTime();
+        const result = await plugin_js_1.Plugin.postApiRequest("GetPluginData", kwargs);
+        const endTime = new Date().getTime();
         try {
-            const jsonResponse = await result.json();
-            plugin_js_1.Plugin.logTiming(`Loaded options: ${endpoint}`, now);
-            console.log(jsonResponse);
-            const jsonResponseData = jsonResponse["data"];
+            // const jsonResponse: JSON = await result.json();
+            plugin_js_1.Plugin.logTiming(`Loaded options: ${JSON.stringify(kwargs)}`, endTime - startTime);
+            // console.log(jsonResponse);
+            const jsonResponseData = result["data"];
             const jsonResponseDataEmpty = Object.keys(jsonResponseData).length === 0;
             const merged = {};
             for (let k in this.defaultData) {
@@ -122,7 +117,7 @@ class PluginData {
             this.dataLoaded = new Date();
         }
         catch {
-            console.warn(`failed to load plugin data @ ${endpoint}`);
+            console.warn(`failed to load plugin data @ \n${JSON.stringify(kwargs)}`);
         }
         if (this.autoformInputs.length > 0) {
             // init autoform if necessary
@@ -131,7 +126,7 @@ class PluginData {
                 this.data["autoform"] = {};
             }
             else {
-                // legacy PluginData stored form data, handle
+                // legacy PluginData stored form data, handle/remove
                 for (let key in this.data["autoform"]) {
                     if (isNaN(parseInt(key, 10))) {
                         delete this.data["autoform"][key];
@@ -175,10 +170,19 @@ class PluginData {
         return;
     }
     async updateData() {
-        const updateEndpoint = this.getDataEndpoint();
+        // const updateEndpoint = this.getDataEndpoint();        
         const data = await this.getData();
         data["meta"] = this.meta;
-        const dataUpload = JSON.stringify(data);
+        const kwargs = {
+            pluginUrl: window.location.href,
+            pluginData: data,
+        };
+        const result = await plugin_js_1.Plugin.postApiRequest("SetPluginData", kwargs);
+        return;
+        /*
+        const response = await fetch(`${Plugin.getHostOrigin()}/api/v2/projects/?fields=image&ids=${id}`);
+        const projects = await response.json();
+        const dataUpload: string = JSON.stringify(data);
         const result = await fetch(updateEndpoint, {
             method: "post",
             headers: {
@@ -187,14 +191,17 @@ class PluginData {
             },
             body: dataUpload
         });
-        const json = await result.json();
+        const json: JSON = await result.json();
         return;
+        */
     }
-    getDataEndpoint() {
+    getDataSlug() {
         const key = this.getPluginUrl();
         const b64Key = btoa(key);
-        const updateEndpoint = `${plugin_js_1.Plugin.getHostOrigin()}/api/v2/plugins/${encodeURIComponent(b64Key)}/data/`;
-        return updateEndpoint;
+        return b64Key;
+    }
+    getDataEndpoint() {
+        return `${plugin_js_1.Plugin.getHostOrigin()}/api/v2/plugins/${encodeURIComponent(this.getDataSlug())}/data/`;
     }
     getPluginUrl() {
         return `${window.location.protocol}//${window.location.host}${window.location.pathname}`;
@@ -245,13 +252,35 @@ class Search {
             Search.resultsHaystackCacheKey = query.getHaystackCacheKey();
             Search.resultsCacheTotal = 0;
         }
-        const resultsPageBase = `${plugin_js_1.Plugin.getHostOrigin()}/api/v2/projects/${query.projectId}/resources/`;
+        /*
+        HTTP/old
+        const resultsPageBase = `${Plugin.getHostOrigin()}/api/v2/projects/${query.projectId}/resources/`;
         const resultsPageQuery = `query=${encodeURIComponent(query.query)}`
             + `&type=${SearchQueryType[query.type].toLowerCase()}&external=${Number(query.includeExternal)}`
             + `&fields=${encodeURIComponent(query.fields)}&offset=0`;
         const resultsPageUrl = `${resultsPageBase}?${resultsPageQuery}`;
         let response = await fetch(resultsPageUrl);
         let responseJson = await response.json();
+        while (responseJson["__meta__"]["results"]["pagination"]["next"] !== null) {
+            const next = responseJson["__meta__"]["results"]["pagination"]["next"];
+            response = await fetch(next);
+            responseJson = await response.json();
+            results = responseJson.results;
+            for (let i = 0; i < results.length; i++) {
+                const result = results[i];
+                await Search.handleResult(result, resultTotal, resultHandler);
+            }
+        }
+        */
+        const kwargs = {
+            "projectId": query.projectId,
+            "query": query.query,
+            "external": query.includeExternal,
+            "type": SearchQueryType[query.type].toLowerCase(),
+            "offset": 0,
+            "fields": query.fields.split("|"),
+        };
+        let responseJson = await plugin_js_1.Plugin.postApiRequest("GetResources", kwargs);
         const resultTotal = responseJson["__meta__"]["results"]["total"];
         Search.resultsCacheTotal = resultTotal;
         let results = responseJson.results;
@@ -259,10 +288,10 @@ class Search {
             const result = results[i];
             await Search.handleResult(result, resultTotal, resultHandler);
         }
-        while (responseJson["__meta__"]["results"]["pagination"]["next"] !== null) {
-            const next = responseJson["__meta__"]["results"]["pagination"]["next"];
-            response = await fetch(next);
-            responseJson = await response.json();
+        while (responseJson["__meta__"]["results"]["pagination"]["nextOffset"] !== null) {
+            const next = responseJson["__meta__"]["results"]["pagination"]["nextOffset"];
+            kwargs["offset"] = next;
+            responseJson = await plugin_js_1.Plugin.postApiRequest("GetResources", kwargs);
             results = responseJson.results;
             for (let i = 0; i < results.length; i++) {
                 const result = results[i];
@@ -333,7 +362,6 @@ class SearchResult {
                 // filter empties
                 const elementValueWords = elementValue.split(" ").filter((word) => word !== "");
                 if (elementValueWords.length > 0) {
-                    // out.push.apply(out, elementValue.split(" "));
                     out.push.apply(out, elementValueWords);
                 }
             }
@@ -380,8 +408,13 @@ class Project {
         return new URL(this.url).hostname;
     }
     static async getApiProject(id) {
-        const response = await fetch(`${plugin_js_1.Plugin.getHostOrigin()}/api/v2/projects/?fields=image&ids=${id}`);
-        const projects = await response.json();
+        const kwargs = {
+            "ids": [id],
+            "fields": ["image"],
+        };
+        // const response = await fetch(`${Plugin.getHostOrigin()}/api/v2/projects/?fields=image&ids=${id}`);
+        // const projects = await response.json();
+        const projects = await plugin_js_1.Plugin.postApiRequest("GetProjects", kwargs);
         const results = projects.results;
         for (let i = 0; i < results.length; i++) {
             const project = results[i];
@@ -394,6 +427,7 @@ class Project {
                 return new Project(id, created, modified, url, imageDataUri);
             }
         }
+        // not found
         return null;
     }
 }

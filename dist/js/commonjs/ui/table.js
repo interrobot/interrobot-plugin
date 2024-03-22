@@ -91,17 +91,17 @@ class HtmlResultsTable {
             this.renderSection();
             plugin_js_1.Plugin.postContentHeight();
         };
-        this.outlinkHandler = (ev) => {
+        this.browserLinkHandler = (ev) => {
             const anchor = ev.target;
             const openInBrowser = true;
-            plugin_js_1.Plugin.postOpenResourceLink(this.projectId, Number(anchor.dataset.id), openInBrowser);
+            plugin_js_1.Plugin.postOpenResourceLink(Number(anchor.dataset.id), openInBrowser);
             ev.preventDefault();
             ev.stopPropagation();
         };
-        this.inlinkHandler = (ev) => {
+        this.appLinkHandler = (ev) => {
             const anchor = ev.target;
             const openInBrowser = false;
-            plugin_js_1.Plugin.postOpenResourceLink(this.projectId, Number(anchor.dataset.id), openInBrowser);
+            plugin_js_1.Plugin.postOpenResourceLink(Number(anchor.dataset.id), openInBrowser);
             ev.preventDefault();
             ev.stopPropagation();
         };
@@ -202,7 +202,6 @@ class HtmlResultsTable {
             console.warn(`Heading '${this.resultsSort.primaryHeading}' not found, aborting sort`);
             return;
         }
-        // console.log(`${primaryHeading} | ${primarySort} | ${secondaryHeading} | ${secondarySort}`);
         const compoundSort = (a, b) => {
             // two fields sort, e.g. id/crawl-order (numeric, acending) primary, term (alpha, acending) secondary
             const primaryAVal = a[primarySortOnIndex];
@@ -359,8 +358,8 @@ class HtmlResultsTable {
                     <span class="info__dl">
                         <button class="icon">\`</button>
                         <ul class="info__dl__ulink">
-                            <li><a class="ulink" href="#" data-format="csv" download="download">Download CSV</a></li>
-                            <li><a class="ulink" href="#" data-format="xlsx" download="download">Download Excel</a></li>
+                            <li><a class="ulink" href="#" data-format="csv" download="download">Export CSV</a></li>
+                            <li><a class="ulink" href="#" data-format="xlsx" download="download">Export Excel</a></li>
                         </ul>
                     </span>
                     <span class="info__results"><span class="info__results__nobr">
@@ -420,15 +419,15 @@ class HtmlResultsTable {
         for (let button of customButtons) {
             button[navLinkMethod]("click", this.cellHandler);
         }
-        const outLinks = this.baseElement.querySelectorAll("td.url a");
-        for (let i = 0; i < outLinks.length; i++) {
-            const outLink = outLinks[i];
-            outLink[navLinkMethod]("click", this.outlinkHandler);
+        const browserLinks = this.baseElement.querySelectorAll("td.url a");
+        for (let i = 0; i < browserLinks.length; i++) {
+            const browserLink = browserLinks[i];
+            browserLink[navLinkMethod]("click", this.browserLinkHandler);
         }
-        const inLinks = this.baseElement.querySelectorAll("td.column__id a");
-        for (let i = 0; i < inLinks.length; i++) {
-            const inLink = inLinks[i];
-            inLink[navLinkMethod]("click", this.inlinkHandler);
+        const appLinks = this.baseElement.querySelectorAll("td.column__id a");
+        for (let i = 0; i < appLinks.length; i++) {
+            const appLink = appLinks[i];
+            appLink[navLinkMethod]("click", this.appLinkHandler);
         }
         const sortables = this.baseElement.querySelectorAll("th a.sortable");
         for (let i = 0; i < sortables.length; i++) {

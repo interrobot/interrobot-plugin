@@ -16,12 +16,20 @@ class HtmlProcessingWidget {
         this.baseElement.classList.add("processing", "hidden");
         this.baseElement.innerHTML = ``;
         document.addEventListener("SearchResultHandled", async (ev) => {
-            this.baseElement.innerHTML = `${this.prefix}
+            const evdTotal = ev.detail.resultTotal;
+            const evdLoaded = ev.detail.resultNum;
+            const evdPercent = Math.ceil((evdLoaded / evdTotal) * 100);
+            const currentPercent = Math.ceil((this.loaded / this.total) * 100);
+            if (evdPercent > 100.0 || currentPercent === 100.0) {
+                // out of order or freak event, close up shop (rather, keep shop closed)
+                this.baseElement.classList.remove("throbbing");
+                return;
+            }
+            this.total = evdTotal;
+            this.loaded = evdLoaded;
+            this.baseElement.innerHTML = evdPercent > 100 ? "" : `${this.prefix}
                 <span class="resultNum">##</span>/<span class="resultTotal">##</span>
                 (<span class="percentTotal">##</span>)`;
-            this.total = ev.detail.resultTotal;
-            this.loaded = ev.detail.resultNum;
-            const percent = Math.ceil((this.loaded / this.total) * 100);
             const resultNum = this.baseElement.querySelector(".resultNum");
             if (resultNum) {
                 resultNum.innerText = `${ev.detail.resultNum.toLocaleString()}`;
@@ -32,12 +40,12 @@ class HtmlProcessingWidget {
             }
             const percentTotal = this.baseElement.querySelector(".percentTotal");
             if (percentTotal) {
-                percentTotal.innerText = `${percent}%`;
+                percentTotal.innerText = `${evdPercent}%`;
             }
             // (qs(".resultNum") as HTMLElement).innerText = `${ev.detail.resultNum.toLocaleString()}`;
             // (qs(".resultTotal") as HTMLElement).innerText = `${ev.detail.resultTotal.toLocaleString()}`;
             // (qs(".percentTotal") as HTMLElement).innerText = `${percent}%`;
-            if ([0, 100].indexOf(percent) >= 0) {
+            if ([0, 100].indexOf(evdPercent) >= 0) {
                 this.baseElement.classList.remove("throbbing");
             }
             else {

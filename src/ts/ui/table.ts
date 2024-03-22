@@ -78,8 +78,8 @@ class HtmlResultsTable {
     private downloadHandler: Function;
     private downloadMenuHandler: Function;
     private cellHandler: Function;
-    private outlinkHandler: Function;
-    private inlinkHandler: Function;
+    private browserLinkHandler: Function;
+    private appLinkHandler: Function;
     private sortableHandler: Function;
     
     public static createElement(parentElement: HTMLElement, projectId: number, perPage: number,
@@ -142,18 +142,18 @@ class HtmlResultsTable {
             Plugin.postContentHeight();
         };
 
-        this.outlinkHandler = (ev: MouseEvent) => {
+        this.browserLinkHandler = (ev: MouseEvent) => {
             const anchor = ev.target as HTMLAnchorElement;
             const openInBrowser = true;
-            Plugin.postOpenResourceLink(this.projectId, Number(anchor.dataset.id), openInBrowser);
+            Plugin.postOpenResourceLink(Number(anchor.dataset.id), openInBrowser);
             ev.preventDefault();
             ev.stopPropagation();            
         };
 
-        this.inlinkHandler = (ev: MouseEvent) => {
+        this.appLinkHandler = (ev: MouseEvent) => {
             const anchor = ev.target as HTMLAnchorElement;
             const openInBrowser = false;
-            Plugin.postOpenResourceLink(this.projectId, Number(anchor.dataset.id), openInBrowser);
+            Plugin.postOpenResourceLink(Number(anchor.dataset.id), openInBrowser);
             ev.preventDefault();
             ev.stopPropagation();
         };
@@ -269,9 +269,7 @@ class HtmlResultsTable {
             console.warn(`Heading '${this.resultsSort.primaryHeading}' not found, aborting sort`);
             return;
         }
-
-        // console.log(`${primaryHeading} | ${primarySort} | ${secondaryHeading} | ${secondarySort}`);
-
+        
         const compoundSort: any = (a: string[], b: string[]) => {
 
             // two fields sort, e.g. id/crawl-order (numeric, acending) primary, term (alpha, acending) secondary
@@ -457,8 +455,8 @@ class HtmlResultsTable {
                     <span class="info__dl">
                         <button class="icon">\`</button>
                         <ul class="info__dl__ulink">
-                            <li><a class="ulink" href="#" data-format="csv" download="download">Download CSV</a></li>
-                            <li><a class="ulink" href="#" data-format="xlsx" download="download">Download Excel</a></li>
+                            <li><a class="ulink" href="#" data-format="csv" download="download">Export CSV</a></li>
+                            <li><a class="ulink" href="#" data-format="xlsx" download="download">Export Excel</a></li>
                         </ul>
                     </span>
                     <span class="info__results"><span class="info__results__nobr">
@@ -529,16 +527,16 @@ class HtmlResultsTable {
             button[navLinkMethod]("click", this.cellHandler);
         }
 
-        const outLinks: NodeListOf<HTMLAnchorElement> = this.baseElement.querySelectorAll("td.url a");
-        for (let i = 0; i < outLinks.length; i++) {
-            const outLink: HTMLAnchorElement = outLinks[i] as HTMLAnchorElement;
-            outLink[navLinkMethod]("click", this.outlinkHandler);
+        const browserLinks: NodeListOf<HTMLAnchorElement> = this.baseElement.querySelectorAll("td.url a");
+        for (let i = 0; i < browserLinks.length; i++) {
+            const browserLink: HTMLAnchorElement = browserLinks[i] as HTMLAnchorElement;
+            browserLink[navLinkMethod]("click", this.browserLinkHandler);
         }
 
-        const inLinks: NodeListOf<HTMLAnchorElement> = this.baseElement.querySelectorAll("td.column__id a");
-        for (let i = 0; i < inLinks.length; i++) {
-            const inLink: HTMLAnchorElement = inLinks[i] as HTMLAnchorElement;
-            inLink[navLinkMethod]("click", this.inlinkHandler);
+        const appLinks: NodeListOf<HTMLAnchorElement> = this.baseElement.querySelectorAll("td.column__id a");
+        for (let i = 0; i < appLinks.length; i++) {
+            const appLink: HTMLAnchorElement = appLinks[i] as HTMLAnchorElement;
+            appLink[navLinkMethod]("click", this.appLinkHandler);
         }
 
         const sortables: NodeListOf<HTMLAnchorElement> = this.baseElement.querySelectorAll("th a.sortable");

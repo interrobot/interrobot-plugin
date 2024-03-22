@@ -15,6 +15,7 @@ declare class PluginData {
     getData(): Promise<{}>;
     loadData(): Promise<void>;
     private updateData;
+    private getDataSlug;
     private getDataEndpoint;
     private getPluginUrl;
 }

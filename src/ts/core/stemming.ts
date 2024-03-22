@@ -58,7 +58,6 @@ class SnowballStemmer {
     public getLanguage(): string {
         return this.language;
     }
-
 }
 
 export { SnowballStemmer };

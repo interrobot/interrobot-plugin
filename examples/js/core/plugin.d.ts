@@ -3,8 +3,9 @@ declare class Plugin {
     static readonly meta: {};
     static getHostOrigin(): string;
     static postContentHeight(): void;
-    static postOpenResourceLink(projectId: number, resourceId: number, openInBrowser: boolean): void;
+    static postOpenResourceLink(resourceId: number, openInBrowser: boolean): void;
     static postMeta(meta: {}): void;
+    static postApiRequest(apiMethod: string, apiKwargs: {}): Promise<any>;
     static logTiming(msg: string, millis: number): void;
     private static origin;
     private static contentScrollHeight;

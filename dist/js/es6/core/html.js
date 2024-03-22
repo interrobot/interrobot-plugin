@@ -37,15 +37,7 @@ class HtmlUtils {
     }
     static isUrl(str) {
         return str.match(HtmlUtils.urlRegex) !== null;
-        /*
         // return (URL as any).canParse();
-        try {
-            return Boolean(new URL(str));
-        }
-        catch (ex) {
-            return false;
-        }
-        */
     }
     static htmlEncode(str) {
         return new Option(str).innerHTML;

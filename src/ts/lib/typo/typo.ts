@@ -1,4 +1,5 @@
 ﻿/**
+ * @license
  * This code may be useful for anyone trying to escape the 
  * JS packaging vortex (0 dependency, pure ts, single source file). 
  * For anyone else, you're better off using your favorite package 

@@ -44,24 +44,14 @@ class PluginData {
                 
                 const projectAutoformData: {} = autoformData[this.projectId] ?? {};
                 if (projectAutoformData[name] !== value) {
-                    // console.log(`${name} | ${value} | ${autoformData}`);
-                    
                     projectAutoformData[name] = value;
-                    // necessary?
-                    // autoformData[projectId] = projectAutoformData;
+                    // necessary? autoformData[projectId] = projectAutoformData;
                     await this.setDataField("autoform", autoformData, true);
                 }
             }
-
-            // const autoform = {};
-            // if (autoform[this.projectId] === null) {
-            //     autoform[this.projectId] = {};
-            // }
+            
             for (let el of this.autoformInputs) {
-                const tag: string = el.tagName.toLowerCase();
-                // const name: string = el.getAttribute("name");
-                // autoform[name] = null;
-                
+                const tag: string = el.tagName.toLowerCase();                
                 switch (tag) {
                     case "input":
                         const input: HTMLInputElement = el as HTMLInputElement;                        
@@ -108,15 +98,18 @@ class PluginData {
     }
 
     public async loadData(): Promise<void> {
-        const endpoint = this.getDataEndpoint();
-        const now = new Date().getTime();
-        const result = await fetch(endpoint);
         
+        const kwargs = {
+            "pluginUrl": window.location.href,
+        };
+        const startTime = new Date().getTime();
+        const result = await Plugin.postApiRequest("GetPluginData", kwargs);
+        const endTime = new Date().getTime();
         try {
-            const jsonResponse: JSON = await result.json();
-            Plugin.logTiming(`Loaded options: ${endpoint}`, now);
-            console.log(jsonResponse);
-            const jsonResponseData: JSON = jsonResponse["data"];
+            // const jsonResponse: JSON = await result.json();
+            Plugin.logTiming(`Loaded options: ${JSON.stringify(kwargs)}`, endTime - startTime);
+            // console.log(jsonResponse);
+            const jsonResponseData: JSON = result["data"];
             const jsonResponseDataEmpty: boolean = Object.keys(jsonResponseData).length === 0;
             
             const merged: {} = {};
@@ -140,7 +133,7 @@ class PluginData {
             this.data = merged;
             this.dataLoaded = new Date();
         } catch {
-            console.warn(`failed to load plugin data @ ${endpoint}`);
+            console.warn(`failed to load plugin data @ \n${JSON.stringify(kwargs)}`);
         }
 
         if (this.autoformInputs.length > 0) {
@@ -149,7 +142,7 @@ class PluginData {
             if (!("autoform" in this.data)) {
                 this.data["autoform"] = {};
             } else {
-                // legacy PluginData stored form data, handle
+                // legacy PluginData stored form data, handle/remove
                 for (let key in this.data["autoform"]) {
                     if (isNaN(parseInt(key, 10))) {
                         delete this.data["autoform"][key];
@@ -194,9 +187,21 @@ class PluginData {
     }
 
     private async updateData(): Promise<void> {
-        const updateEndpoint = this.getDataEndpoint();        
+        // const updateEndpoint = this.getDataEndpoint();        
         const data: {} = await this.getData();        
         data["meta"] = this.meta;
+
+        const kwargs = {
+            pluginUrl: window.location.href,
+            pluginData: data,
+        };
+
+        const result = await Plugin.postApiRequest("SetPluginData", kwargs);
+        return;
+        
+        /*
+        const response = await fetch(`${Plugin.getHostOrigin()}/api/v2/projects/?fields=image&ids=${id}`);
+        const projects = await response.json();
         const dataUpload: string = JSON.stringify(data);
         const result = await fetch(updateEndpoint, {
             method: "post",
@@ -208,19 +213,22 @@ class PluginData {
         });
         const json: JSON = await result.json();
         return;
+        */
+    }
+
+    private getDataSlug(): string {
+        const key: string = this.getPluginUrl();
+        const b64Key: string = btoa(key);
+        return b64Key;
     }
 
     private getDataEndpoint(): string {
-        const key: string = this.getPluginUrl();
-        const b64Key: string = btoa(key);
-        const updateEndpoint = `${Plugin.getHostOrigin()}/api/v2/plugins/${encodeURIComponent(b64Key)}/data/`;
-        return updateEndpoint;
+        return `${Plugin.getHostOrigin()}/api/v2/plugins/${encodeURIComponent(this.getDataSlug())}/data/`;
     }
 
     private getPluginUrl(): string {
         return `${window.location.protocol}//${window.location.host}${window.location.pathname}`;
     }
-
 }
 
 class SearchQuery {
@@ -289,22 +297,15 @@ class Search {
             Search.resultsCacheTotal = 0;
         }
 
+        /*
+        HTTP/old
         const resultsPageBase = `${Plugin.getHostOrigin()}/api/v2/projects/${query.projectId}/resources/`;
         const resultsPageQuery = `query=${encodeURIComponent(query.query)}` 
             + `&type=${SearchQueryType[query.type].toLowerCase()}&external=${Number(query.includeExternal)}`
             + `&fields=${encodeURIComponent(query.fields)}&offset=0`;
         const resultsPageUrl = `${resultsPageBase}?${resultsPageQuery}`;
         let response = await fetch(resultsPageUrl);
-        let responseJson = await response.json();
-        const resultTotal: number = responseJson["__meta__"]["results"]["total"];
-        Search.resultsCacheTotal = resultTotal;
-        let results = responseJson.results;
-
-        for (let i = 0; i < results.length; i++) {
-            const result = results[i];
-            await Search.handleResult(result, resultTotal, resultHandler);
-        }
-
+        let responseJson = await response.json();        
         while (responseJson["__meta__"]["results"]["pagination"]["next"] !== null) {
             const next = responseJson["__meta__"]["results"]["pagination"]["next"];
             response = await fetch(next);
@@ -315,6 +316,39 @@ class Search {
                 await Search.handleResult(result, resultTotal, resultHandler);
             }
         }
+        */
+
+        const kwargs = {
+            "projectId": query.projectId,
+            "query": query.query,
+            "external": query.includeExternal,
+            "type": SearchQueryType[query.type].toLowerCase(),
+            "offset": 0,
+            "fields": query.fields.split("|"),
+        };
+
+        let responseJson: any = await Plugin.postApiRequest("GetResources", kwargs);
+        const resultTotal: number = responseJson["__meta__"]["results"]["total"];
+        Search.resultsCacheTotal = resultTotal;
+        let results = responseJson.results;
+        for (let i = 0; i < results.length; i++) {
+            const result = results[i];
+            await Search.handleResult(result, resultTotal, resultHandler);
+        }
+        
+        while (responseJson["__meta__"]["results"]["pagination"]["nextOffset"] !== null) {
+
+            const next = responseJson["__meta__"]["results"]["pagination"]["nextOffset"];
+            kwargs["offset"] = next;
+            responseJson = await Plugin.postApiRequest("GetResources", kwargs);
+            
+            results = responseJson.results;
+            for (let i = 0; i < results.length; i++) {
+                const result = results[i];
+                await Search.handleResult(result, resultTotal, resultHandler);
+            }
+        }
+
         Plugin.logTiming(`Loaded/processed ${resultTotal.toLocaleString()} search result(s)`,
             new Date().getTime() - timeStart);
         return false;
@@ -323,8 +357,7 @@ class Search {
     private static async sleep(millis: number): Promise<void> {
         return new Promise((resolve) => setTimeout(() => resolve(), millis));
     }
-
-
+    
     private static async handleResult(jsonResult: any, resultTotal: number, resultHandler: any) {
         const searchResult: SearchResult = new SearchResult(jsonResult);
         await resultHandler(searchResult);
@@ -332,9 +365,7 @@ class Search {
         const event: CustomEvent = new CustomEvent("SearchResultHandled",
             { detail: { resultNum: resultNum, resultTotal: resultTotal } });
         document.dispatchEvent(event);
-    }
-
-    
+    }   
 }
 
 class SearchResult {
@@ -346,6 +377,7 @@ class SearchResult {
     public readonly result: number;
     public readonly id: number;
     public readonly url: string;
+
     // optional
     public readonly status: number;
     public readonly time: number;
@@ -417,10 +449,10 @@ class SearchResult {
                 // filter empties
                 const elementValueWords: string[] = elementValue.split(" ").filter((word): boolean => word !== "");
                 if (elementValueWords.length > 0) {
-                    // out.push.apply(out, elementValue.split(" "));
                     out.push.apply(out, elementValueWords);
                 }
             }
+
             element = texts.iterateNext();
         }
 
@@ -473,8 +505,14 @@ class Project {
     }
 
     public static async getApiProject(id: number): Promise<Project> {
-        const response = await fetch(`${Plugin.getHostOrigin()}/api/v2/projects/?fields=image&ids=${id}`);
-        const projects = await response.json();
+        const kwargs = {
+            "ids": [id],
+            "fields": ["image"],
+        };
+
+        // const response = await fetch(`${Plugin.getHostOrigin()}/api/v2/projects/?fields=image&ids=${id}`);
+        // const projects = await response.json();
+        const projects = await Plugin.postApiRequest("GetProjects", kwargs);
         const results = projects.results;
         for (let i = 0; i < results.length; i++) {
             const project = results[i];
@@ -487,6 +525,7 @@ class Project {
                 return new Project(id, created, modified, url, imageDataUri);
             }
         }
+        // not found
         return null;
     }
 }

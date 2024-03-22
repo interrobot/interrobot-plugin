@@ -32,8 +32,8 @@ declare class HtmlResultsTable {
     private downloadHandler;
     private downloadMenuHandler;
     private cellHandler;
-    private outlinkHandler;
-    private inlinkHandler;
+    private browserLinkHandler;
+    private appLinkHandler;
     private sortableHandler;
     static createElement(parentElement: HTMLElement, projectId: number, perPage: number, header: string, headings: string[], results: string[][], resultsSort: HTMLResultsTableSort, rowRenderer: Function, cellRenderer: {}, cellHandler: Function, exportExtra: Object): HtmlResultsTable;
     static generateFormatedColumnNumber(num: number): string;

@@ -45,18 +45,10 @@ class HtmlUtils {
         return texts.join(" ");
     }
 
-    public static isUrl(str: string): boolean {     
+    public static isUrl(str: string): boolean {
         
         return str.match(HtmlUtils.urlRegex) !== null;
-        /*
         // return (URL as any).canParse();
-        try {
-            return Boolean(new URL(str));
-        }
-        catch (ex) {
-            return false;
-        }
-        */
     }
 
     public static htmlEncode(str: string) {
