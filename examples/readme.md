@@ -16,10 +16,11 @@ If using a production server, you'll need to allow your page to be iframed. Thes
 
 There are two ways to accomplish this.
 
-* Omit CSP (Content-Security-Policy) and/or X-Frame-Options headers on select plugin pages
-* Set the values for CSP to allow InterroBot client running on loopback.
+Your plugin HTML should include the following meta value, or HTTP header equivalent
 
-Allowing the interro.bot domain will do nothing productive, InterroBot runs on 127.0.0.1:5001-5100
+`<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:">`
+
+Allowing the interro.bot domain will do nothing productive, InterroBot client runs on localhost (https://0.0.0.0)
 
 ## Basic Example
 
