@@ -1,0 +1,111 @@
+﻿@import "./variables.scss";
+@import "./mixins.scss";
+
+
+.icon {
+    font-family: "Interrobot";
+    font-size: 14px; // 120%?
+    color: $dark-font-default-color;
+
+    button[type=submit] & {
+        font-size: 18px; // 120%?
+    }
+
+    .light & {
+        color: $light-font-default-color;
+    }
+
+    button > & {
+        color: $dark-font-default-color;
+
+
+        .light & {
+            color: $light-button-active;
+        }
+    }
+}
+
+
+.reader {
+    font-family: sans-serif;
+    clip: rect(1px, 1px, 1px, 1px);
+    position: absolute !important;
+    height: 1px;
+    width: 1px;
+    overflow: hidden;
+    background-color: transparent;
+    display: inline-block;
+}
+
+
+.export {
+    position: relative;
+    z-index: 1; // above cursor
+
+    button {
+        z-index: 2;
+        position: relative;
+        font-family: Interrobot;
+        padding: 0.25rem 0.334rem;
+        margin-right: 0.25rem;
+        background: $dark-bg-primary;
+        border-radius: 4px;
+        border: 1px solid $dark-crawler-status-border;
+        margin-left: 0.25rem; // tab look
+        min-width: 1.67rem;
+
+        .light & {
+            background: $light-bg-primary;
+            border-color: $light-crawler-status-border;
+        }
+    }
+
+
+    &__ulink {
+        position: absolute;
+        display: none;
+        border: 1px solid $dark-button-active;
+        background: $dark-bg-secondary;
+        margin: 0;
+        padding: 0;
+        font-size: 90%;
+        list-style-type: none;
+        white-space: nowrap;
+        border: 5px solid red;
+
+        li {
+            margin: 0.67rem;
+        }
+    }
+
+    &.hasmouse:hover, &.visible {
+
+        button {
+            background: $dark-bg-primary;
+            border: 1px solid $dark-button-active;
+            border-bottom-color: transparent;
+            border-radius: 4px 4px 0 0;
+
+
+            .light & {
+                background: $light-bg-primary;
+                color: $light-font-query-highlight;
+                border: 1px solid $light-font-query-highlight;
+                border-bottom-color: transparent;
+            }
+        }
+
+        ul.export__ulink {
+            display: block;
+            background: $dark-bg-primary;
+            border: 1px solid $dark-button-active;
+            margin-top: -1.6px;
+            z-index: 0;
+
+            .light & {
+                border: 1px solid $light-button-active;
+                background: $light-bg-primary;
+            }
+        }
+    }
+}

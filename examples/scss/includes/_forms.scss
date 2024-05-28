@@ -1,0 +1,367 @@
+﻿@import "./variables.scss";
+@import "./mixins.scss";
+
+input, button, textarea, select {
+    font-size: 14px;
+    font-family: "Montserrat Regular", Verdana, sans-serif;
+}
+
+button {
+    &:focus {
+        outline: none;
+    }
+}
+
+input[type=radio] {
+    visibility: hidden;
+    margin: 0;
+
+    .field__clickable__radio__tick {
+        width: 7px;
+        height: 6px;
+        border-radius: 12px;
+        visibility: visible;
+        position: absolute;
+        background-color: rgba(0,0,0,0);
+        content: '';
+        display: inline-block;
+        // border: 4.0px solid transparent;
+        margin: 4px;
+        top: 0.2px;
+    }
+
+    &:checked .field__clickable__radio__tick {
+        background-color: $dark-button-active;
+    }
+}
+
+input[type=checkbox] {
+    visibility: hidden;
+    margin: 0;
+    width: 16px;
+    height: 16px;
+    margin-right: 0.5rem;
+    position: relative;
+    display: flex;
+
+    .field__clickable__checkbox__tick {
+        width: 7px;
+        height: 7px;
+        visibility: visible;
+        background-color: rgba(0,0,0,0);
+        content: '';
+        display: inline-block;
+        // border: 4.0px solid transparent;
+        margin: 4px;
+        position: absolute;
+    }
+}
+
+
+select {
+    border: 1px solid;
+    padding: 0.4rem 25px 0.4rem 0.5rem;
+    min-width: 4rem;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg%20version%3D%221.1%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20xmlns%3Axlink%3D%22http%3A%2F%2Fwww.w3.org%2F1999%2Fxlink%22%20x%3D%220px%22%20y%3D%220px%22%20fill%3D%22%23555555%22%20%0A%09%20width%3D%2224px%22%20height%3D%2224px%22%20viewBox%3D%22-261%20145.2%2024%2024%22%20style%3D%22enable-background%3Anew%20-261%20145.2%2024%2024%3B%22%20xml%3Aspace%3D%22preserve%22%3E%0A%3Cpath%20d%3D%22M-245.3%2C156.1l-3.6-6.5l-3.7%2C6.5%20M-252.7%2C159l3.7%2C6.5l3.6-6.5%22%2F%3E%0A%3C%2Fsvg%3E");
+    background-repeat: no-repeat;
+    background-position: right center;
+    border-radius: 0;
+    border-color: $dark-bg-secondary-border;
+    background-color: $dark-bg-select;
+    color: inherit;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+
+    &:focus {
+        outline: 1px solid $dark-button-active;
+    }
+}
+
+input[type=email], input[type=text], input[type=url], textarea {
+    border: 1px solid;
+    padding: 0.4rem 25px 0.4rem 0.5rem;
+    min-width: 4rem;
+    border-radius: 0;
+    border-color: $dark-bg-secondary-border;
+    appearance: none;
+    background-color: $dark-bg-select;
+    color: inherit;
+
+    &:focus {
+        outline: 1px solid $dark-button-active;
+    }
+
+    &:autofill {
+        background-color: $dark-bg-select;
+        color: inherit;
+    }
+}
+
+textarea {
+    min-height: 8rem;
+    font-size: 14px;
+}
+
+// prominent form fields (top of the page, projects-url/search-text)
+.content__main__form {
+    input[type=text], input[type=url] {
+        font-family: "Montserrat SemiBold", "Trebuchet MS", Helvetica, sans-serif;
+        background-color: transparent;
+        border: 0;
+        padding: 0.3rem 0.5rem;
+        color: $dark-font-input-color;
+        font-size: 15px;
+        flex: 100;
+        transition: background-color 0.15s ease-in-out;
+
+        &::placeholder {
+            color: $dark-font-placeholder-color;
+            opacity: 1;
+        }
+
+        &:active {
+            background-color: $dark-bg-tertiary;
+        }
+
+        &:focus {
+            background-color: $dark-bg-tertiary;
+        }
+    }
+
+    button > span.icon {
+        .light & {
+            color: white;
+        }
+    }
+}
+
+
+
+form, editform {
+    position: relative;
+
+    .field {
+
+        // need a radio/checkbox wrapper to get appearence the way I want
+        &__clickable {
+            width: 16px;
+            height: 16px;
+            display: inline-flex;
+            border: 1.5px solid $dark-font-low-contrast-color;
+            position: relative;
+            overflow: hidden;
+            margin-right: 0.3rem;
+
+            // applies stylized checkbox or radio dot/tick when checked
+            input:checked + .field__clickable__radio__tick, input:checked + .field__clickable__checkbox__tick {
+                background-color: $dark-button-active;
+                border: 1px solid rgba($dark-button-active, 0.3);
+            }
+
+            &__radio {
+                border-radius: 16px;
+
+                &__tick {
+                    width: 6px;
+                    height: 6px;
+                    border-radius: 6px;
+                    visibility: visible;
+                    position: absolute;
+                    background-color: rgba(0,0,0,0);
+                    content: '';
+                    display: inline-block;
+                    // margin: 4px;
+                    top: 4px;
+                    left: 4px;
+                    pointer-events: none;
+                }
+            }
+
+            &__checkbox {
+                border-radius: 2px;
+
+                &__tick {
+                    width: 6px;
+                    height: 6px;
+                    visibility: visible;
+                    background-color: rgba(0,0,0,0);
+                    content: '';
+                    display: block;
+                    top: 4px;
+                    left: 4px;
+                    pointer-events: none;
+                    position: absolute;
+                }
+            }
+        }
+
+        &__errors {
+            font-size: 13px;
+            color: yellow;
+            display: block;
+
+            .validation-message {
+                margin: 0.5rem 0 1rem;
+
+                &::before {
+                    content: "\0026A0\00a0";
+                    display: inline-block;
+                    position: relative;
+                    top: -1px;
+                }
+            }
+        }
+
+        // text is the main input wrapper for project and search forms with a side submit button
+        &__text {
+            display: flex;
+            width: 100%;
+            border: 3px solid $dark-bg-field-border;
+            border-right-width: 0;
+            border-radius: 6px;
+            position: relative;
+
+            // chrome default
+            textarea:focus, input:focus, button:focus, &__query {
+                outline: none;
+            }
+
+            button {
+                background-color: $dark-bg-secondary;
+                border: 2px solid $dark-bg-secondary;
+                color: $dark-font-default-color;
+                font-size: 130%;
+                user-select: none;
+                border-radius: 0 3px 3px 0;
+
+                span {
+                    display: flex;
+                }
+
+                &:focus {
+                    border-color: $dark-button-active;
+                }
+            }
+
+            .icon {
+                font-family: Interrobot, sans-serif;
+            }
+
+            &__query {
+                color: white;
+                min-height: 1rem;
+                width: 100%;
+                display: block;
+                font-family: "Montserrat SemiBold", "Trebuchet MS", Helvetica, sans-serif;
+                padding: 0.28rem 0.5rem;
+                word-break: break-all;
+                
+                &__input {
+                    display: none;
+                }
+                
+                &:active, &:focus {
+                    background-color: $dark-bg-tertiary;
+                    opacity: 1;
+                }
+                
+                // mark are highlights
+                mark {
+                    background: transparent;
+                    color: $dark-font-query-highlight;
+                }
+            }
+        }
+    }
+}
+
+.light {
+
+    select {
+        border-color: $light-bg-secondary-border;
+        background-color: $light-bg-select;
+        color: inherit;
+
+        &:focus {
+            outline: 1px solid $light-button-active;
+        }
+    }
+
+    input[type=email], input[type=text], input[type=url], textarea {
+        border-color: $light-bg-secondary-border;
+        background-color: $light-bg-select;
+
+        &:focus {
+            outline: 1px solid $light-button-active;
+        }
+
+        &::placeholder {
+            color: $light-font-placeholder-color;
+        }
+    }
+
+    .content__main__form {
+        input[type=text], input[type=url] {
+            color: $light-font-input-color;
+
+            &::placeholder {
+                color: $light-font-placeholder-color;
+            }
+
+            &:active {
+                background-color: $light-bg-tertiary;
+            }
+
+            &:focus {
+                background-color: $light-bg-tertiary;
+            }
+        }
+    }
+
+
+    .field__errors {
+        color: $light-status-error !important;
+    }
+
+    .field__text__query {
+        color: red;
+
+        // mark are highlights
+        mark {
+            color: $light-font-query-highlight;
+        }
+    }
+
+    .field__text {
+        border-color: $light-bg-field-border;
+
+        input[type=text], input[type=url], &__query {
+            &:focus {
+                background-color: lightgoldenrodyellow;
+            }
+
+            &::placeholder { /* Chrome, Firefox, Opera, Safari 10.1+ */
+                color: #bbbbbb;
+                opacity: 1;
+            }
+
+            color: $light-font-default-color;
+        }
+
+        button {
+            background-color: #676769 !important;
+            border-color: #676769 !important;
+        }
+    }
+
+    .field {
+        // need a radio/checkbox wrapper to get appearence the way I want
+        &__clickable {
+            // applies stylized checkbox or radio dot/tick when checked
+            input:checked + .field__clickable__radio__tick, input:checked + .field__clickable__checkbox__tick {
+                background-color: $light-button-active;
+            }
+        }
+    }
+}

@@ -40,8 +40,6 @@
             this.baseElement.innerHTML = evdPercent > 100 ? "" : `${ this.prefix }
                 <span class="resultNum">##</span>/<span class="resultTotal">##</span>
                 (<span class="percentTotal">##</span>)`;
-            
-            
 
             const resultNum = (this.baseElement.querySelector(".resultNum") as HTMLElement);
             if (resultNum) {
@@ -55,9 +53,6 @@
             if (percentTotal) {
                 percentTotal.innerText = `${evdPercent}%`;
             }
-            // (qs(".resultNum") as HTMLElement).innerText = `${ev.detail.resultNum.toLocaleString()}`;
-            // (qs(".resultTotal") as HTMLElement).innerText = `${ev.detail.resultTotal.toLocaleString()}`;
-            // (qs(".percentTotal") as HTMLElement).innerText = `${percent}%`;
 
             if ([0, 100].indexOf(evdPercent) >= 0) {
                 this.baseElement.classList.remove("throbbing");

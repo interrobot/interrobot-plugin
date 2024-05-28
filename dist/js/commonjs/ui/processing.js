@@ -42,9 +42,6 @@ class HtmlProcessingWidget {
             if (percentTotal) {
                 percentTotal.innerText = `${evdPercent}%`;
             }
-            // (qs(".resultNum") as HTMLElement).innerText = `${ev.detail.resultNum.toLocaleString()}`;
-            // (qs(".resultTotal") as HTMLElement).innerText = `${ev.detail.resultTotal.toLocaleString()}`;
-            // (qs(".percentTotal") as HTMLElement).innerText = `${percent}%`;
             if ([0, 100].indexOf(evdPercent) >= 0) {
                 this.baseElement.classList.remove("throbbing");
             }

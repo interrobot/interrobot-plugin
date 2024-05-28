@@ -156,7 +156,7 @@ class SnowballProgram {
                 this.cursor = c + w.s_size;
                 if (w.method) {
                     // method() not referenced in any language files
-                    console.warn(`Method is unsupported type`);
+                    console.warn(`method is unsupported type`);
                 }
                 return w.result;
                 // leaving method handling in for reference (if something breaks)

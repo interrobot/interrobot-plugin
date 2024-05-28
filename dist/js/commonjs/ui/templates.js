@@ -9,7 +9,7 @@ class Templates {
                 <img id="projectIcon" src="${project.getImageDataUri()}" alt="Icon for @crawlView.DisplayTitle" />
             </div>
             <div class="main__heading__title">
-                <h1>${html_js_1.HtmlUtils.htmlEncode(title)}</h1>
+                <h1><span>${html_js_1.HtmlUtils.htmlEncode(title)}</span></h1>
                 <div><span>${html_js_1.HtmlUtils.htmlEncode(project.getDisplayTitle())}</span></div>
             </div>
         </div>`;

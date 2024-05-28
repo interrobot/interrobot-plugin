@@ -46,6 +46,8 @@ class BasicExamplePlugin extends Plugin {
             await this.process();
             button.removeAttribute("disabled");
         });
+
+        Plugin.postContentHeight();
     }
 
     async process() {

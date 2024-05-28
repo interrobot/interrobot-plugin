@@ -7,12 +7,14 @@ declare class Plugin {
     static postMeta(meta: {}): void;
     static postApiRequest(apiMethod: string, apiKwargs: {}): Promise<any>;
     static logTiming(msg: string, millis: number): void;
+    private static routeMessage;
     private static origin;
     private static contentScrollHeight;
     data: PluginData;
     private projectId;
     private mode;
     private project;
+    private origin;
     constructor();
     getProjectId(): number;
     init(meta: {}): Promise<void>;

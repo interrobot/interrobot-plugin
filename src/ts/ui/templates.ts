@@ -8,7 +8,7 @@ class Templates {
                 <img id="projectIcon" src="${project.getImageDataUri()}" alt="Icon for @crawlView.DisplayTitle" />
             </div>
             <div class="main__heading__title">
-                <h1>${HtmlUtils.htmlEncode(title)}</h1>
+                <h1><span>${HtmlUtils.htmlEncode(title)}</span></h1>
                 <div><span>${HtmlUtils.htmlEncode(project.getDisplayTitle())}</span></div>
             </div>
         </div>`;

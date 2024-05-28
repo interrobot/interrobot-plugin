@@ -10,10 +10,11 @@ var SortOrder;
 })(SortOrder || (SortOrder = {}));
 exports.SortOrder = SortOrder;
 class HTMLResultsTablePage {
-    constructor(label, offset, limit) {
+    constructor(label, offset, limit, extended) {
         this.label = label;
         this.offset = offset;
         this.limit = limit;
+        this.extended = extended;
     }
 }
 class HTMLResultsTableSort {
@@ -73,6 +74,8 @@ class HtmlResultsTable {
         }
     }
     constructor(projectId, perPage, header, headings, results, resultsSort, rowRenderer, cellRenderer, cellHandler, exportExtra) {
+        this.paginationEdgeRangeDesktop = 2;
+        this.paginationEdgeRangeMobile = 1;
         this.baseElement = document.createElement("div");
         this.header = header;
         this.results = results;
@@ -86,6 +89,21 @@ class HtmlResultsTable {
         this.rowRenderer = rowRenderer;
         this.cellHandler = cellHandler;
         this.exportExtra = exportExtra;
+        // async (ev: MessageEvent)
+        this.scrollHandler = (ev) => {
+            var _a;
+            const evData = ev.data;
+            if (evData == null) {
+                this.setStickyHeaders(0);
+                return;
+            }
+            const evDataData = evData.data;
+            const scrollY = (_a = evDataData === null || evDataData === void 0 ? void 0 : evDataData.reportScrollY) !== null && _a !== void 0 ? _a : null;
+            if (scrollY === null || (evData === null || evData === void 0 ? void 0 : evData.target) !== "interrobot") {
+                return;
+            }
+            this.setStickyHeaders(scrollY);
+        };
         this.navHandler = (ev) => {
             this.resultsOffset = parseInt(ev.target.dataset.offset);
             this.renderSection();
@@ -126,11 +144,19 @@ class HtmlResultsTable {
             this.resultsOffset = 0;
             this.sortResults();
             this.renderSection();
+            const msg = {
+                target: "interrobot",
+                data: {
+                    reportScrollToTop: true,
+                },
+            };
+            window.parent.postMessage(msg, "*");
         };
         this.downloadMenuHandler = (ev) => {
             const dlLinks = this.baseElement.querySelector(".info__dl");
             if (dlLinks !== null) {
                 dlLinks.classList.toggle("visible");
+                ev.preventDefault();
             }
         };
         this.downloadHandler = (ev) => {
@@ -191,6 +217,24 @@ class HtmlResultsTable {
     getResultsSort() {
         return this.resultsSort;
     }
+    setStickyHeaders(scrollY) {
+        const thead = this.baseElement.querySelector("thead");
+        const table = thead === null || thead === void 0 ? void 0 : thead.parentElement;
+        if (thead === null || table === null) {
+            return;
+        }
+        const rect = table.getBoundingClientRect();
+        const inTable = rect.top <= scrollY && scrollY <= rect.bottom;
+        if (inTable) {
+            thead.classList.add("sticky");
+            thead.style.top = `${scrollY - rect.top}px`;
+        }
+        else {
+            thead.classList.remove("sticky");
+            thead.style.top = `auto`;
+        }
+        return;
+    }
     sortResults() {
         const primaryHeading = this.resultsSort.primaryHeading;
         const primarySort = this.resultsSort.primarySort;
@@ -199,7 +243,7 @@ class HtmlResultsTable {
         const secondarySort = this.resultsSort.secondarySort;
         const secondarySortOnIndex = this.getHeadingIndex(secondaryHeading);
         if (primarySortOnIndex === -1) {
-            console.warn(`Heading '${this.resultsSort.primaryHeading}' not found, aborting sort`);
+            console.warn(`heading '${this.resultsSort.primaryHeading}' not found, aborting sort`);
             return;
         }
         const compoundSort = (a, b) => {
@@ -248,6 +292,7 @@ class HtmlResultsTable {
         const out = [];
         const svg = `<svg version="1.1" class="chevrons" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
 	        x="0px" y="0px" width="12px" height="20px" viewBox="6 2 12 20" enable-background="new 6 2 12 20" xml:space="preserve">
+            <title>north/south chevrons</title>
 	        <polyline class="d2" fill="none" stroke="#000000" stroke-miterlimit="10" points="7.32,16.655 12.015,21.208 16.566,16.633"/>
 	        <polyline class="d1" fill="none" stroke="#000000" stroke-miterlimit="10" points="7.314,13.274 12.01,17.827 16.561,13.253"/>
 	        <polyline class="u2" fill="none" stroke="#000000" stroke-miterlimit="10" points="16.685,10.594 12.115,6.041 7.439,10.615"/>
@@ -324,9 +369,6 @@ class HtmlResultsTable {
         if (this.resultsSort.primarySort !== null && this.resultsSort.primaryHeading !== null) {
             this.sortResults();
         }
-        else {
-            console.warn(`Nothing to sort`);
-        }
         // table data, limiting to pagination offset and perpage
         const filteredExpandedRows = this.renderTableData();
         // no data scenario
@@ -340,14 +382,17 @@ class HtmlResultsTable {
         const navigationTest = { "◀◀": true, "▶▶": true };
         for (let i = 0; i < resultPages.length; i++) {
             const page = resultPages[i];
-            let classname = "";
+            let classnames = [];
             if (page.label in navigationTest) {
-                classname = page.label == "◀◀" ? "rewind" : "fastforward";
+                classnames.push(page.label == "◀◀" ? "rewind" : "fastforward");
             }
             else if (page.offset === this.resultsOffset) {
-                classname = "current";
+                classnames.push("current");
             }
-            expandedNavigation.push(`<button class="${classname}" data-offset="${page.offset}">${page.label}</button>`);
+            else if (page.extended) {
+                classnames.push("extended");
+            }
+            expandedNavigation.push(`<button class="${classnames.join(" ")}" data-offset="${page.offset}">${page.label}</button>`);
         }
         const resultStart = this.resultsOffset + 1;
         const resultEnd = Math.min(this.resultsCount, this.resultsOffset + this.perPage);
@@ -355,11 +400,11 @@ class HtmlResultsTable {
             ${this.header}
             <hgroup>
                 <div class="info">
-                    <span class="info__dl">
+                    <span class="info__dl export">
                         <button class="icon">\`</button>
-                        <ul class="info__dl__ulink">
-                            <li><a class="ulink" href="#" data-format="csv" download="download">Export CSV</a></li>
-                            <li><a class="ulink" href="#" data-format="xlsx" download="download">Export Excel</a></li>
+                        <ul class="export__ulink">
+                            <li><a class="ulink" href="#" data-format="csv">Export CSV</a></li>
+                            <li><a class="ulink" href="#" data-format="xlsx">Export Excel</a></li>
                         </ul>
                     </span>
                     <span class="info__results"><span class="info__results__nobr">
@@ -368,16 +413,18 @@ class HtmlResultsTable {
                 </div>
                 <nav>${expandedNavigation.join("")}</nav>
             </hgroup>
-            <table>
-                <thead>
-                    <tr>
-                        ${this.renderTableHeadings(this.headings)}                        
-                    </tr>
-                </thead>
-                <tbody>
-                    ${filteredExpandedRows.join("")}
-                </tbody>
-            </table>`;
+            <div class="datatable">
+                <table>
+                    <thead>
+                        <tr>
+                            ${this.renderTableHeadings(this.headings)}                        
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filteredExpandedRows.join("")}
+                    </tbody>
+                </table>
+            </div>`;
         this.baseElement.innerHTML = section;
         const sortables = this.baseElement.querySelectorAll(`a.sortable`);
         for (let i = 0; i < sortables.length; i++) {
@@ -413,6 +460,33 @@ class HtmlResultsTable {
         const downloadMenuToggle = this.baseElement.querySelector(".info__dl button");
         if (downloadMenuToggle !== null) {
             downloadMenuToggle[navLinkMethod]("click", this.downloadMenuHandler);
+            // fix touch hover keeping menu open after request to close            
+            const hasMouse = matchMedia("(pointer:fine)").matches && !(/android/i.test(window.navigator.userAgent));
+            if (hasMouse) {
+                const dl = this.baseElement.querySelector(".info__dl");
+                dl === null || dl === void 0 ? void 0 : dl.classList.add("hasmouse");
+            }
+        }
+        const stickyHead = this.baseElement.querySelector("thead");
+        if (stickyHead) {
+            window[navLinkMethod]("message", this.scrollHandler);
+            window[navLinkMethod]("resize", this.scrollHandler);
+        }
+        // prevent event propagation to navigation slide on/off when scrolling table
+        const table = this.baseElement.querySelector("table");
+        if (table) {
+            const wrap = document.querySelector(".wrap");
+            table[navLinkMethod]("touchstart", (ev) => {
+                wrap === null || wrap === void 0 ? void 0 : wrap.classList.add("dragging");
+                ev.stopPropagation();
+            }, { passive: true });
+            table[navLinkMethod]("touchend", (ev) => {
+                wrap === null || wrap === void 0 ? void 0 : wrap.classList.remove("dragging");
+                ev.stopPropagation();
+            }, { passive: true });
+            table[navLinkMethod]("touchmove", (ev) => {
+                ev.stopPropagation();
+            }, { passive: true });
         }
         // button.custom is only acceptable way to pass custom interaction into table
         const customButtons = this.baseElement.querySelectorAll("button.custom");
@@ -423,6 +497,10 @@ class HtmlResultsTable {
         for (let i = 0; i < browserLinks.length; i++) {
             const browserLink = browserLinks[i];
             browserLink[navLinkMethod]("click", this.browserLinkHandler);
+        }
+        for (let i = 0; i < navButtons.length; i++) {
+            const navButton = navButtons[i];
+            navButton[navLinkMethod]("click", this.navHandler);
         }
         const appLinks = this.baseElement.querySelectorAll("td.column__id a");
         for (let i = 0; i < appLinks.length; i++) {
@@ -438,52 +516,58 @@ class HtmlResultsTable {
     getPagination() {
         const pages = [];
         let pagesAdded = 0;
-        // between 2 and 4 BEHIND offset
-        let precedePagesMax = 2;
+        // between 2 and 4 BEFORE offset (1 and 2 on mobile)
+        let precedingPagesMaxDesktop = this.paginationEdgeRangeDesktop;
+        let precedingPagesMaxMobile = this.paginationEdgeRangeMobile;
+        const precedingPages = Math.ceil(this.resultsOffset / this.perPage);
+        const addPrecedingDesktopPages = Math.max(precedingPagesMaxDesktop - precedingPages, 0);
+        const addPrecedingMobilePages = Math.max(precedingPagesMaxMobile - precedingPages, 0);
+        precedingPagesMaxDesktop += Math.max(addPrecedingDesktopPages, 0);
+        precedingPagesMaxMobile += Math.max(addPrecedingMobilePages, 0);
         let tempOffset = this.resultsOffset;
-        const remainingPages = Math.ceil(((this.resultsCount - this.resultsOffset) / this.perPage) - 1);
-        const addPrecedingPages = Math.max(precedePagesMax - remainingPages, 0);
-        precedePagesMax += addPrecedingPages;
-        while (tempOffset > 0 && pagesAdded < precedePagesMax) {
+        while (tempOffset > 0 && pagesAdded < precedingPagesMaxDesktop) {
             tempOffset -= this.perPage;
             const pageLinkLabel = `${((tempOffset / this.perPage) + 1)}`;
-            const pageLink = new HTMLResultsTablePage(pageLinkLabel, tempOffset, this.perPage);
+            const pageLink = new HTMLResultsTablePage(pageLinkLabel, tempOffset, this.perPage, pagesAdded >= precedingPagesMaxMobile);
             pages.push(pageLink);
             pagesAdded++;
         }
         // previous links now, why? built in reverse, see subsequent reverse()
         if (this.resultsOffset > 0) {
-            pages.push(new HTMLResultsTablePage("◀", (this.resultsOffset - this.perPage), this.perPage));
-            pages.push(new HTMLResultsTablePage("◀◀", 0, this.perPage));
+            pages.push(new HTMLResultsTablePage("◀", (this.resultsOffset - this.perPage), this.perPage, false));
+            pages.push(new HTMLResultsTablePage("◀◀", 0, this.perPage, false));
         }
         // flip it
         pages.reverse();
         // current offset
         if (this.resultsCount > this.perPage) {
             const pageLinkLabel = `${(this.resultsOffset / this.perPage) + 1}`;
-            const pageLink = new HTMLResultsTablePage(pageLinkLabel, this.resultsOffset, this.perPage);
+            const pageLink = new HTMLResultsTablePage(pageLinkLabel, this.resultsOffset, this.perPage, false);
             pages.push(pageLink);
         }
-        // between 2 and 4 AFTER offset
-        let postcedePagesMax = 2;
-        const precedingPages = Math.ceil(this.resultsOffset / this.perPage);
-        const addPages = Math.max(postcedePagesMax - precedingPages, 0);
-        postcedePagesMax += Math.max(addPages, 0);
+        // between 2 and 4 AFTER offset (1 and 2 on mobile)
+        let followingPagesMaxDesktop = this.paginationEdgeRangeDesktop;
+        let followingPagesMaxMobile = this.paginationEdgeRangeMobile;
+        const followingPages = Math.ceil(this.resultsOffset / this.perPage);
+        const addFollowingDesktopPages = Math.max(followingPagesMaxDesktop - followingPages, 0);
+        const addFollowingMobilePages = Math.max(followingPagesMaxMobile - followingPages, 0);
+        followingPagesMaxDesktop += Math.max(addFollowingDesktopPages, 0);
+        followingPagesMaxMobile += Math.max(addFollowingMobilePages, 0);
         pagesAdded = 0;
         tempOffset = this.resultsOffset + this.perPage;
-        while (tempOffset < this.resultsCount && pagesAdded < postcedePagesMax) {
+        while (tempOffset < this.resultsCount && pagesAdded < followingPagesMaxDesktop) {
             const pageLinkLabel = `${((tempOffset / this.perPage) + 1)}`;
-            const pageLink = new HTMLResultsTablePage(pageLinkLabel, tempOffset, this.perPage);
+            const pageLink = new HTMLResultsTablePage(pageLinkLabel, tempOffset, this.perPage, pagesAdded >= followingPagesMaxMobile);
             pages.push(pageLink);
             tempOffset += this.perPage;
             pagesAdded++;
         }
         // next?
         if (this.resultsCount > this.resultsOffset + this.perPage) {
-            pages.push(new HTMLResultsTablePage("▶", this.resultsOffset + this.perPage, this.perPage));
+            pages.push(new HTMLResultsTablePage("▶", this.resultsOffset + this.perPage, this.perPage, false));
             let modLast = this.resultsCount - (this.resultsCount % this.perPage);
             modLast = modLast == this.resultsCount ? modLast - this.perPage : modLast;
-            pages.push(new HTMLResultsTablePage("▶▶", modLast, this.perPage));
+            pages.push(new HTMLResultsTablePage("▶▶", modLast, this.perPage, false));
         }
         return pages;
     }

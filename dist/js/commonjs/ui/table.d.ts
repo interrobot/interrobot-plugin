@@ -6,7 +6,8 @@ declare class HTMLResultsTablePage {
     readonly label: string;
     readonly offset: number;
     readonly limit: number;
-    constructor(label: string, offset: number, limit: number);
+    readonly extended: boolean;
+    constructor(label: string, offset: number, limit: number, extended: boolean);
 }
 declare class HTMLResultsTableSort {
     primaryHeading: string;
@@ -17,6 +18,8 @@ declare class HTMLResultsTableSort {
 }
 declare class HtmlResultsTable {
     readonly baseElement: HTMLElement;
+    private readonly paginationEdgeRangeDesktop;
+    private readonly paginationEdgeRangeMobile;
     private rowRenderer;
     private cellRenderer;
     private exportExtra;
@@ -35,6 +38,7 @@ declare class HtmlResultsTable {
     private browserLinkHandler;
     private appLinkHandler;
     private sortableHandler;
+    private scrollHandler;
     static createElement(parentElement: HTMLElement, projectId: number, perPage: number, header: string, headings: string[], results: string[][], resultsSort: HTMLResultsTableSort, rowRenderer: Function, cellRenderer: {}, cellHandler: Function, exportExtra: Object): HtmlResultsTable;
     static generateFormatedColumnNumber(num: number): string;
     static sortResultsHelper(a: string, aNum: number, aIsNum: boolean, b: string, bNum: number, bIsNum: boolean, sortOrder: SortOrder): number;
@@ -43,6 +47,7 @@ declare class HtmlResultsTable {
     getResults(): string[][];
     getHeadings(): string[];
     getResultsSort(): HTMLResultsTableSort;
+    setStickyHeaders(scrollY: number): void;
     private sortResults;
     private getColumnClass;
     setOffsetPage(page: number): void;

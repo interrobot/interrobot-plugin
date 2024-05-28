@@ -5,6 +5,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Plugin = void 0;
 const api_js_1 = require("./api.js");
 const html_js_1 = require("./html.js");
+const touch_js_1 = require("./touch.js");
 var DarkMode;
 (function (DarkMode) {
     DarkMode[DarkMode["Light"] = 0] = "Light";
@@ -33,7 +34,7 @@ class Plugin {
                     reportHeight: currentScrollHeight,
                 },
             };
-            window.parent.postMessage(msg, "*");
+            Plugin.routeMessage(msg);
         }
     }
     static postOpenResourceLink(resourceId, openInBrowser) {
@@ -46,7 +47,7 @@ class Plugin {
                 }
             },
         };
-        window.parent.postMessage(msg, "*");
+        Plugin.routeMessage(msg);
     }
     static postMeta(meta) {
         // meta { url, title, category, version, author, description}
@@ -56,7 +57,7 @@ class Plugin {
                 reportMeta: meta
             },
         };
-        window.parent.postMessage(msg, "*");
+        Plugin.routeMessage(msg);
     }
     static async postApiRequest(apiMethod, apiKwargs) {
         // meta { url, title, category, version, author, description}
@@ -64,11 +65,21 @@ class Plugin {
         const getPromisedResult = async () => {
             return new Promise((resolve) => {
                 const listener = async (ev) => {
+                    var _a;
                     const evData = ev.data;
-                    if (evData.data && evData.data.hasOwnProperty("apiResponse")) {
-                        result = evData.data.apiResponse;
-                        window.removeEventListener("message", listener);
-                        resolve();
+                    const evDataData = (_a = evData.data) !== null && _a !== void 0 ? _a : {};
+                    if (evDataData && typeof evDataData === "object" && evDataData.hasOwnProperty("apiResponse")) {
+                        const resultMethod = evDataData.apiResponse["__meta__"]["request"]["method"];
+                        if (apiMethod === resultMethod) {
+                            result = evData.data.apiResponse;
+                            window.removeEventListener("message", listener);
+                            resolve();
+                        }
+                        else {
+                            // SetPluginData on an independent event channel, doesn't serialize requests
+                            // like GetResources, continue listening for correct respsonse
+                            // console.log(`apiMethod mismatch: sent: ${apiMethod} recieved: ${resultMethod}`);
+                        }
                     }
                 };
                 const msg = {
@@ -82,7 +93,7 @@ class Plugin {
                 };
                 // listen for response to postmessage api request with listener()
                 window.addEventListener("message", listener);
-                window.parent.window.postMessage(msg, window.parent.origin);
+                Plugin.routeMessage(msg);
             });
         };
         await getPromisedResult();
@@ -92,6 +103,12 @@ class Plugin {
         const seconds = (millis / 1000).toFixed(3);
         console.log(`🤖 [${seconds}s] ${msg}`);
     }
+    static routeMessage(msg) {
+        // Pt 1 of 2
+        // window.parent.origin can't be read from external URL, only works with core
+        const parentOrigin = this.origin;
+        window.parent.postMessage(msg, parentOrigin);
+    }
     constructor() {
         this.projectId = -1;
         this.mode = DarkMode.Light;
@@ -100,6 +117,7 @@ class Plugin {
         const params = Object.fromEntries(urlSearchParams.entries());
         const paramProject = parseInt(params.project, 10);
         const paramMode = parseInt(params.mode, 10);
+        const paramOrigin = params.origin;
         // lock this in while we're initializing
         Plugin.origin = params.origin;
         // no salvaging this
@@ -110,11 +128,13 @@ class Plugin {
         this.data = null; // requires async loadData
         this.projectId = paramProject;
         this.mode = isNaN(paramMode) || paramMode !== 1 ? DarkMode.Light : DarkMode.Dark;
+        this.origin = paramOrigin !== null && paramOrigin !== void 0 ? paramOrigin : "https://0.0.0.0";
         Plugin.contentScrollHeight = 0;
         // dark/light css to body
         const modeClass = DarkMode[this.mode].toLowerCase();
         document.body.classList.remove("light", "dark");
         document.body.classList.add(modeClass);
+        const tp = new touch_js_1.TouchProxy();
     }
     getProjectId() {
         return this.projectId;
@@ -157,15 +177,17 @@ class Plugin {
         // this collects project information given the project id passed in
         // as url argument, there will always be a project id passed
         const project = await api_js_1.Project.getApiProject(this.getProjectId());
+        const encodedTitle = html_js_1.HtmlUtils.htmlEncode(project.getDisplayTitle());
+        const encodedMetaTitle = html_js_1.HtmlUtils.htmlEncode(Plugin.meta["title"]);
         // if you reuse InterroBot UI, please fork your own CSS, mine isn't stable
         this.render(`
             <div class="main__heading">
                 <div class="main__heading__icon">
-                    <img id="projectIcon" src="${project.getImageDataUri()}" alt="Project icon for ${project.getDisplayTitle()}" />
+                    <img id="projectIcon" src="${project.getImageDataUri()}" alt="Icon for ${encodedTitle}" />
                 </div>
                 <div class="main__heading__title">
-                    <h1>${Plugin.meta["title"]}</h1>
-                    <div><span>${project.getDisplayTitle()}</span></div>
+                    <h1>${encodedMetaTitle}</h1>
+                    <div><span>${encodedTitle}</span></div>
                 </div>
             </div>
             <div class="main__form">
@@ -228,8 +250,10 @@ class Plugin {
                 // secondary sort is term, alpha ascending
                 return a[0].toLowerCase().localeCompare(b[0].toLowerCase());
             }
-            // primary sort is term count, numeric descending
-            return bVal - aVal;
+            else {
+                // primary sort is term count, numeric descending
+                return bVal - aVal;
+            }
         }));
         // render html output from collected data
         const tableRows = [];

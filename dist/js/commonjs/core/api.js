@@ -87,7 +87,7 @@ class PluginData {
     async loadData() {
         var _a;
         const kwargs = {
-            "pluginUrl": window.location.href,
+            "pluginUrl": `${window.location.href}`,
         };
         const startTime = new Date().getTime();
         const result = await plugin_js_1.Plugin.postApiRequest("GetPluginData", kwargs);

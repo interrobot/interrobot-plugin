@@ -1,0 +1,110 @@
+﻿@import "./variables.scss";
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    min-height: 100vh;
+    -webkit-text-size-adjust: 100%;
+    // weird scrollbar handling at sub 600px, fixed by overflow
+    // seems to be ok, but might cause problems down the road
+    overflow: hidden;
+}
+// page scrollbars, dark or light could be a class of a descendant of html (not on html itself)
+.dark {
+    html & {
+        scrollbar-color: $dark-scrollbar transparent;
+    }
+}
+.light {
+    html & {
+        scrollbar-color: $light-scrollbar transparent;
+    }
+}
+
+body {
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+    color: $dark-font-default-color;
+    // pausing/modal blur filter picks up edges if not cleaned up here
+    // background-color: $dark-bg-primary !important;
+    font-size: 16px;
+    line-height: 1;
+    background-color: #fff;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    flex-direction: column;
+    font-family: "Montserrat Medium", "Trebuchet MS", Helvetica, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    // fixes wandering titlebar problem, probably introduces others
+    position: fixed;
+    // blazor error (you'll know it if you see it, it's a stop error with bright red message)
+    > .error {
+        position: absolute;
+        left: 3rem;
+        bottom: 0;
+        width: calc(100vw - 3rem);
+        background: #960000;
+        color: white;
+        padding: 0.75rem;
+        display: none;
+        z-index: 2;
+
+        a {
+            color: inherit
+        }
+    }
+}
+
+
+strong {
+    font-family: "Montserrat SemiBold", "Trebuchet MS", Helvetica, sans-serif;
+}
+
+a {
+    // a standard, content link with an underline
+    // that can operate in both dark and light mode
+    // TODO this isn't used widely yet, implementing broadly will
+    // detangle some css
+    &.ulink {
+        transition: border-color 0.15s ease-in-out;
+        color: $dark-font-ulink-color;
+        text-decoration: none;
+        border-bottom: 1px solid rgba($dark-font-ulink-color, 0.3);
+
+        &:hover {
+            border-bottom-color: rgba($dark-font-ulink-hover-color, 0.3);
+        }
+
+        .light & {
+            color: $light-font-ulink-color;
+            border-bottom-color: rgba($light-font-ulink-color, 0.3);
+
+            &:hover {
+                color: $light-font-ulink-hover-color;
+                border-bottom-color: $light-font-ulink-hover-color;
+            }
+        }
+    }
+}
+
+p, form {
+    line-height: 1.4;
+}
+
+dl {
+    display: grid;
+    row-gap: 0.5rem;
+    column-gap: 1rem;
+    grid-template-columns: auto 1fr;
+    line-height: 1.4;
+
+    dd {
+        margin: 0;
+    }
+}
+
