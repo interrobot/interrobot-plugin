@@ -17,6 +17,28 @@ class Templates {
     static standardResults() {
         return `<div class="main__results"></div>`;
     }
+    static standardCheckbox(name, value, label, synopsis) {
+        return `
+        <label>
+            <span class="checkbox">
+                <input type="checkbox" name="${HtmlUtils.htmlEncode(name)}" value="${HtmlUtils.htmlEncode(value)}"/>
+                <span class="checkbox__tick"></span>                                
+            </span>
+            <span class="checkbox__label">${HtmlUtils.htmlEncode(label)}</span> 
+            ${synopsis ? `<span class="checkbox__synopsis">` + HtmlUtils.htmlEncode(synopsis) + `</span>` : ""}
+        </label>`;
+    }
+    static standardRadio(name, value, label, synopsis) {
+        return `        
+        <label>
+            <span class="radio">
+                <input type="radio" name="${HtmlUtils.htmlEncode(name)}" value="${HtmlUtils.htmlEncode(value)}">
+                <span class="radio__tick"></span>
+            </span>
+            <span class="radio__text">${HtmlUtils.htmlEncode(label)}</span>
+            ${synopsis ? `<span class="radio__synopsis">` + HtmlUtils.htmlEncode(synopsis) + `</span>` : ""}
+        </label>`;
+    }
     // use table headers as distinct memos in order to handle many per row
     static cellHandlerSameAsLastMemo = {};
     static cellRendererSameAsLast(cellValue, rowData, i) {

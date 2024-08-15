@@ -1,32 +1,39 @@
-﻿// $static-root-directory set in _variables.scss, top of file
-@import "./variables.scss";
+﻿@import "./variables.scss";
+
+
+@font-face {
+    font-family: 'Interrobot';
+    font-style: normal;
+    font-weight: 400;
+    src: url("#{$static-root-directory}/fonts/interrobot.ttf") format("truetype");
+}
 
 @font-face {
     font-family: 'Montserrat Regular';
     font-style: normal;
     font-weight: 400;
-    src: local("Montserrat Regular"), url("#{$static-root-directory}/fonts/Montserrat-Regular.woff2") format("woff2");
+    src: url("#{$static-root-directory}/fonts/Montserrat-Regular.woff2") format("woff2");
 }
 
 @font-face {
     font-family: 'Montserrat Medium';
     font-style: normal;
     font-weight: 400;
-    src: local("Montserrat Medium"), url("#{$static-root-directory}/fonts/Montserrat-Medium.woff2") format("woff2");
+    src: url("#{$static-root-directory}/fonts/Montserrat-Medium.woff2") format("woff2");
 }
 
 @font-face {
     font-family: 'Montserrat Medium Italic';
     font-style: normal;
     font-weight: 400;
-    src: local("Montserrat Medium Italic"), url("#{$static-root-directory}/fonts/Montserrat-Medium-Italic.woff2") format("woff2");
+    src: url("#{$static-root-directory}/fonts/Montserrat-Medium-Italic.woff2") format("woff2");
 }
 
 @font-face {
     font-family: 'Montserrat SemiBold';
     font-style: normal;
     font-weight: 600;
-    src: local("Montserrat SemiBold"), local("Montserrat-SemiBold"), url("#{$static-root-directory}/fonts/Montserrat-SemiBold.woff2") format("woff2");
+    src: url("#{$static-root-directory}/fonts/Montserrat-SemiBold.woff2") format("woff2");
 }
 
 @font-face {

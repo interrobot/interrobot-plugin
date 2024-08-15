@@ -10,6 +10,7 @@ button {
     &:focus {
         outline: none;
     }
+
 }
 
 input[type=radio] {
@@ -103,6 +104,12 @@ textarea {
     font-size: 14px;
 }
 
+select option {
+    // can't get through to chrome, requires javascript selects
+}
+
+    
+    
 // prominent form fields (top of the page, projects-url/search-text)
 .content__main__form {
     input[type=text], input[type=url] {
@@ -115,7 +122,7 @@ textarea {
         flex: 100;
         transition: background-color 0.15s ease-in-out;
 
-        &::placeholder {
+        &::placeholder { /* Chrome, Firefox, Opera, Safari 10.1+ */
             color: $dark-font-placeholder-color;
             opacity: 1;
         }
@@ -136,14 +143,80 @@ textarea {
     }
 }
 
+// moved to root class to share with reports
+span.checkbox, span.radio {
+    width: 16px;
+    height: 16px;
+    display: inline-flex;
+    border: 1.5px solid $dark-font-low-contrast-color;
+    position: relative;
+    overflow: hidden;
+    margin-right: 0.3rem;
+    // applies stylized checkbox or radio dot/tick when checked
+    input:checked + .radio__tick, input:checked + .checkbox__tick {
+        background-color: $dark-button-active;
+        border: 1px solid rgba($dark-button-active, 0.3);
+    }
+
+    .light & {
+        input:checked + .radio__tick, input:checked + .checkbox__tick {
+            background-color: $light-button-active;
+        }
+    }
+}
+
+span.checkbox {
+    border-radius: 2px;
+
+    &__text {
+        &__synopsis {
+            opacity: 0.67;
+            font-size:90%;
+            font-family: "Montserrat Regular";
+        }
+    }
+
+
+    &__tick {
+        width: 6px;
+        height: 6px;
+        visibility: visible;
+        background-color: rgba(0,0,0,0);
+        content: '';
+        display: block;
+        top: 4px;
+        left: 4px;
+        pointer-events: none;
+        position: absolute;
+    }
+}
+
+span.radio {
+    border-radius: 16px;
+
+    &__tick {
+        width: 6px;
+        height: 6px;
+        border-radius: 6px;
+        visibility: visible;
+        position: absolute;
+        background-color: rgba(0,0,0,0);
+        content: '';
+        display: inline-block;
+        top: 4px;
+        left: 4px;
+        pointer-events: none;
+    }
+}
 
 
 form, editform {
     position: relative;
 
     .field {
-
         // need a radio/checkbox wrapper to get appearence the way I want
+        // 
+        /*
         &__clickable {
             width: 16px;
             height: 16px;
@@ -152,7 +225,6 @@ form, editform {
             position: relative;
             overflow: hidden;
             margin-right: 0.3rem;
-
             // applies stylized checkbox or radio dot/tick when checked
             input:checked + .field__clickable__radio__tick, input:checked + .field__clickable__checkbox__tick {
                 background-color: $dark-button-active;
@@ -195,6 +267,7 @@ form, editform {
                 }
             }
         }
+        */
 
         &__errors {
             font-size: 13px;
@@ -212,7 +285,6 @@ form, editform {
                 }
             }
         }
-
         // text is the main input wrapper for project and search forms with a side submit button
         &__text {
             display: flex;
@@ -221,7 +293,6 @@ form, editform {
             border-right-width: 0;
             border-radius: 6px;
             position: relative;
-
             // chrome default
             textarea:focus, input:focus, button:focus, &__query {
                 outline: none;
@@ -256,16 +327,18 @@ form, editform {
                 font-family: "Montserrat SemiBold", "Trebuchet MS", Helvetica, sans-serif;
                 padding: 0.28rem 0.5rem;
                 word-break: break-all;
-                
+                // opacity: 0.7;
+                // fix trailing <br> range selection issues while marking up highlights
+                // white-space: -moz-pre-space;
+                // a content editable div, similar to text
                 &__input {
                     display: none;
                 }
-                
+                // mime input[type=text]
                 &:active, &:focus {
                     background-color: $dark-bg-tertiary;
                     opacity: 1;
                 }
-                
                 // mark are highlights
                 mark {
                     background: transparent;
@@ -273,6 +346,137 @@ form, editform {
                 }
             }
         }
+    }
+    // project and search forms
+    .content__main__form__body {
+        &__options {
+            display: flex;
+            margin: 0.75rem 0;
+
+            label {
+                //white-space: nowrap;
+                display: flex;
+            }
+
+            &__collection {
+                flex: 1;
+                display: flex;
+
+                label {
+                    margin-right: 0.5rem;
+                }
+            }
+        }
+    }
+    // project and search forms
+    .content__main__form {
+
+        &__crawler {
+            @include text-buttons();
+
+            &__buttons__button {
+                // flush with other form elements
+                min-height: 1.9rem;
+                // margin-top: 0rem;
+            }
+
+            &__group {
+                display: flex;
+                flex-wrap: wrap;
+                flex-direction: row;
+                // fix the flex wrap overlap with line-height
+                line-height: 2.25;
+
+                > * {
+                    margin-right: 0.5rem;
+                    align-self: center;
+                }
+            }
+
+            &__input {
+                label {
+                    white-space: nowrap;
+                    font-family: inherit
+                }
+            }
+
+            &__existing {
+
+
+                &__row {
+                    margin: 0.75rem 0;
+                    display: flex;
+
+                    span.icon {
+                        font-family: "Interrobot";
+                        font-size: 14px;
+                        color: #cfdfdf;
+                    }
+
+                    > span {
+                        margin-left: 0.5rem;
+                    }
+                }
+            }
+        }
+    }
+
+    .content__main__form__suggest {
+        background: $dark-bg-secondary;
+        margin-top: -5px;
+        font-size: 90%;
+        display: none;
+        position: absolute;
+        left: 0;
+        right: 0;
+        z-index: 1;
+
+        &__guide {
+            padding: 0.5rem 0rem;
+            width: 100%;
+
+            > p {
+                padding: 0 1rem;
+                margin: 0.5rem 0rem 0.25rem 0rem;
+            }
+
+            &__field {
+                display: flex;
+                padding: 0.1rem 1rem;
+                cursor: pointer;
+
+
+                &:hover, &.selected {
+                    background: #444;
+                }
+
+                &__type {
+                    //flex: 1;
+                    margin-right: 0.5rem;
+                }
+
+                &__name {
+                    flex: 1;
+                }
+
+                &__eg {
+                    //flex: 1;
+                    &__field {
+                        color: $dark-query-field;
+                    }
+                }
+
+                span.icon {
+                    font-family: "Interrobot";
+                    font-size: 14px;
+                    color: #cfdfdf;
+                }
+            }
+        }
+    }
+    // options form
+    .content__aside__options__form {
+        @include text-buttons();
     }
 }
 
@@ -326,7 +530,10 @@ form, editform {
 
     .field__text__query {
         color: red;
+        // opacity: 0.7;
 
+        &:active, &:focus {
+        }
         // mark are highlights
         mark {
             color: $light-font-query-highlight;
@@ -355,13 +562,36 @@ form, editform {
         }
     }
 
-    .field {
-        // need a radio/checkbox wrapper to get appearence the way I want
-        &__clickable {
-            // applies stylized checkbox or radio dot/tick when checked
-            input:checked + .field__clickable__radio__tick, input:checked + .field__clickable__checkbox__tick {
-                background-color: $light-button-active;
+    form .content__main__form__suggest {
+        background: $light-bg-field-border;
+        color: white;
+
+        &__guide {
+            > p {
+            }
+
+            &__field {
+                &:hover, &.selected {
+                    background: #444;
+                }
+
+                &__type {
+                }
+
+                &__name {
+                }
+
+                &__eg {
+                    &__field {
+                        color: #dde329;
+                    }
+                }
+
+                span.icon {
+                    color: #cfdfdf;
+                }
             }
         }
     }
+
 }

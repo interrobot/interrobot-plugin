@@ -12,6 +12,7 @@ const templates = require("./ui/templates.js");
 // as does the basic example.
 var Core;
 (function (Core) {
+    // fairly stable, at least that is the direction of travel
     Core.Project = api.Project;
     Core.SearchQueryType = api.SearchQueryType;
     Core.SearchQuery = api.SearchQuery;
@@ -24,7 +25,7 @@ var Core;
 var Ui;
 (function (Ui) {
     // unstable, will evolve... but you can freeze whatever, whenever.
-    // use this, your own spa framework, or vanillajs. def not required.
+    // use this, your own spa framework, or vanilla js. def not required.
     Ui.HtmlProcessingWidget = processing.HtmlProcessingWidget;
     Ui.HtmlResultsTable = table.HtmlResultsTable;
     Ui.Templates = templates.Templates;

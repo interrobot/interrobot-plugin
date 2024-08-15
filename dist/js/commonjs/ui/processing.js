@@ -4,7 +4,13 @@ exports.HtmlProcessingWidget = void 0;
 class HtmlProcessingWidget {
     static createElement(parentElement, prefix) {
         const widget = new HtmlProcessingWidget(prefix);
-        parentElement.appendChild(widget.getBaseElement());
+        const widgetBaseElement = widget.getBaseElement();
+        if (parentElement && widgetBaseElement) {
+            parentElement.appendChild(widgetBaseElement);
+        }
+        else {
+            console.warn(`unable to create processing widget: parent [${parentElement}], base [${widgetBaseElement}]`);
+        }
         return widget;
     }
     constructor(prefix) {

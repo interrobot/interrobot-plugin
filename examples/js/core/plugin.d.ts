@@ -1,21 +1,30 @@
 import { Project, PluginData } from "./api.js";
+declare class PluginConnection {
+    private iframeSrc;
+    private hostOrigin;
+    private pluginOrigin;
+    constructor(iframeSrc: string, hostOrigin: string | null);
+    getIframeSrc(): string;
+    getHostOrigin(): string;
+    getPluginOrigin(): string;
+    toString(): string;
+}
 declare class Plugin {
     static readonly meta: {};
-    static getHostOrigin(): string;
     static postContentHeight(): void;
-    static postOpenResourceLink(resourceId: number, openInBrowser: boolean): void;
+    static postOpenResourceLink(resource: number, openInBrowser: boolean): void;
     static postMeta(meta: {}): void;
     static postApiRequest(apiMethod: string, apiKwargs: {}): Promise<any>;
     static logTiming(msg: string, millis: number): void;
     private static routeMessage;
-    private static origin;
     private static contentScrollHeight;
+    private static connection;
     data: PluginData;
     private projectId;
     private mode;
     private project;
-    private origin;
     constructor();
+    protected delay(ms: number): Promise<unknown>;
     getProjectId(): number;
     init(meta: {}): Promise<void>;
     initData(meta: {}, defaultData: {}, autoform: HTMLElement[]): Promise<void>;
@@ -26,4 +35,4 @@ declare class Plugin {
     protected process(): Promise<void>;
     protected report(titleWords: any): Promise<void>;
 }
-export { Plugin };
+export { Plugin, PluginConnection };

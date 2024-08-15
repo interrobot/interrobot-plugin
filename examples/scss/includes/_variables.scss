@@ -1,4 +1,4 @@
-﻿$static-root-directory: "";
+﻿$static-root-directory: "/_content/Interrobot";
 $aside-offset-top: 2.9rem;
 
 // ipad mini is outer limit of mobile presentation
@@ -16,8 +16,8 @@ $dark-font-low-contrast-color: #999999;
 $dark-font-input-color: #ffffff;
 $dark-font-result-tag-color: #8dc3ff;
 $dark-font-query-highlight: yellow;
-$dark-font-ulink-color: #b3c0c0;
-$dark-font-ulink-hover-color: #b3c0c0;
+$dark-font-ulink-color: #b3c0c0; // #005689;
+$dark-font-ulink-hover-color: #b3c0c0; // #005689;
 $dark-bg-primary: #1e1e1e;
 $dark-bg-secondary: #252526;
 $dark-bg-tertiary: #191919;
@@ -96,3 +96,53 @@ $icon-link: "8";
 $icon-search: "%";
 $icon-crawl: ")";
 $icon-trash: "#";
+
+
+$dark-ok: #437a49;
+; //#94c192;
+$dark-error: #bc3612;
+$dark-norobots: #28282a;
+
+$dark-legend-pages: #257ba3;
+$dark-legend-pages-internal: #00adc2;
+$dark-legend-pages-internal-ok: $dark-ok;
+$dark-legend-pages-internal-error: $dark-error;
+$dark-legend-pages-internal-norobots: $dark-norobots;
+$dark-legend-pages-external: #3e5f5f;
+$dark-legend-pages-external-ok: $dark-ok;
+$dark-legend-pages-external-error: $dark-error;
+$dark-legend-pages-external-norobots: $dark-norobots;
+
+$dark-legend-assets: #a18f20;
+$dark-legend-assets-internal: #c5ce66;
+$dark-legend-assets-internal-ok: $dark-ok;
+$dark-legend-assets-internal-error: $dark-error;
+$dark-legend-assets-internal-norobots: $dark-norobots;
+$dark-legend-assets-external: #82783c;
+$dark-legend-assets-external-ok: $dark-ok;
+$dark-legend-assets-external-error: $dark-error;
+$dark-legend-assets-external-norobots: $dark-norobots;
+
+
+// remove unused
+$light-ok: #168738;
+$light-error: #bc3612;
+$light-norobots: #bbbbbb;
+$light-legend-pages: #257ba3;
+$light-legend-pages-internal: #18d7d7;
+$light-legend-pages-internal-ok: $light-ok;
+$light-legend-pages-internal-error: $light-error;
+$light-legend-pages-internal-norobots: $light-norobots;
+$light-legend-pages-external: #00adc2;
+$light-legend-pages-external-ok: $light-ok;
+$light-legend-pages-external-error: $light-error;
+$light-legend-pages-external-norobots: $light-norobots;
+$light-legend-assets: #9f7118;
+$light-legend-assets-internal: #d5c91b;
+$light-legend-assets-internal-ok: $light-ok;
+$light-legend-assets-internal-error: $light-error;
+$light-legend-assets-internal-norobots: $light-norobots;
+$light-legend-assets-external: #e1990f;
+$light-legend-assets-external-ok: $light-ok;
+$light-legend-assets-external-error: #bc3612;
+$light-legend-assets-external-norobots: $light-norobots;

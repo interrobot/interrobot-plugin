@@ -1,5 +1,7 @@
 /* tslint:disable:no-console */
 /* tslint:disable:max-line-length */
+// important note: this script runs from the context of the plugin iframe
+// but static methods will have the context of the caller
 import { Project, PluginData, SearchQuery, Search, SearchQueryType } from "./api.js";
 import { HtmlUtils } from "./html.js";
 import { TouchProxy } from "./touch.js";
@@ -8,6 +10,39 @@ var DarkMode;
     DarkMode[DarkMode["Light"] = 0] = "Light";
     DarkMode[DarkMode["Dark"] = 1] = "Dark";
 })(DarkMode || (DarkMode = {}));
+class PluginConnection {
+    iframeSrc;
+    hostOrigin;
+    pluginOrigin;
+    constructor(iframeSrc, hostOrigin) {
+        this.iframeSrc = iframeSrc;
+        if (hostOrigin) {
+            this.hostOrigin = hostOrigin;
+        }
+        else {
+            this.hostOrigin = "";
+        }
+        const url = new URL(iframeSrc);
+        if (iframeSrc === "about:srcdoc") {
+            this.pluginOrigin = "about:srcdoc"; // there is no faithful origin
+        }
+        else {
+            this.pluginOrigin = url.origin;
+        }
+    }
+    getIframeSrc() {
+        return this.iframeSrc;
+    }
+    getHostOrigin() {
+        return this.hostOrigin;
+    }
+    getPluginOrigin() {
+        return this.pluginOrigin;
+    }
+    toString() {
+        return `host = ${this.hostOrigin}; plugin = ${this.pluginOrigin}`;
+    }
+}
 class Plugin {
     static meta = {
         "url": "https://example.com/path/to/plugin-page/",
@@ -20,14 +55,6 @@ class Plugin {
         your own creation.\n\nThis is the default plugin description. Set meta: {} values
         in the source to update these display values.`,
     };
-    static getHostOrigin() {
-        if (!Plugin.origin) {
-            const urlSearchParams = new URLSearchParams(window.location.search);
-            const params = Object.fromEntries(urlSearchParams.entries());
-            Plugin.origin = params.origin;
-        }
-        return Plugin.origin;
-    }
     static postContentHeight() {
         const mainResults = document.querySelector(".main__results");
         let currentScrollHeight = document.body.scrollHeight;
@@ -45,13 +72,13 @@ class Plugin {
             Plugin.routeMessage(msg);
         }
     }
-    static postOpenResourceLink(resourceId, openInBrowser) {
+    static postOpenResourceLink(resource, openInBrowser) {
         const msg = {
             target: "interrobot",
             data: {
                 reportLink: {
                     openInBrowser: openInBrowser,
-                    resourceId: resourceId,
+                    resource: resource,
                 }
             },
         };
@@ -73,6 +100,12 @@ class Plugin {
         const getPromisedResult = async () => {
             return new Promise((resolve) => {
                 const listener = async (ev) => {
+                    // debug message being passed here. too spammy to leave on officially,
+                    // too dependably useful to remove
+                    // console.log(ev);
+                    if (ev === undefined) {
+                        return;
+                    }
                     const evData = ev.data;
                     const evDataData = evData.data ?? {};
                     if (evDataData && typeof evDataData === "object" && evDataData.hasOwnProperty("apiResponse")) {
@@ -113,25 +146,47 @@ class Plugin {
     static routeMessage(msg) {
         // Pt 1 of 2
         // window.parent.origin can't be read from external URL, only works with core
-        const parentOrigin = this.origin;
-        window.parent.postMessage(msg, parentOrigin);
+        // console.log(document.location.href);
+        // console.log(Plugin.connection.toString());
+        let parentOrigin = "";
+        if (Plugin.connection) {
+            parentOrigin = Plugin.connection.getHostOrigin();
+            window.parent.postMessage(msg, parentOrigin);
+        }
+        else {
+            // core iframe uses srcdoc, has no usable origin
+            // TODO, Plugin.connection should be set regardless?
+            // this happens on export dl ands external urls btw
+            window.parent.postMessage(msg);
+        }
     }
-    static origin;
     static contentScrollHeight;
+    static connection;
     data;
     projectId = -1;
     mode = DarkMode.Light;
     project;
-    origin;
     constructor() {
-        // pull params from iframe url
-        const urlSearchParams = new URLSearchParams(window.location.search);
-        const params = Object.fromEntries(urlSearchParams.entries());
-        const paramProject = parseInt(params.project, 10);
-        const paramMode = parseInt(params.mode, 10);
-        const paramOrigin = params.origin;
-        // lock this in while we're initializing
-        Plugin.origin = params.origin;
+        let paramProject;
+        let paramMode;
+        let paramOrigin;
+        if (window.parent && window.parent !== window) {
+            // core report, 3rd party will not have cross origin access
+            // params stashed in dataset
+            const ifx = window.parent.document.getElementById("report");
+            paramProject = parseInt(ifx.dataset.project, 10);
+            paramMode = parseInt(ifx.dataset.mode, 10);
+            paramOrigin = ifx.dataset.origin;
+        }
+        else {
+            // proper iframe
+            const urlSearchParams = new URLSearchParams(window.location.search);
+            paramProject = parseInt(urlSearchParams.get("project"), 10);
+            paramMode = parseInt(urlSearchParams.get("mode"), 10);
+            paramOrigin = urlSearchParams.get("origin");
+        }
+        // static functions will depend on this static variable
+        Plugin.connection = new PluginConnection(document.location.href, paramOrigin);
         // no salvaging this
         if (isNaN(paramProject)) {
             const errorMessage = `missing project url argument`;
@@ -140,13 +195,16 @@ class Plugin {
         this.data = null; // requires async loadData
         this.projectId = paramProject;
         this.mode = isNaN(paramMode) || paramMode !== 1 ? DarkMode.Light : DarkMode.Dark;
-        this.origin = paramOrigin ?? "https://0.0.0.0";
         Plugin.contentScrollHeight = 0;
         // dark/light css to body
         const modeClass = DarkMode[this.mode].toLowerCase();
         document.body.classList.remove("light", "dark");
         document.body.classList.add(modeClass);
         const tp = new TouchProxy();
+    }
+    delay(ms) {
+        // for ui to force painting
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
     getProjectId() {
         return this.projectId;
@@ -165,7 +223,6 @@ class Plugin {
         return this.data;
     }
     async getProject() {
-        const tsStart = Date.now();
         if (this.project === undefined) {
             const project = await Project.getApiProject(this.projectId);
             if (project === null) {
@@ -174,8 +231,6 @@ class Plugin {
             }
             this.project = project;
         }
-        const tsEnd = Date.now();
-        console.log(`InterroBot Plugin: retrieved project in ${tsEnd - tsStart}ms`);
         return this.project;
     }
     render(html) {
@@ -284,4 +339,4 @@ class Plugin {
         Plugin.postContentHeight();
     }
 }
-export { Plugin };
+export { Plugin, PluginConnection };

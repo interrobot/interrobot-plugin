@@ -14,40 +14,101 @@ class PluginData {
     data;
     dataLoaded;
     meta;
-    projectId;
+    project;
     constructor(projectId, meta, defaultData, autoformInputs) {
         this.meta = meta;
         this.defaultData = defaultData;
         this.autoformInputs = autoformInputs;
-        this.projectId = projectId;
+        this.project = projectId;
         // init and copy in default data
         // autoform { [projectId: number]: {[inputName: string]: any } }
         this.data = {
             apiVersion: "1.1",
             autoform: {},
         };
-        this.data.autoform[this.projectId] = {};
+        if (this.data.autoform === null) {
+            this.data.autoform = [];
+        }
+        this.data.autoform[this.project] = {};
         if (autoformInputs.length > 0) {
+            // const setValue = async (name: string, value: string) => {
+            //     const data: {} = await this.getData();
+            //     const autoformData: {} = data["autoform"] ?? {};
+            //     const projectAutoformData: {} = autoformData[this.project] ?? {};
+            //     if (projectAutoformData[name] !== value) {
+            //         projectAutoformData[name] = value;
+            //         await this.setDataField("autoform", autoformData, true);
+            //     }
+            // }
             const changeHandler = async (el) => {
                 let name = el.getAttribute("name");
                 const value = el.checked === undefined ? el.value : el.checked;
-                const data = await this.getData();
-                const autoformData = data["autoform"] ?? {};
-                const projectAutoformData = autoformData[this.projectId] ?? {};
-                if (projectAutoformData[name] !== value) {
-                    projectAutoformData[name] = value;
-                    // necessary? autoformData[projectId] = projectAutoformData;
-                    await this.setDataField("autoform", autoformData, true);
+                await this.setAutoformField(name, value);
+            };
+            const radioHandler = async (el) => {
+                let name = el.getAttribute("name");
+                const elInput = el;
+                const checkedRadios = document.querySelectorAll(`input[type=radio][name=${elInput.name}]:checked`);
+                if (checkedRadios.length !== 1) {
+                    console.error("radio control failure");
+                    return;
                 }
+                const value = checkedRadios[0].value;
+                await this.setAutoformField(name, value);
+            };
+            const pipedHandler = async (el) => {
+                let name = el.getAttribute("name");
+                const elInput = el;
+                const checkedCheckboxes = document.querySelectorAll(`input[type=checkbox][name=${elInput.name}]:checked`);
+                const piperList = [];
+                for (let i = 0; i < checkedCheckboxes.length; i++) {
+                    piperList.push(checkedCheckboxes[i].value);
+                }
+                const value = piperList.join("|");
+                await this.setAutoformField(name, value);
             };
             for (let el of this.autoformInputs) {
+                // happens with 0 inputs
+                if (el === null) {
+                    continue;
+                }
                 const tag = el.tagName.toLowerCase();
                 switch (tag) {
                     case "input":
                         const input = el;
-                        input.addEventListener("change", async (ev) => {
-                            await changeHandler(input);
-                        });
+                        // handle reasonable accomodations/variations in checkbox intent
+                        // looks more complicated than it is
+                        if (input.type == "checkbox") {
+                            // this can go a couple ways
+                            // either it is a single true/false or a multiple, 
+                            // in which it is piped|values|like|this, dig it?
+                            const elInput = el;
+                            const allCheckboxes = document.querySelectorAll(`input[type=checkbox][name=${elInput.name}]`);
+                            if (allCheckboxes.length === 1) {
+                                // true/false branch start
+                                input.addEventListener("change", async (ev) => {
+                                    await changeHandler(input);
+                                });
+                            }
+                            else if (allCheckboxes.length > 1) {
+                                // piped branch
+                                input.addEventListener("change", async (ev) => {
+                                    await pipedHandler(input);
+                                });
+                            }
+                        }
+                        else if (input.type == "radio") {
+                            // just a text input
+                            input.addEventListener("change", async (ev) => {
+                                await radioHandler(input);
+                            });
+                        }
+                        else {
+                            // just a text input
+                            input.addEventListener("change", async (ev) => {
+                                await changeHandler(input);
+                            });
+                        }
                         break;
                     case "textarea":
                         const textarea = el;
@@ -71,7 +132,7 @@ class PluginData {
         if (this.data[key] !== value) {
             this.data[key] = value;
         }
-        // push even if no change for the modtime
+        // push even if no change
         if (push === true) {
             await this.updateData();
         }
@@ -86,16 +147,20 @@ class PluginData {
         }
     }
     async loadData() {
+        let pluginUrl = window.location.href;
+        // adjust for core reports, 3rd party will not hit this
+        if (pluginUrl === "about:srcdoc") {
+            pluginUrl = `/reports/${window.parent.document.getElementById("report").dataset.report}/`;
+        }
+        // console.log(`${pluginUrl}`)
         const kwargs = {
-            "pluginUrl": `${window.location.href}`,
+            "pluginUrl": pluginUrl,
         };
         const startTime = new Date().getTime();
         const result = await Plugin.postApiRequest("GetPluginData", kwargs);
         const endTime = new Date().getTime();
         try {
-            // const jsonResponse: JSON = await result.json();
             Plugin.logTiming(`Loaded options: ${JSON.stringify(kwargs)}`, endTime - startTime);
-            // console.log(jsonResponse);
             const jsonResponseData = result["data"];
             const jsonResponseDataEmpty = Object.keys(jsonResponseData).length === 0;
             const merged = {};
@@ -136,38 +201,95 @@ class PluginData {
                 // end legacy
             }
             // init project level autoform, this is where input values stored
-            if (!(this.projectId in this.data["autoform"])) {
-                this.data["autoform"][this.projectId] = defaultProjectData;
+            if (!(this.project in this.data["autoform"])) {
+                this.data["autoform"][this.project] = defaultProjectData;
             }
         }
+        const radioGroups = [];
         // loop html elements, and set values to stored
         for (let el of this.autoformInputs) {
+            // happens with 0 inputs
+            if (el === null) {
+                continue;
+            }
             const name = el.name;
-            const val = this.data["autoform"][this.projectId][name] ?? null;
+            const val = this.data["autoform"][this.project][name] ?? null;
+            const lowerTag = el.tagName.toLowerCase();
             let input;
-            switch (el.tagName.toLowerCase()) {
+            let isBooleanCheckbox = false;
+            let isMultiCheckbox = false;
+            let isRadio = false;
+            let isSelect = false;
+            switch (lowerTag) {
                 case "input":
                     input = el;
+                    if (input.type === "radio") {
+                        isRadio = true;
+                        radioGroups.push(name);
+                    }
+                    else if (input.type === "checkbox" && typeof val === "boolean") {
+                        isBooleanCheckbox = true;
+                    }
+                    else if (input.type === "checkbox" && typeof val === "string") {
+                        isMultiCheckbox = true;
+                    }
                     break;
                 case "textarea":
                     input = el;
                     break;
                 case "select":
                     input = el;
+                    isSelect = true;
                     break;
                 default:
                     break;
             }
-            if (input && val) {
-                if (input.checked === undefined) {
-                    input.value = val;
-                }
-                else {
-                    input.checked = val;
-                }
+            // unsalvageable
+            if (!input) {
+                console.warn(`autoform: no input found`);
+                return;
+            }
+            // got to custom handle the various checkboxes and radios
+            switch (true) {
+                case isRadio:
+                    input.checked = val === input.value;
+                    break;
+                case isBooleanCheckbox:
+                    input.checked = val ? val : false;
+                    break;
+                case isMultiCheckbox:
+                    input.checked = val ? val.toString().indexOf(input.value) >= 0 : false;
+                    break;
+                case isSelect:
+                default:
+                    // val null prior to being set
+                    if (val) {
+                        input.value = val;
+                    }
+                    // else input to self assign (default)             
+                    break;
             }
         }
+        // clean up unchecked radios
+        radioGroups.forEach((inputName) => {
+            const hasCheck = document.querySelector(`input[name=${inputName}]:checked`) !== null;
+            if (!hasCheck) {
+                const firstRadio = document.querySelector(`input[name=${inputName}]`);
+                if (firstRadio) {
+                    firstRadio.checked = true;
+                }
+            }
+        });
         return;
+    }
+    async setAutoformField(name, value) {
+        const data = await this.getData();
+        const autoformData = data["autoform"] ?? {};
+        const projectAutoformData = autoformData[this.project] ?? {};
+        if (projectAutoformData[name] !== value) {
+            projectAutoformData[name] = value;
+            await this.setDataField("autoform", autoformData, true);
+        }
     }
     async updateData() {
         // const updateEndpoint = this.getDataEndpoint();        
@@ -180,6 +302,7 @@ class PluginData {
         const result = await Plugin.postApiRequest("SetPluginData", kwargs);
         return;
         /*
+        // preserved for historical reference
         const response = await fetch(`${Plugin.getHostOrigin()}/api/v2/projects/?fields=image&ids=${id}`);
         const projects = await response.json();
         const dataUpload: string = JSON.stringify(data);
@@ -200,28 +323,25 @@ class PluginData {
         const b64Key = btoa(key);
         return b64Key;
     }
-    getDataEndpoint() {
-        return `${Plugin.getHostOrigin()}/api/v2/plugins/${encodeURIComponent(this.getDataSlug())}/data/`;
-    }
     getPluginUrl() {
         return `${window.location.protocol}//${window.location.host}${window.location.pathname}`;
     }
 }
 class SearchQuery {
-    projectId;
+    project;
     query;
     fields;
     type;
     includeExternal;
-    constructor(projectId, query, fields, type, includeExternal) {
-        this.projectId = projectId;
+    constructor(project, query, fields, type, includeExternal) {
+        this.project = project;
         this.query = query;
         this.fields = fields;
         this.type = type;
         this.includeExternal = includeExternal;
     }
     getHaystackCacheKey() {
-        return `${this.projectId}~${this.fields}~${this.type}~${this.includeExternal}`;
+        return `${this.project}~${this.fields}~${this.type}~${this.includeExternal}`;
     }
 }
 class Search {
@@ -239,10 +359,10 @@ class Search {
             // anyways, paint first, then saturate cpu
             const eventStart = new CustomEvent("ProcessingMessage", { detail: { action: "set", message: processingMessage } });
             document.dispatchEvent(eventStart);
-            // give main thread a very short break to render
+            // give main thread a short break to render
             await Search.sleep(16);
             // note for of loop with sleep mod 100 works, looks smooth, but slows the operation by > 20%
-            // this is faster, but it can't paint progress
+            // this is faster, but it can't paint progress well as it can saturate the main thread
             let i = 0;
             await existingResults.forEach(async (result, resultId) => {
                 await resultHandler(result);
@@ -278,7 +398,7 @@ class Search {
         }
         */
         const kwargs = {
-            "projectId": query.projectId,
+            "project": query.project,
             "query": query.query,
             "external": query.includeExternal,
             "type": SearchQueryType[query.type].toLowerCase(),
@@ -325,6 +445,9 @@ class SearchResult {
     id;
     url;
     // optional
+    created;
+    modified;
+    size;
     status;
     time;
     norobots;
@@ -335,8 +458,8 @@ class SearchResult {
     content;
     headers;
     processedContent;
-    optionalFields = ["status", "time", "norobots", "name",
-        "type", "content", "headers", "links", "assets"];
+    optionalFields = ["created", "modified", "size", "status",
+        "time", "norobots", "name", "type", "content", "headers", "links", "assets", "origin"];
     static normalizeContentWords(input) {
         const out = [];
         if (input !== "") {
@@ -355,7 +478,12 @@ class SearchResult {
         this.processedContent = "";
         for (let field of this.optionalFields) {
             if (field in jsonResult) {
-                this[field] = jsonResult[field];
+                if (field === "created" || field === "modified") {
+                    this[field] = new Date(jsonResult[field]);
+                }
+                else {
+                    this[field] = jsonResult[field];
+                }
             }
         }
     }
@@ -408,6 +536,44 @@ class SearchResult {
         this.headers = "";
     }
 }
+class Crawl {
+    id = -1;
+    created = null;
+    modified = null;
+    project = -1;
+    complete;
+    time = -1;
+    report = null;
+    constructor(id, project, created, modified, complete, time, report) {
+        this.id = id;
+        this.created = created;
+        this.modified = modified;
+        this.complete = complete;
+        this.project = project;
+        this.time = time;
+        this.report = report;
+    }
+    getTimings() {
+        return this.getReportDetailByKey("timings");
+    }
+    getSizes() {
+        return this.getReportDetailByKey("sizes");
+    }
+    getCounts() {
+        return this.getReportDetailByKey("counts");
+    }
+    getReportDetailByKey(key) {
+        // returns a dictionary of key/values for the corresponding key
+        // InterroBot pre-2.6 will not contain a detail object        
+        if (this.report && this.report.hasOwnProperty("detail") &&
+            this.report.detail.hasOwnProperty(key)) {
+            return this.report.detail[key];
+        }
+        else {
+            return null;
+        }
+    }
+}
 class Project {
     id = -1;
     created = null;
@@ -429,11 +595,9 @@ class Project {
     }
     static async getApiProject(id) {
         const kwargs = {
-            "ids": [id],
-            "fields": ["image"],
+            "projects": [id],
+            "fields": ["image", "created", "modified"],
         };
-        // const response = await fetch(`${Plugin.getHostOrigin()}/api/v2/projects/?fields=image&ids=${id}`);
-        // const projects = await response.json();
         const projects = await Plugin.postApiRequest("GetProjects", kwargs);
         const results = projects.results;
         for (let i = 0; i < results.length; i++) {
@@ -450,5 +614,23 @@ class Project {
         // not found
         return null;
     }
+    static async getApiCrawls(project) {
+        const kwargs = {
+            complete: "complete",
+            project: project,
+            fields: ["created", "modified", "report", "time"],
+        };
+        const response = await Plugin.postApiRequest("GetCrawls", kwargs);
+        const crawls = [];
+        const crawlResults = response.results;
+        for (let i = 0; i < crawlResults.length; i++) {
+            const crawlResult = crawlResults[i];
+            // console.log(crawlResult.created);
+            // console.log(new Date(crawlResult.created));
+            const crawl = new Crawl(crawlResult.id, project, new Date(crawlResult.created), new Date(crawlResult.modified), crawlResult.complete, crawlResult.time, crawlResult.report);
+            crawls.push(crawl);
+        }
+        return crawls;
+    }
 }
-export { Project, SearchQueryType, SearchQuery, Search, SearchResult, PluginData };
+export { Project, Crawl, SearchQueryType, SearchQuery, Search, SearchResult, PluginData };

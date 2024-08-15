@@ -14,8 +14,6 @@ serving at port http://127.0.0.1:8084 | Ctrl + Break (aka Pause) to end
 
 If using a production server, you'll need to allow your page to be iframed. These headers should be set on your plugin iframe pages alone, and not your whole website. Remember that you'll need to allow the InterroBot desktop client running on a local IP address and locally available port, and not the interro.bot domain.
 
-There are two ways to accomplish this.
-
 Your plugin HTML should include the following meta value, or HTTP header equivalent
 
 `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:">`

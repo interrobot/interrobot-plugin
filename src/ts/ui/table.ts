@@ -72,7 +72,7 @@ class HtmlResultsTable {
     private header: string;
     private headings: string[];
     private perPage: number;
-    private projectId: number;
+    private project: number;
     private results: string[][];
     private resultsSort: HTMLResultsTableSort;
     private resultsOffset: number;
@@ -88,12 +88,12 @@ class HtmlResultsTable {
     private sortableHandler: Function;
     private scrollHandler: Function;
 
-    public static createElement(parentElement: HTMLElement, projectId: number, perPage: number,
+    public static createElement(parentElement: HTMLElement, project: number, perPage: number,
         header: string, headings: string[], results: string[][], resultsSort: HTMLResultsTableSort,
         rowRenderer: Function, cellRenderer: {}, cellHandler: Function,
         exportExtra: Object): HtmlResultsTable {
 
-        const pagedTable: HtmlResultsTable = new HtmlResultsTable(projectId, perPage, header, headings,
+        const pagedTable: HtmlResultsTable = new HtmlResultsTable(project, perPage, header, headings,
             results, resultsSort, rowRenderer, cellRenderer, cellHandler, exportExtra);
         parentElement.appendChild(pagedTable.baseElement);
         Plugin.postContentHeight();
@@ -114,17 +114,20 @@ class HtmlResultsTable {
             } else {
                 return bNum - aNum;
             }
-        } else {
+        } else if (a !== undefined && b !== undefined) {
             // sort alpha
             if (sortOrder === SortOrder.Ascending) {
                 return a.localeCompare(b);
             } else {
                 return b.localeCompare(a);
             }
+        } else {
+            console.warn(`sort failure: ${a}, ${b}`)
+            return 0;
         }
     }
 
-    public constructor(projectId: number, perPage: number, header: string, headings: string[],
+    public constructor(project: number, perPage: number, header: string, headings: string[],
         results: any[], resultsSort: HTMLResultsTableSort, rowRenderer: Function, cellRenderer: Object, cellHandler: Function,
         exportExtra: Object) {
 
@@ -134,14 +137,13 @@ class HtmlResultsTable {
         this.resultsSort = resultsSort;
         this.headings = headings;
         this.perPage = perPage;
-        this.projectId = projectId;
+        this.project = project;
         this.resultsCount = results.length;
         this.resultsOffset = 0;
         this.cellRenderer = cellRenderer;
         this.rowRenderer = rowRenderer;
         this.cellHandler = cellHandler;
         this.exportExtra = exportExtra;
-
 
         // async (ev: MessageEvent)
         this.scrollHandler = (ev: MessageEvent) => {
@@ -186,7 +188,7 @@ class HtmlResultsTable {
             if (this.results.length === 0) {
                 return;
             }
-
+            
             const anchor = ev.currentTarget as HTMLAnchorElement;
             let sortHeading: string = anchor.dataset["heading"];
             let sortOrder: SortOrder;
@@ -223,6 +225,8 @@ class HtmlResultsTable {
         };
 
         this.downloadHandler = (ev: MouseEvent) => {
+
+            ev.preventDefault();
 
             // export ignores the result # column
             const dlLinks: HTMLElement = this.baseElement.querySelector(".info__dl") as HTMLElement;
@@ -316,7 +320,8 @@ class HtmlResultsTable {
         const secondaryHeading: string = this.resultsSort.secondaryHeading;
         const secondarySort: SortOrder = this.resultsSort.secondarySort;
         const secondarySortOnIndex: number = this.getHeadingIndex(secondaryHeading);
-
+        const naturalNumberRegex = /^[-+]?[0-9]+([,.]?[0-9]+)?$/;
+        
         if (primarySortOnIndex === -1) {
             console.warn(`heading '${this.resultsSort.primaryHeading}' not found, aborting sort`);
             return;
@@ -325,13 +330,17 @@ class HtmlResultsTable {
         const compoundSort: any = (a: string[], b: string[]) => {
 
             // two fields sort, e.g. id/crawl-order (numeric, acending) primary, term (alpha, acending) secondary
+            // danger! this is true -> isNaN(null) === false
             const primaryAVal: string = a[primarySortOnIndex];            
-            const primaryAValNumber: number = parseFloat(primaryAVal);
-            const primaryAValIsNumber: boolean = !(isNaN(primaryAValNumber));
+            const primaryAValNumber: number = naturalNumberRegex.test(primaryAVal) ? parseFloat(primaryAVal) : null;
+            const primaryAValIsNumber: boolean = primaryAValNumber !== null && !(isNaN(primaryAValNumber));
 
             const primaryBVal: string = b[primarySortOnIndex];
-            const primaryBValNumber: number = parseFloat(primaryBVal);
-            const primaryBValIsNumber: boolean = !(isNaN(primaryBValNumber));
+            const primaryBValNumber: number = naturalNumberRegex.test(primaryBVal) ? parseFloat(primaryBVal) : null;
+            const primaryBValIsNumber: boolean = primaryBValNumber !== null && !(isNaN(primaryBValNumber));
+
+            // console.warn(`compare ${primaryAVal} ${primaryAValNumber} ${primaryAValIsNumber}
+            //     ${primaryBVal} ${primaryBValNumber} ${primaryBValIsNumber}`);
 
             if (primaryAVal === primaryBVal) {
 
@@ -347,7 +356,7 @@ class HtmlResultsTable {
                 return HtmlResultsTable.sortResultsHelper(secondaryAVal, secondaryAValNumber, secondaryAValIsNumber,
                     secondaryBVal, secondaryBValNumber, secondaryBValIsNumber, secondarySort);
             } else {
-                // sort primary
+                // sort primary                
                 return HtmlResultsTable.sortResultsHelper(primaryAVal, primaryAValNumber, primaryAValIsNumber,
                     primaryBVal, primaryBValNumber, primaryBValIsNumber, primarySort);                    
             }
@@ -388,11 +397,20 @@ class HtmlResultsTable {
         </svg>`;
         for (let heading of headings) {
             const encodedColumnClass: string = HtmlUtils.htmlEncode(this.getColumnClass(heading));
-            const encodedLabel = `Sort by ${HtmlUtils.htmlEncode(heading)}`;
-            const link = `<a title="${encodedLabel}" class="sortable" data-heading="${HtmlUtils.htmlEncode(heading)}" href="#">
-                ${svg}<span class="reader">${encodedLabel}</span></a>`;
-            const sortable = encodedColumnClass !== "column__empty" ? link : "";
-            out.push(`<th class="${encodedColumnClass}">${HtmlUtils.htmlEncode(heading)} ${sortable}</th>`);
+            const encodedLabel = `${HtmlUtils.htmlEncode(heading)}`;
+            const sortable = encodedColumnClass !== "column__empty";
+
+            let sortableLabel: string = "";
+            let sortableChevronLink: string = "";
+            if (sortable) {
+                sortableLabel = `<a class="sortable" data-heading="${HtmlUtils.htmlEncode(heading)}" href="#">${HtmlUtils.htmlEncode(encodedLabel)}</a>`
+                sortableChevronLink = `<a title="${encodedLabel}" class="sortable" data-heading="${HtmlUtils.htmlEncode(heading)}" href="#">
+                    ${svg}<span class="reader">${encodedLabel}</span></a>`;
+            } else {
+                sortableLabel = `${HtmlUtils.htmlEncode(encodedLabel)}`;
+            }
+
+            out.push(`<th class="${encodedColumnClass}">` + sortableLabel + " " + sortableChevronLink  + `</th>`);
         }
         return out.join("");
     }

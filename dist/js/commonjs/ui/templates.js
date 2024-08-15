@@ -20,6 +20,28 @@ class Templates {
     static standardResults() {
         return `<div class="main__results"></div>`;
     }
+    static standardCheckbox(name, value, label, synopsis) {
+        return `
+        <label>
+            <span class="checkbox">
+                <input type="checkbox" name="${html_js_1.HtmlUtils.htmlEncode(name)}" value="${html_js_1.HtmlUtils.htmlEncode(value)}"/>
+                <span class="checkbox__tick"></span>                                
+            </span>
+            <span class="checkbox__label">${html_js_1.HtmlUtils.htmlEncode(label)}</span> 
+            ${synopsis ? `<span class="checkbox__synopsis">` + html_js_1.HtmlUtils.htmlEncode(synopsis) + `</span>` : ""}
+        </label>`;
+    }
+    static standardRadio(name, value, label, synopsis) {
+        return `        
+        <label>
+            <span class="radio">
+                <input type="radio" name="${html_js_1.HtmlUtils.htmlEncode(name)}" value="${html_js_1.HtmlUtils.htmlEncode(value)}">
+                <span class="radio__tick"></span>
+            </span>
+            <span class="radio__text">${html_js_1.HtmlUtils.htmlEncode(label)}</span>
+            ${synopsis ? `<span class="radio__synopsis">` + html_js_1.HtmlUtils.htmlEncode(synopsis) + `</span>` : ""}
+        </label>`;
+    }
     static cellRendererSameAsLast(cellValue, rowData, i) {
         var _a;
         if (!("ID" in rowData)) {

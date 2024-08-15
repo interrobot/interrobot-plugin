@@ -9,23 +9,23 @@ declare class PluginData {
     private data;
     private dataLoaded;
     private meta;
-    private projectId;
+    private project;
     constructor(projectId: number, meta: {}, defaultData: {}, autoformInputs: HTMLElement[]);
     setDataField(key: string, value: any, push: boolean): Promise<void>;
     getData(): Promise<{}>;
     loadData(): Promise<void>;
-    private updateData;
+    setAutoformField(name: string, value: string): Promise<void>;
+    updateData(): Promise<void>;
     private getDataSlug;
-    private getDataEndpoint;
     private getPluginUrl;
 }
 declare class SearchQuery {
-    readonly projectId: number;
+    readonly project: number;
     readonly query: string;
     readonly fields: string;
     readonly type: SearchQueryType;
     readonly includeExternal: boolean;
-    constructor(projectId: number, query: string, fields: string, type: SearchQueryType, includeExternal: boolean);
+    constructor(project: number, query: string, fields: string, type: SearchQueryType, includeExternal: boolean);
     getHaystackCacheKey(): string;
 }
 declare class Search {
@@ -41,6 +41,9 @@ declare class SearchResult {
     readonly result: number;
     readonly id: number;
     readonly url: string;
+    readonly created: Date;
+    readonly modified: Date;
+    readonly size: number;
     readonly status: number;
     readonly time: number;
     readonly norobots: boolean;
@@ -64,6 +67,20 @@ declare class SearchResult {
     getUrlPath(): string;
     clearFulltextFields(): void;
 }
+declare class Crawl {
+    id: number;
+    created: Date;
+    modified: Date;
+    project: number;
+    complete: boolean;
+    time: number;
+    report: any;
+    constructor(id: number, project: number, created: Date, modified: Date, complete: boolean, time: number, report: any);
+    getTimings(): {};
+    getSizes(): {};
+    getCounts(): {};
+    private getReportDetailByKey;
+}
 declare class Project {
     id: number;
     created: Date;
@@ -74,5 +91,6 @@ declare class Project {
     getImageDataUri(): string;
     getDisplayTitle(): string;
     static getApiProject(id: number): Promise<Project>;
+    static getApiCrawls(project: number): Promise<Crawl[]>;
 }
-export { Project, SearchQueryType, SearchQuery, Search, SearchResult, PluginData };
+export { Project, Crawl, SearchQueryType, SearchQuery, Search, SearchResult, PluginData };

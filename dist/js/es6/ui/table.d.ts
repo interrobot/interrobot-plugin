@@ -26,7 +26,7 @@ declare class HtmlResultsTable {
     private header;
     private headings;
     private perPage;
-    private projectId;
+    private project;
     private results;
     private resultsSort;
     private resultsOffset;
@@ -39,10 +39,10 @@ declare class HtmlResultsTable {
     private appLinkHandler;
     private sortableHandler;
     private scrollHandler;
-    static createElement(parentElement: HTMLElement, projectId: number, perPage: number, header: string, headings: string[], results: string[][], resultsSort: HTMLResultsTableSort, rowRenderer: Function, cellRenderer: {}, cellHandler: Function, exportExtra: Object): HtmlResultsTable;
+    static createElement(parentElement: HTMLElement, project: number, perPage: number, header: string, headings: string[], results: string[][], resultsSort: HTMLResultsTableSort, rowRenderer: Function, cellRenderer: {}, cellHandler: Function, exportExtra: Object): HtmlResultsTable;
     static generateFormatedColumnNumber(num: number): string;
     static sortResultsHelper(a: string, aNum: number, aIsNum: boolean, b: string, bNum: number, bIsNum: boolean, sortOrder: SortOrder): number;
-    constructor(projectId: number, perPage: number, header: string, headings: string[], results: any[], resultsSort: HTMLResultsTableSort, rowRenderer: Function, cellRenderer: Object, cellHandler: Function, exportExtra: Object);
+    constructor(project: number, perPage: number, header: string, headings: string[], results: any[], resultsSort: HTMLResultsTableSort, rowRenderer: Function, cellRenderer: Object, cellHandler: Function, exportExtra: Object);
     getHeadingIndex(headingLabel: string): number;
     getResults(): string[][];
     getHeadings(): string[];
