@@ -1,6 +1,6 @@
 # InterroBot Plugin
 
-This JavaScript library is used in the creation of plugins (aka reports) that present data or visualizations for a website in aggregate, across site content. Plugins run as an extension to the [InterroBot web crawler](https://interro.bot), available for Win10/11.
+This JavaScript library is used in the creation of plugins (aka reports) that present data or visualizations for a website in aggregate, across site content. Plugins run as an extension to the [InterroBot web crawler](https://interro.bot), available for Win10/11, Android, and MacOS.
 
 Connect to web analytics, LLM, or SAAS for extra insight. Keep your plugins to yourself, resell them to clients, or give them away to an adoring world... 
 
@@ -27,7 +27,7 @@ A bit of everything you need to get to brass tacks with a tricky development or 
 
 ## Licensing
 
-MPL 2.0, with exceptions. This repo contains two JavaScript to TypeScript ports, contained within `./src/lib`. As they arrived under existing licenses, they will remain under those.
+MPL 2.0, with exceptions. This repo contains JavaScript to TypeScript ports and a Markdown library based on existing code, all contained within `./src/lib`. As they arrived under existing licenses, they will remain under those. 
 
 * *Typo.js*: TypeScript port continues under the original [Modified BSD License](https://raw.githubusercontent.com/cfinke/Typo.js/master/license.txt).
 * *Snowball.js*: TypeScript port continues under the original [MPL 1.1](https://raw.githubusercontent.com/fortnightlabs/snowball-js/master/LICENSE) license.
