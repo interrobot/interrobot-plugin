@@ -2,11 +2,23 @@
 
 ## Setup
 
-Plugin development relies on devtools to print messages to console and review/edit css. 
+Plugin development for InterroBot requires access to developer tools (devtools) for console output and CSS editing. The setup process differs slightly between Windows and macOS:
 
-Windows users will need to use a debug version of InterroBot, available from a website account, at [interro.bot](https://interro.bot). The standard version has an issue where devtools will not open. This means a separate version is required for developing plugins, at the moment. This issue will hopefully resolve at some point when the upstream issue is addressed.
+### Windows Users
 
-For macOS users, devtools can be accessed through Safari. Under Develop menu (enabled in Safari, Settings, Advanced, Show Develop menu in menu bar), then click the Show Web Inspector option. You may need to target InterroBot (also under the Develop menu).
+The standard version of InterroBot has an issue preventing devtools from opening, necessitating this separate version for plugin development. This is a temporary solution until the upstream issue is resolved.
+
+* Use a debug version of InterroBot, available from your account at [interro.bot](https://interro.bot).
+
+### macOS Users
+
+To access devtools through Safari, you'll need to enable the Develop menu.
+
+* Open Safari Settings
+* Go to Advanced
+* Check "Show Develop menu in menu bar"
+* From the Develop menu, select "Show Web Inspector"
+* You may need to specifically target InterroBot (also found under the Develop menu)
 
 ## Running Plugins Locally
 
@@ -30,6 +42,8 @@ Allowing the interro.bot domain will do nothing productive, InterroBot client ru
 
 ## Vanilla JS Example
 
-A note of caution, the basic.html page is a blank if not loaded into InterroBot. You must first run InterroBot, and load the plugin from within the app. From there, you get the URL arguments and access to the API necessary to do anything interesting.
+From an InterroBot project (in app), go to the reports page. Under 3rd Party Reports, with the server running on loopback, add the following URL: http://127.0.0.1:8084/vanillajs/basic.html
+
+A note of caution, the basic.html page is a blank if not loaded into InterroBot. 
 
 
