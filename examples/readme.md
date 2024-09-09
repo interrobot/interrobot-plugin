@@ -42,7 +42,7 @@ Allowing the interro.bot domain will do nothing productive, InterroBot client ru
 
 ## Vanilla JS Example
 
-From an InterroBot project (in app), go to the reports page. Under 3rd Party Reports, with the server running on loopback, add the following URL: http://127.0.0.1:8084/vanillajs/basic.html
+From an InterroBot project (in app), go to the reports page within a project. Under 3rd Party Reports, with the server running on loopback, add the following URL: http://127.0.0.1:8084/vanillajs/basic.html
 
 A note of caution, the basic.html page is a blank if not loaded into InterroBot. 
 
