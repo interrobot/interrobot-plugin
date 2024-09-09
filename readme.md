@@ -1,6 +1,6 @@
 # InterroBot Plugin
 
-This JavaScript library is used in the creation of plugins (aka reports) that present data or visualizations for a website in aggregate, across site content. Plugins run as an extension to the [InterroBot web crawler](https://interro.bot), available for Win10/11, Android, and MacOS.
+This JavaScript library is used in the creation of plugins (aka reports) that present data or visualizations for a website in aggregate, across site content. Plugins run as an extension to the [InterroBot web crawler](https://interro.bot), available for Win10/11, Android, and macOS.
 
 Connect to web analytics, LLM, or SAAS for extra insight. Keep your plugins to yourself, resell them to clients, or give them away to an adoring world... 
 
