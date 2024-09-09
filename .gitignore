@@ -25,3 +25,6 @@
 
 *.log
 node_modules/
+
+examples/vanillats/js/build/*
+dist/readme.md

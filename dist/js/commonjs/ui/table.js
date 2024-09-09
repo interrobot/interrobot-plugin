@@ -7,8 +7,7 @@ var SortOrder;
 (function (SortOrder) {
     SortOrder[SortOrder["Ascending"] = 0] = "Ascending";
     SortOrder[SortOrder["Descending"] = 1] = "Descending";
-})(SortOrder || (SortOrder = {}));
-exports.SortOrder = SortOrder;
+})(SortOrder || (exports.SortOrder = SortOrder = {}));
 class HTMLResultsTablePage {
     constructor(label, offset, limit, extended) {
         this.label = label;

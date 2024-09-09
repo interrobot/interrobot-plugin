@@ -10,8 +10,7 @@ var SearchQueryType;
     SearchQueryType[SearchQueryType["Page"] = 0] = "Page";
     SearchQueryType[SearchQueryType["Asset"] = 1] = "Asset";
     SearchQueryType[SearchQueryType["Any"] = 2] = "Any";
-})(SearchQueryType || (SearchQueryType = {}));
-exports.SearchQueryType = SearchQueryType;
+})(SearchQueryType || (exports.SearchQueryType = SearchQueryType = {}));
 class PluginData {
     constructor(projectId, meta, defaultData, autoformInputs) {
         this.meta = meta;

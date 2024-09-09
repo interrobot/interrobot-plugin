@@ -45,6 +45,18 @@ class PluginConnection {
 }
 exports.PluginConnection = PluginConnection;
 class Plugin {
+    static initialize(classtype) {
+        let instance = null;
+        if (document.readyState === "complete" || document.readyState === "interactive") {
+            instance = new classtype();
+        }
+        else {
+            document.addEventListener("DOMContentLoaded", async () => {
+                instance = new classtype();
+            });
+        }
+        return instance;
+    }
     static postContentHeight() {
         const mainResults = document.querySelector(".main__results");
         let currentScrollHeight = document.body.scrollHeight;
@@ -157,7 +169,7 @@ class Plugin {
         let paramProject;
         let paramMode;
         let paramOrigin;
-        if (window.parent && window.parent !== window) {
+        if (this.parentIsOrigin()) {
             // core report, 3rd party will not have cross origin access
             // params stashed in dataset
             const ifx = window.parent.document.getElementById("report");
@@ -324,6 +336,21 @@ class Plugin {
             </table></section></div>`;
         // send signal back to iframe host to alot current page height
         Plugin.postContentHeight();
+    }
+    parentIsOrigin() {
+        try {
+            if (!window.parent || window.parent === window) {
+                return false;
+            }
+            let parentDocument = window.parent.document;
+            if (!parentDocument) {
+                return false;
+            }
+            return !parentDocument.hidden;
+        }
+        catch {
+            return false;
+        }
     }
 }
 exports.Plugin = Plugin;

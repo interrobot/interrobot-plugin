@@ -1,0 +1,148 @@
+﻿$static-root-directory: "";
+$aside-offset-top: 2.9rem;
+
+// ipad mini is outer limit of mobile presentation
+$mobile-display-threshold: 768px;
+$mobile-display-threshold-phone: 500px;
+
+$subscribe-button-bg: #207713;
+$subscribe-button-font: #eee;
+
+// dark grey theme
+$dark-font-default-color: #cfdfdf;
+$dark-font-subdued-color: #b3c0c0;
+$dark-font-placeholder-color: #444444;
+$dark-font-low-contrast-color: #999999;
+$dark-font-input-color: #ffffff;
+$dark-font-result-tag-color: #8dc3ff;
+$dark-font-query-highlight: yellow;
+$dark-font-ulink-color: #b3c0c0; // #005689;
+$dark-font-ulink-hover-color: #b3c0c0; // #005689;
+$dark-bg-primary: #1e1e1e;
+$dark-bg-secondary: #252526;
+$dark-bg-tertiary: #191919;
+$dark-bg-secondary-hover: #333D4C;
+$dark-button-active: #019fb6; // aqua blue
+$dark-bg-secondary-border: #2d2d30;
+$dark-bg-select: #1d1d1d;
+$dark-bg-field-border: $dark-bg-secondary;
+$dark-query-field: #ffff84;
+$dark-crawler-status-border: #39404a;
+$dark-crawler-player-highlight: #61c3ac;
+$dark-crawler-player-border: #2b323d;
+$dark-crawler-player-icon: #afeeee;
+$dark-search-result-odd: rgba(0,0,0,0.1);
+$dark-search-pagination-button: #37363a;
+$dark-resource-orbital-nominal: #00a0df;
+$dark-resource-orbital-selected: transparentize($dark-resource-orbital-nominal, 0.7);
+$dark-resource-active: #006400;
+$dark-status-norobots: #636970;
+$dark-status-error: #d5350a;
+$dark-status-warn: #babe42;
+$dark-status-notice: #d9b86a;
+$dark-status-redirectfail: #e2c731;
+$dark-status-ok: #00a0df;
+$dark-status-disabled: #666666;
+$dark-bg-tab-active: rgba(0,0,0,0.4);
+$dark-bg-tab-normal: rgba(0,0,0,0.1);
+$dark-bg-tab-hover: rgba(0,0,0,0.2);
+$dark-alt-border: #007800;
+$dark-scrollbar: #444444;
+
+// light grey theme
+$light-font-default-color: #333333;
+$light-font-subdued-color: #004787;
+$light-font-placeholder-color: #888;
+$light-font-low-contrast-color: #575757;
+$light-font-input-color: #fff;
+$light-font-result-tag-color: #637982;
+$light-font-query-highlight: #1619d1;
+$light-font-ulink-color: #004787;
+$light-font-ulink-hover-color: #004787;
+$light-bg-primary: #f8f6f0;
+$light-bg-secondary: #e6e2e0;
+$light-bg-tertiary: #cccccc;
+$light-bg-secondary-hover: #cccccc;
+$light-button-active: #1619d1;
+$light-button-border: #d5d2be;
+$light-bg-secondary-border: #cbc4c0;
+$light-bg-select: $light-bg-primary;
+$light-bg-field-border: #676769;
+$light-crawler-status-border: #39404a;
+$light-crawler-player-highlight: #61c3ac;
+$light-crawler-player-border: #999;
+$light-crawler-player-icon: #ffffff;
+$light-crawler-player-pause-icon: #ffbf00;
+$light-search-result-odd: #f4f2ed;
+$light-search-pagination-button: #37363a;
+$light-resource-orbital-nominal: #0592b2;
+$light-resource-orbital-selected: transparentize(#0592b2, 0.7);
+$light-resource-active: #006400;
+$light-status-norobots: #636970;
+$light-status-error: #d53a0a;
+$light-status-warn: #bf8600;
+$light-status-notice: #008000;
+$light-status-redirectfail: #e2c731;
+$light-status-ok: #0592b2;
+$light-status-disabled: #666666;
+$light-bg-tab-active: rgba(0,0,0,0.7);
+$light-bg-tab-normal: rgba(0,0,0,0.4);
+$light-bg-tab-hover: rgba(0,0,0,0.2);
+$light-alt-border: #007800;
+$light-scrollbar: #999999;
+
+$icon-robots: "r";
+$icon-link: "8";
+$icon-search: "%";
+$icon-crawl: ")";
+$icon-trash: "#";
+
+
+$dark-ok: #437a49;
+; //#94c192;
+$dark-error: #bc3612;
+$dark-norobots: #28282a;
+
+$dark-legend-pages: #257ba3;
+$dark-legend-pages-internal: #00adc2;
+$dark-legend-pages-internal-ok: $dark-ok;
+$dark-legend-pages-internal-error: $dark-error;
+$dark-legend-pages-internal-norobots: $dark-norobots;
+$dark-legend-pages-external: #3e5f5f;
+$dark-legend-pages-external-ok: $dark-ok;
+$dark-legend-pages-external-error: $dark-error;
+$dark-legend-pages-external-norobots: $dark-norobots;
+
+$dark-legend-assets: #a18f20;
+$dark-legend-assets-internal: #c5ce66;
+$dark-legend-assets-internal-ok: $dark-ok;
+$dark-legend-assets-internal-error: $dark-error;
+$dark-legend-assets-internal-norobots: $dark-norobots;
+$dark-legend-assets-external: #82783c;
+$dark-legend-assets-external-ok: $dark-ok;
+$dark-legend-assets-external-error: $dark-error;
+$dark-legend-assets-external-norobots: $dark-norobots;
+
+
+// remove unused
+$light-ok: #168738;
+$light-error: #bc3612;
+$light-norobots: #bbbbbb;
+$light-legend-pages: #257ba3;
+$light-legend-pages-internal: #18d7d7;
+$light-legend-pages-internal-ok: $light-ok;
+$light-legend-pages-internal-error: $light-error;
+$light-legend-pages-internal-norobots: $light-norobots;
+$light-legend-pages-external: #00adc2;
+$light-legend-pages-external-ok: $light-ok;
+$light-legend-pages-external-error: $light-error;
+$light-legend-pages-external-norobots: $light-norobots;
+$light-legend-assets: #9f7118;
+$light-legend-assets-internal: #d5c91b;
+$light-legend-assets-internal-ok: $light-ok;
+$light-legend-assets-internal-error: $light-error;
+$light-legend-assets-internal-norobots: $light-norobots;
+$light-legend-assets-external: #e1990f;
+$light-legend-assets-external-ok: $light-ok;
+$light-legend-assets-external-error: #bc3612;
+$light-legend-assets-external-norobots: $light-norobots;

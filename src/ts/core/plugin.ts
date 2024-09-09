@@ -66,6 +66,20 @@ class Plugin {
         in the source to update these display values.`,
     }
 
+    public static initialize(classtype: any): any {
+        let instance: any | null = null;
+        if (document.readyState === "complete" || document.readyState === "interactive") {
+            instance = new classtype();
+        }
+        else
+        {
+            document.addEventListener("DOMContentLoaded", async () => {
+                instance = new classtype();
+            });
+        }
+        return instance;
+    }
+
     public static postContentHeight(): void {
         
         const mainResults: HTMLElement = document.querySelector(".main__results");
@@ -196,7 +210,7 @@ class Plugin {
         let paramMode: number;
         let paramOrigin: string;
         
-        if (window.parent && window.parent !== window) {
+        if (this.parentIsOrigin()) {
             // core report, 3rd party will not have cross origin access
             // params stashed in dataset
             const ifx = window.parent.document.getElementById("report");
@@ -393,6 +407,21 @@ class Plugin {
 
         // send signal back to iframe host to alot current page height
         Plugin.postContentHeight();
+    }
+
+    private parentIsOrigin(): boolean {
+        try {
+            if (!window.parent || window.parent === window) {
+                return false;
+            }    
+            let parentDocument = window.parent.document;
+            if (!parentDocument) {
+                return false;
+            }
+            return !parentDocument.hidden;
+        } catch {
+            return false;
+        }
     }
 }
 

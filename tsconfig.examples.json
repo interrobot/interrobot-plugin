@@ -1,13 +1,12 @@
 {
     "compileOnSave": true,
     "compilerOptions": {
-        "module": "ESNext",
-        "target": "ESNext",
-        "lib": ["ESNext", "DOM", "DOM.Iterable"],
+        "module": "ES6",
+        "target": "ES2019",
+        "lib": ["ES2019", "DOM", "DOM.Iterable"],
         "declaration": true,
-        "outDir": "./examples/js",
-        "moduleResolution": "node",
+        "outDir": "./examples/vanillats/js/build/"
     },
-    "include": ["src/**/*"],  
+    "include": ["src/**/*", "examples/vanillats/ts/*.ts"],  
     "exclude": ["node_modules"],
 }

@@ -11,6 +11,7 @@ declare class PluginConnection {
 }
 declare class Plugin {
     static readonly meta: {};
+    static initialize(classtype: any): any;
     static postContentHeight(): void;
     static postOpenResourceLink(resource: number, openInBrowser: boolean): void;
     static postMeta(meta: {}): void;
@@ -34,5 +35,6 @@ declare class Plugin {
     protected index(): Promise<void>;
     protected process(): Promise<void>;
     protected report(titleWords: any): Promise<void>;
+    private parentIsOrigin;
 }
 export { Plugin, PluginConnection };
