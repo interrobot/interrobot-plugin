@@ -2,7 +2,7 @@
 
 ## Setup
 
-Plugin development for InterroBot requires access to developer tools (devtools) for console output and CSS editing. The setup process differs slightly between Windows and macOS:
+Plugin development within InterroBot Desktop requires access to developer tools (devtools) for console output and CSS editing. The setup process differs slightly between Windows and macOS:
 
 ### Windows Users
 
