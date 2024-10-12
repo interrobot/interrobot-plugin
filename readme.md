@@ -48,7 +48,7 @@ BasicExamplePlugin will not do much at this point, but it will load and run the 
 You can, of course, override the default `index()` behavior, rendering your page however you wish.
 
 ```javascript
-async index() {
+protected async index() {
     // add your form and supporting HTML
     this.render(`<div>HTML</div>`);
     // initialize the plugin within InterroBot, from within iframe
@@ -65,7 +65,7 @@ The `process()` method called above would be where you process data. Here a quer
 the crawl index, and each result run through the exampleResultsHandler.
 
 
-```
+```javascript
 protected async process() {
     // gather title words and running counts with a result handler
     const titleWords: Map<string, number> = new Map<string, number>();
