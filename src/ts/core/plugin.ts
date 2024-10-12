@@ -8,17 +8,28 @@ import { Project, PluginData, SearchQuery, Search, SearchResult, SearchQueryType
 import { HtmlUtils } from "./html.js";
 import { TouchProxy } from "./touch.js";
 
+/**
+ * Enumeration for dark mode settings.
+ */
 enum DarkMode {
     Light,
     Dark,
 }
 
+/**
+ * Represents a connection between the plugin and its host.
+ */
 class PluginConnection {
 
     private iframeSrc: string;
     private hostOrigin: string;
     private pluginOrigin: string;
 
+    /**
+     * Creates a new PluginConnection instance.
+     * @param iframeSrc - The source URL of the iframe.
+     * @param hostOrigin - The origin of the host (optional).
+     */
     public constructor(iframeSrc: string, hostOrigin: string | null) {
         this.iframeSrc = iframeSrc;
         if (hostOrigin) {
@@ -32,32 +43,53 @@ class PluginConnection {
             this.pluginOrigin = "about:srcdoc"; // there is no faithful origin
         } else {
             this.pluginOrigin = url.origin;
-        }        
+        }
     }
 
+    /**
+     * Gets the iframe source URL.
+     * @returns The iframe source URL.
+     */
     public getIframeSrc(): string {
         return this.iframeSrc;
     }
 
+    /**
+     * Gets the host origin.
+     * @returns The host origin.
+     */
     public getHostOrigin(): string {
         return this.hostOrigin;
     }
 
+    /**
+     * Gets the plugin origin.
+     * @returns The plugin origin.
+     */
     public getPluginOrigin(): string {
         return this.pluginOrigin;
     }
 
+    /**
+     * Returns a string representation of the connection.
+     * @returns A string describing the host and plugin origins.
+     */
     public toString(): string {
         return `host = ${this.hostOrigin}; plugin = ${this.pluginOrigin}`;
     }
 }
 
+/**
+ * Main Plugin class for InterroBot.
+ */
 class Plugin {
 
+    /**
+     * Metadata for the plugin.
+     */
     public static readonly meta: {} = {
-        "url": "https://example.com/path/to/plugin-page/",
         "title": "InterroBot Base Plugin",
-        "category": "Core Example",
+        "category": "Example",
         "version": "1.0",
         "author": "InterroBot",
         "description": `Welcome to InterroBot plugin development. This base-class Plugin can already 
@@ -66,13 +98,17 @@ class Plugin {
         in the source to update these display values.`,
     }
 
+    /**
+     * Initializes the plugin class.
+     * @param classtype - The class type to initialize.
+     * @returns An instance of the initialized class.
+     */
     public static initialize(classtype: any): any {
         let instance: any | null = null;
         if (document.readyState === "complete" || document.readyState === "interactive") {
             instance = new classtype();
         }
-        else
-        {
+        else {
             document.addEventListener("DOMContentLoaded", async () => {
                 instance = new classtype();
             });
@@ -80,15 +116,18 @@ class Plugin {
         return instance;
     }
 
+    /**
+     * Posts the current content height to the parent frame.
+     */
     public static postContentHeight(): void {
-        
+
         const mainResults: HTMLElement = document.querySelector(".main__results");
         let currentScrollHeight: number = document.body.scrollHeight;
         if (mainResults) {
             // more accurate
             currentScrollHeight = Number(mainResults.getBoundingClientRect().bottom);
         }
-        
+
         if (currentScrollHeight !== Plugin.contentScrollHeight) {
             const msg = {
                 target: "interrobot",
@@ -100,6 +139,11 @@ class Plugin {
         }
     }
 
+    /**
+     * Posts a request to open a resource link.
+     * @param resource - The resource identifier.
+     * @param openInBrowser - Whether to open the link in a browser.
+     */
     public static postOpenResourceLink(resource: number, openInBrowser: boolean): void {
         const msg = {
             target: "interrobot",
@@ -113,6 +157,10 @@ class Plugin {
         Plugin.routeMessage(msg);
     }
 
+    /**
+     * Posts plugin metadata to the parent frame.
+     * @param meta - The metadata object to post.
+     */
     public static postMeta(meta: {}): void {
         // meta { url, title, category, version, author, description}
         const msg = {
@@ -124,8 +172,14 @@ class Plugin {
         Plugin.routeMessage(msg);
     }
 
+    /**
+     * Sends an API request to the parent frame.
+     * @param apiMethod - The API method to call.
+     * @param apiKwargs - The arguments for the API call.
+     * @returns A promise that resolves with the API response.
+     */
     public static async postApiRequest(apiMethod: string, apiKwargs: {}): Promise<any> {
-        
+
         // meta { url, title, category, version, author, description}
         let result: any = null;
         const getPromisedResult = async () => {
@@ -174,11 +228,20 @@ class Plugin {
         return result;
     }
 
+    /**
+     * Logs timing information to the console.
+     * @param msg - The message to log.
+     * @param millis - The time in milliseconds.
+     */
     public static logTiming(msg: string, millis: number): void {
         const seconds = (millis / 1000).toFixed(3);
         console.log(`🤖 [${seconds}s] ${msg}`);
     }
 
+    /**
+     * Routes a message to the parent frame.
+     * @param msg - The message to route.
+     */
     private static routeMessage(msg: {}) {
         // Pt 1 of 2
         // window.parent.origin can't be read from external URL, only works with core
@@ -195,21 +258,24 @@ class Plugin {
             window.parent.postMessage(msg);
         }
     }
-    
+
     private static contentScrollHeight: number;
     private static connection: PluginConnection;
-    
-    public data: PluginData;    
+
+    public data: PluginData;
     private projectId: number = -1;
     private mode: DarkMode = DarkMode.Light;
     private project: Project;
 
+    /**
+     * Creates a new Plugin instance.
+     */
     public constructor() {
-        
+
         let paramProject: number;
         let paramMode: number;
         let paramOrigin: string;
-        
+
         if (this.parentIsOrigin()) {
             // core report, 3rd party will not have cross origin access
             // params stashed in dataset
@@ -224,7 +290,7 @@ class Plugin {
             paramMode = parseInt(urlSearchParams.get("mode"), 10);
             paramOrigin = urlSearchParams.get("origin");
         }
-        
+
         // static functions will depend on this static variable
         Plugin.connection = new PluginConnection(document.location.href, paramOrigin);
 
@@ -248,31 +314,61 @@ class Plugin {
 
     }
 
+    /**
+     * Introduces a delay in the execution.
+     * @param ms - The number of milliseconds to delay.
+     * @returns A promise that resolves after the specified delay.
+     */
     protected delay(ms: number) {
         // for ui to force painting
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
+    /**
+     * Gets the current project ID.
+     * @returns The project ID.
+     */
     public getProjectId(): number {
         return this.projectId;
     }
 
+    /**
+     * Initializes the plugin with metadata and sets up event listeners.
+     * @param meta - The metadata for the plugin.
+     */
     public async init(meta: {}): Promise<void> {
         Plugin.postMeta(meta);
         window.addEventListener("load", Plugin.postContentHeight);
         window.addEventListener("resize", Plugin.postContentHeight);
     }
-    
+
+    /**
+     * Initializes the plugin data.
+     * @param meta - The metadata for the plugin.
+     * @param defaultData - The default data for the plugin.
+     * @param autoform - An array of HTML elements for the autoform.
+     */
     public async initData(meta: {}, defaultData: {}, autoform: HTMLElement[]): Promise<void> {
         this.data = new PluginData(this.getProjectId(), meta, defaultData, autoform);
         await this.data.loadData();
     }
 
+    /**
+     * Initializes and returns the plugin data.
+     * @param meta - The metadata for the plugin.
+     * @param defaultData - The default data for the plugin.
+     * @param autoform - An array of HTML elements for the autoform.
+     * @returns A promise that resolves with the initialized PluginData.
+     */
     public async initAndGetData(meta: {}, defaultData: any, autoform: HTMLElement[]): Promise<PluginData> {
         await this.initData(meta, defaultData, autoform);
         return this.data;
     }
 
+    /**
+     * Gets the current project.
+     * @returns A promise that resolves with the current Project.
+     */
     public async getProject(): Promise<Project> {
         if (this.project === undefined) {
             const project: Project = await Project.getApiProject(this.projectId);
@@ -285,10 +381,17 @@ class Plugin {
         return this.project;
     }
 
+    /**
+     * Renders HTML content in the document body.
+     * @param html - The HTML content to render.
+     */
     protected render(html: string): void {
         document.body.innerHTML = html;
     }
 
+    /**
+     * Initializes the plugin index page.
+     */
     protected async index() {
 
         // init() would generally would go into a constructor
@@ -328,6 +431,9 @@ class Plugin {
         });
     }
 
+    /**
+     * Processes the plugin data.
+     */
     protected async process() {
 
         // as an example, collect page title word counts across all html pages
@@ -371,13 +477,17 @@ class Plugin {
         });
 
         // call for html presentation
-        await this.report(titleWords);        
+        await this.report(titleWords);
     }
 
+    /**
+     * Generates and displays a report based on the processed data.
+     * @param titleWords - A map of title words and their counts.
+     */
     protected async report(titleWords) {
 
         // sort titleWords by count, then by term
-        const titleWordsRemap = new Map<string, number>([...titleWords.entries()].sort(            
+        const titleWordsRemap = new Map<string, number>([...titleWords.entries()].sort(
             (a, b) => {
                 const aVal: number = a[1];
                 const bVal: number = b[1];
@@ -387,7 +497,7 @@ class Plugin {
                 } else {
                     // primary sort is term count, numeric descending
                     return bVal - aVal;
-                }                
+                }
             }
         ));
 
@@ -399,7 +509,7 @@ class Plugin {
             tableRows.push(`<tr><td>${HtmlUtils.htmlEncode(truncatedTerm)}</td><td>${count.toLocaleString()}</td></tr>`);
         }
         const resultsElement: HTMLElement = document.querySelector(".main__results");
-        resultsElement.innerHTML = tableRows.length === 0 ? `<p>No results found.</p>` : 
+        resultsElement.innerHTML = tableRows.length === 0 ? `<p>No results found.</p>` :
             `<div><section><table style="max-width:340px">
             <thead><tr><th>Term</th><th>Count</th></tr></thead>
             <tbody>${tableRows.join("")}</tbody>
@@ -413,7 +523,7 @@ class Plugin {
         try {
             if (!window.parent || window.parent === window) {
                 return false;
-            }    
+            }
             let parentDocument = window.parent.document;
             if (!parentDocument) {
                 return false;

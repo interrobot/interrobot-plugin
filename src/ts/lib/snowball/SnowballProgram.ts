@@ -14,15 +14,32 @@
 
 import { Among } from "./Among.js";
 
+/**
+ * Represents a Snowball stemming algorithm program.
+ */
 class SnowballProgram {
 
+	/** The start position of the current substring. */
 	public bra: number;
+
+	/** The end position of the current substring. */
 	public ket: number;
+
+	/** The limit of the string to be processed. */
 	public limit: number;
+
+	/** The current position in the string. */
 	public cursor: number;
+
+	/** The backward limit of the string to be processed. */
 	public limit_backward: number;
+
+	/** The current string being processed. */
 	public current: string;
 
+	/**
+	 * Initializes a new instance of the SnowballProgram class.
+	 */
 	public constructor() {
 		this.bra = 0;
 		this.ket = 0;
@@ -32,6 +49,10 @@ class SnowballProgram {
 
 	}
 
+	/**
+	 * Sets the current word to be processed.
+	 * @param word - The word to be processed.
+	 */
 	public setCurrent(word): void {
 		this.current = word;
 		this.cursor = 0;
@@ -41,12 +62,23 @@ class SnowballProgram {
 		this.ket = this.limit;
 	}
 
+	/**
+	 * Gets the current word being processed.
+	 * @returns The current word.
+	 */
 	public getCurrent(): string {
 		var result = this.current;
 		this.current = null;
 		return result;
 	}
 
+	/**
+	 * Checks if the current character is in a specified grouping.
+	 * @param s - The grouping to check against.
+	 * @param min - The minimum character code.
+	 * @param max - The maximum character code.
+	 * @returns True if the character is in the grouping, false otherwise.
+	 */
 	public in_grouping(s, min, max): boolean {
 		if (this.cursor < this.limit) {
 			var ch = this.current.charCodeAt(this.cursor);
@@ -61,6 +93,13 @@ class SnowballProgram {
 		return false;
 	}
 
+	/**
+	 * Checks if the previous character is in a specified grouping.
+	 * @param s - The grouping to check against.
+	 * @param min - The minimum character code.
+	 * @param max - The maximum character code.
+	 * @returns True if the character is in the grouping, false otherwise.
+	 */
 	public in_grouping_b(s, min, max): boolean {
 		if (this.cursor > this.limit_backward) {
 			var ch = this.current.charCodeAt(this.cursor - 1);
@@ -75,6 +114,13 @@ class SnowballProgram {
 		return false;
 	}
 
+	/**
+	 * Checks if the current character is outside a specified grouping.
+	 * @param s - The grouping to check against.
+	 * @param min - The minimum character code.
+	 * @param max - The maximum character code.
+	 * @returns True if the character is outside the grouping, false otherwise.
+	 */
 	public out_grouping(s, min, max): boolean {
 		if (this.cursor < this.limit) {
 			var ch = this.current.charCodeAt(this.cursor);
@@ -91,6 +137,13 @@ class SnowballProgram {
 		return false;
 	}
 
+	/**
+	 * Checks if the previous character is outside a specified grouping.
+	 * @param s - The grouping to check against.
+	 * @param min - The minimum character code.
+	 * @param max - The maximum character code.
+	 * @returns True if the character is outside the grouping, false otherwise.
+	 */
 	public out_grouping_b(s, min, max): boolean {
 		if (this.cursor > this.limit_backward) {
 			var ch = this.current.charCodeAt(this.cursor - 1);
@@ -107,6 +160,12 @@ class SnowballProgram {
 		return false;
 	}
 
+	/**
+	 * Checks if the substring at the current position equals the given string.
+	 * @param s_size - The size of the string to compare.
+	 * @param s - The string to compare.
+	 * @returns True if the substrings match, false otherwise.
+	 */
 	public eq_s(s_size: number, s: string): boolean {
 		if (this.limit - this.cursor < s_size) {
 			return false;
@@ -121,6 +180,12 @@ class SnowballProgram {
 		return true;
 	}
 
+	/**
+	 * Checks if the substring before the current position equals the given string.
+	 * @param s_size - The size of the string to compare.
+	 * @param s - The string to compare.
+	 * @returns True if the substrings match, false otherwise.
+	 */
 	public eq_s_b(s_size: number, s: string): boolean {
 		if (this.cursor === null || this.current === null) {
 			console.error(`unhandled error: s: ${s} | size: ${s_size}`);
@@ -139,6 +204,12 @@ class SnowballProgram {
 		return true;
 	}
 
+	/**
+	 * Finds a matching Among object in the given array.
+	 * @param v - The array of Among objects to search.
+	 * @param v_size - The size of the array.
+	 * @returns The result of the matching Among object, or 0 if no match is found.
+	 */
 	public find_among(v: {}, v_size: number): number {
 		var i = 0, j = v_size, c = this.cursor, l = this.limit, common_i = 0, common_j = 0, first_key_inspected = false;
 		while (true) {
@@ -194,6 +265,12 @@ class SnowballProgram {
 		}
 	}
 
+	/**
+	 * Finds a matching Among object in the given array, searching backwards.
+	 * @param v - The array of Among objects to search.
+	 * @param v_size - The size of the array.
+	 * @returns The result of the matching Among object, or 0 if no match is found.
+	 */
 	public find_among_b(v: Among[], v_size: number): number {
 		let i: number = 0;
 		let j: number = v_size;
@@ -259,6 +336,45 @@ class SnowballProgram {
 		}
 	}
 
+	/**
+	 * Replaces the current substring with the given string.
+	 * @param s - The string to replace with.
+	 */
+	public slice_from(s: string): void {
+		this.slice_check();
+		this.replace_s(this.bra, this.ket, s);
+	}
+
+	/**
+	 * Inserts a string at a specified position.
+	 * @param c_bra - The position to insert at.
+	 * @param c_ket - The end position of any text to be replaced.
+	 * @param s - The string to insert.
+	 */
+	public insert(c_bra, c_ket, s): void {
+		var adjustment = this.replace_s(c_bra, c_ket, s);
+		if (c_bra <= this.bra) {
+			this.bra += adjustment;
+		}
+		if (c_bra <= this.ket) {
+			this.ket += adjustment;
+		}
+	}
+
+	/**
+	 * Deletes the current substring.
+	 */
+	public slice_del(): void {
+		this.slice_from("");
+	}
+
+	/**
+	 * Replaces a substring of the current string.
+	 * @param c_bra - The start position of the substring to replace.
+	 * @param c_ket - The end position of the substring to replace.
+	 * @param s - The string to replace with.
+	 * @returns The adjustment in string length after the replacement.
+	 */
 	private replace_s(c_bra: number, c_ket: number, s: string): number {
 		const adjustment: number = s.length - (c_ket - c_bra);
 		const left = this.current.substring(0, c_bra);
@@ -273,36 +389,34 @@ class SnowballProgram {
 		return adjustment;
 	}
 
+	/**
+	 * Checks if the current slice operation is valid.
+	 * @throws Will throw an error if the slice operation is faulty.
+	 */
 	private slice_check(): void {
 		if (this.bra < 0 || this.bra > this.ket || this.ket > this.limit
 			|| this.limit > this.current.length)
 			throw ("faulty slice operation");
 	}
 
-	public slice_from(s: string): void {
-		this.slice_check();
-		this.replace_s(this.bra, this.ket, s);
-	}
+	
 
-	public slice_del(): void {
-		this.slice_from("");
-	}
+	
 
-	public insert(c_bra, c_ket, s): void {
-		var adjustment = this.replace_s(c_bra, c_ket, s);
-		if (c_bra <= this.bra) {
-			this.bra += adjustment;
-		}			
-		if (c_bra <= this.ket) {
-			this.ket += adjustment;
-		}			
-	}
-
+	/**
+	 * Gets the current substring.
+	 * @returns The current substring.
+	 */
 	private slice_t(): string {
 		this.slice_check();
 		return this.current.substring(this.bra, this.ket);
 	}
 
+	/**
+	 * Checks if the substring before the current position equals the given string.
+	 * @param s - The string to compare.
+	 * @returns True if the substrings match, false otherwise.
+	 */
 	private eq_v_b(s: string): boolean {
 		return this.eq_s_b(s.length, s);
 	}

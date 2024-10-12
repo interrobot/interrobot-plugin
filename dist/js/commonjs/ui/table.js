@@ -1,13 +1,20 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SortOrder = exports.HTMLResultsTableSort = exports.HtmlResultsTable = void 0;
+exports.SortOrder = exports.HTMLResultsTableSort = exports.HTMLResultsTablePage = exports.HtmlResultsTable = void 0;
 const plugin_js_1 = require("../core/plugin.js");
 const html_js_1 = require("../core/html.js");
+/**
+ * Enumeration for sorting order.
+ */
 var SortOrder;
 (function (SortOrder) {
     SortOrder[SortOrder["Ascending"] = 0] = "Ascending";
     SortOrder[SortOrder["Descending"] = 1] = "Descending";
-})(SortOrder || (exports.SortOrder = SortOrder = {}));
+})(SortOrder || (SortOrder = {}));
+exports.SortOrder = SortOrder;
+/**
+ * Represents a page in the HTML results table.
+ */
 class HTMLResultsTablePage {
     constructor(label, offset, limit, extended) {
         this.label = label;
@@ -16,7 +23,18 @@ class HTMLResultsTablePage {
         this.extended = extended;
     }
 }
+exports.HTMLResultsTablePage = HTMLResultsTablePage;
+/**
+ * Represents the sorting configuration for the HTML results table.
+ */
 class HTMLResultsTableSort {
+    /**
+     * Creates a new instance of HTMLResultsTableSort.
+     * @param primaryHeading - The primary heading to sort by.
+     * @param primarySort - The sort order for the primary heading.
+     * @param secondaryHeading - The secondary heading to sort by.
+     * @param secondarySort - The sort order for the secondary heading.
+     */
     constructor(primaryHeading, primarySort, secondaryHeading, secondarySort) {
         this.primaryHeading = primaryHeading;
         this.primarySort = primarySort;
@@ -25,7 +43,20 @@ class HTMLResultsTableSort {
     }
 }
 exports.HTMLResultsTableSort = HTMLResultsTableSort;
+/**
+ * Represents a button in the HTML results table.
+ */
 class HTMLResultsTableButton {
+    /**
+     * Creates a new HTMLResultsTableButton and appends it to the parent element.
+     * @param parentElement - The parent element to append the button to.
+     * @param documentId - The ID of the document associated with this button.
+     * @param data - Additional data for the button.
+     * @param contents - The contents of the button.
+     * @param classes - CSS classes for the button.
+     * @param clickHandler - The click event handler for the button.
+     * @returns A new instance of HTMLResultsTableButton.
+     */
     static createElement(parentElement, documentId, data, contents, classes, clickHandler) {
         const button = new HTMLResultsTableButton(documentId, data, contents, classes, clickHandler);
         parentElement.appendChild(button.element);
@@ -41,16 +72,50 @@ class HTMLResultsTableButton {
         this.element.addEventListener("click", this.clickHandler);
     }
 }
+/**
+ * Represents an HTML results table with sorting and pagination functionality.
+ */
 class HtmlResultsTable {
+    /**
+     * Creates a new HtmlResultsTable and appends it to the parent element.
+     * @param parentElement - The parent element to append the table to.
+     * @param project - The project number.
+     * @param perPage - The number of items per page.
+     * @param header - The header text for the table.
+     * @param headings - The column headings.
+     * @param results - The data to be displayed in the table.
+     * @param resultsSort - The initial sorting configuration.
+     * @param rowRenderer - A function to render custom rows.
+     * @param cellRenderer - An object with functions to render custom cells.
+     * @param cellHandler - A function to handle cell events.
+     * @param exportExtra - Additional data for export.
+     * @returns A new instance of HtmlResultsTable.
+     */
     static createElement(parentElement, project, perPage, header, headings, results, resultsSort, rowRenderer, cellRenderer, cellHandler, exportExtra) {
         const pagedTable = new HtmlResultsTable(project, perPage, header, headings, results, resultsSort, rowRenderer, cellRenderer, cellHandler, exportExtra);
         parentElement.appendChild(pagedTable.baseElement);
         plugin_js_1.Plugin.postContentHeight();
         return pagedTable;
     }
+    /**
+     * Generates a formatted column number.
+     * @param num - The number to format.
+     * @returns A string representation of the formatted number.
+     */
     static generateFormatedColumnNumber(num) {
         return `${(num).toString().padStart(2, '0')}.`;
     }
+    /**
+     * Helper function for sorting results.
+     * @param a - First value to compare.
+     * @param aNum - Numeric representation of the first value.
+     * @param aIsNum - Indicates if the first value is a number.
+     * @param b - Second value to compare.
+     * @param bNum - Numeric representation of the second value.
+     * @param bIsNum - Indicates if the second value is a number.
+     * @param sortOrder - The sort order to apply.
+     * @returns A number indicating the sort order of the two values.
+     */
     static sortResultsHelper(a, aNum, aIsNum, b, bNum, bIsNum, sortOrder) {
         // return this.resultsSort.primarySort;
         if (aIsNum && bIsNum) {
@@ -76,6 +141,19 @@ class HtmlResultsTable {
             return 0;
         }
     }
+    /**
+     * Creates a new instance of HtmlResultsTable.
+     * @param project - The project number.
+     * @param perPage - The number of items per page.
+     * @param header - The header text for the table.
+     * @param headings - The column headings.
+     * @param results - The data to be displayed in the table.
+     * @param resultsSort - The initial sorting configuration.
+     * @param rowRenderer - A function to render custom rows.
+     * @param cellRenderer - An object with functions to render custom cells.
+     * @param cellHandler - A function to handle cell events.
+     * @param exportExtra - Additional data for export.
+     */
     constructor(project, perPage, header, headings, results, resultsSort, rowRenderer, cellRenderer, cellHandler, exportExtra) {
         this.paginationEdgeRangeDesktop = 2;
         this.paginationEdgeRangeMobile = 1;
@@ -163,11 +241,12 @@ class HtmlResultsTable {
             }
         };
         this.downloadHandler = (ev) => {
+            var _a, _b;
             ev.preventDefault();
             // export ignores the result # column
             const dlLinks = this.baseElement.querySelector(".info__dl");
             dlLinks.classList.remove("visible");
-            let exportHeaders = this.headings.concat(Object.keys(this.exportExtra));
+            let exportHeaders = this.headings.concat(Object.keys((_a = this.exportExtra) !== null && _a !== void 0 ? _a : {}));
             let truncatedExport = false;
             if (exportHeaders[0] === "") {
                 truncatedExport = true;
@@ -176,7 +255,7 @@ class HtmlResultsTable {
             const exportRows = [];
             for (let i = 0; i < this.results.length; i++) {
                 const result = this.results[i];
-                const resultValues = Object.values(this.exportExtra);
+                const resultValues = Object.values((_b = this.exportExtra) !== null && _b !== void 0 ? _b : {});
                 const textResultValues = [];
                 for (let resultValue of resultValues) {
                     if (typeof resultValue === "function") {
@@ -208,19 +287,40 @@ class HtmlResultsTable {
         };
         this.renderSection();
     }
+    /**
+     * Gets the index of a heading in the headings array.
+     * @param headingLabel - The label of the heading to find.
+     * @returns The index of the heading, or -1 if not found.
+     */
     getHeadingIndex(headingLabel) {
         // returns -1 if not found
         return this.headings.indexOf(headingLabel);
     }
+    /**
+     * Gets the results data.
+     * @returns The results data as a 2D array of strings.
+     */
     getResults() {
         return this.results;
     }
+    /**
+     * Gets the headings of the table.
+     * @returns An array of heading strings.
+     */
     getHeadings() {
         return this.headings;
     }
+    /**
+     * Gets the current sorting configuration.
+     * @returns The current HTMLResultsTableSort object.
+     */
     getResultsSort() {
         return this.resultsSort;
     }
+    /**
+     * Sets the sticky headers based on the current scroll position.
+     * @param scrollY - The current vertical scroll position.
+     */
     setStickyHeaders(scrollY) {
         const thead = this.baseElement.querySelector("thead");
         const table = thead === null || thead === void 0 ? void 0 : thead.parentElement;
@@ -238,6 +338,18 @@ class HtmlResultsTable {
             thead.style.top = `auto`;
         }
         return;
+    }
+    /**
+     * Sets the current page offset.
+     * @param page - The page number to set (0-indexed).
+     */
+    setOffsetPage(page) {
+        // 0-indexed
+        const requestedPage = page * this.perPage;
+        if (requestedPage !== this.resultsOffset) {
+            this.resultsOffset = requestedPage;
+            this.renderSection();
+        }
     }
     sortResults() {
         const primaryHeading = this.resultsSort.primaryHeading;
@@ -287,14 +399,6 @@ class HtmlResultsTable {
     }
     getColumnClass(heading) {
         return `column__${heading ? heading.replace(/[^\w]+/g, "").toLowerCase() : "empty"}`;
-    }
-    setOffsetPage(page) {
-        // 0-indexed
-        const requestedPage = page * this.perPage;
-        if (requestedPage !== this.resultsOffset) {
-            this.resultsOffset = requestedPage;
-            this.renderSection();
-        }
     }
     renderTableHeadings(headings) {
         const out = [];
@@ -412,12 +516,13 @@ class HtmlResultsTable {
         }
         const resultStart = this.resultsOffset + 1;
         const resultEnd = Math.min(this.resultsCount, this.resultsOffset + this.perPage);
+        const exportIconChar = this.isCorePlugin() ? "`" : "⊞";
         let section = `<section>
             ${this.header}
             <hgroup>
                 <div class="info">
                     <span class="info__dl export">
-                        <button class="icon">\`</button>
+                        <button class="icon">⊞</button>
                         <ul class="export__ulink">
                             <li><a class="ulink" href="#" data-format="csv">Export CSV</a></li>
                             <li><a class="ulink" href="#" data-format="xlsx">Export Excel</a></li>
@@ -454,11 +559,33 @@ class HtmlResultsTable {
         }
         this.addHandlers();
     }
+    /**
+     * Adds event handlers to the table elements.
+     */
     addHandlers() {
         this.applyHandlers(true);
     }
+    /**
+     * Removes event handlers from the table elements.
+     */
     removeHandlers() {
         this.applyHandlers(false);
+    }
+    /**
+     * Identifies a core plugin (as true)
+     */
+    isCorePlugin() {
+        const iframed = window.self !== window.top;
+        let sameDomain = false;
+        if (iframed) {
+            try {
+                sameDomain = Boolean(window.parent.location.href);
+            }
+            catch (e) {
+                sameDomain = false;
+            }
+        }
+        return iframed && sameDomain;
     }
     applyHandlers(add) {
         const navLinkMethod = add ? "addEventListener" : "removeEventListener";
@@ -506,8 +633,10 @@ class HtmlResultsTable {
         }
         // button.custom is only acceptable way to pass custom interaction into table
         const customButtons = this.baseElement.querySelectorAll("button.custom");
-        for (let button of customButtons) {
-            button[navLinkMethod]("click", this.cellHandler);
+        if (this.cellHandler) {
+            for (let button of customButtons) {
+                button[navLinkMethod]("click", this.cellHandler);
+            }
         }
         const browserLinks = this.baseElement.querySelectorAll("td.url a");
         for (let i = 0; i < browserLinks.length; i++) {
@@ -529,6 +658,10 @@ class HtmlResultsTable {
             sortable[navLinkMethod]("click", this.sortableHandler);
         }
     }
+    /**
+     * Gets the pagination configuration.
+     * @returns An array of HTMLResultsTablePage objects representing the pagination.
+     */
     getPagination() {
         const pages = [];
         let pagesAdded = 0;

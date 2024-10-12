@@ -12,8 +12,19 @@
  * http://www.mozilla.org/MPL/
  */
 import { BaseStemmer } from "./BaseStemmer.js";
+/**
+ * A stemmer that bypasses the stemming process, leaving words unchanged.
+ * This can be useful for languages or scenarios where stemming is not desired.
+ */
 declare class BypassStemmer extends BaseStemmer {
+    /**
+     * Initializes a new instance of the BypassStemmer class.
+     */
     constructor();
+    /**
+     * Performs the stemming operation, which in this case does nothing.
+     * @returns Always returns true, indicating that the "stemming" process is complete.
+     */
     stem(): boolean;
 }
 export { BypassStemmer };

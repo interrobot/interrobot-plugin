@@ -35,6 +35,9 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+/**
+ * Main class for spell checking and suggestion generation.
+ */
 declare class Typo {
     private dictionary;
     private affData;
@@ -51,28 +54,28 @@ declare class Typo {
     private loaded;
     private alphabet;
     /**
-     * Typo constructor.
-     *
-     * @param {String} [dictionary] The locale code of the dictionary being used. e.g.,
-     *                              "en_US". This is only used to auto-load dictionaries.
-     * @param {String} [affData]    The data from the dictionary's .aff file. If omitted
-     *                              and Typo.js is being used in a Chrome extension, the .aff
-     *                              file will be loaded automatically from
-     *                              lib/typo/dictionaries/[dictionary]/[dictionary].aff
-     *                              In other environments, it will be loaded from
-     *                              [settings.dictionaryPath]/dictionaries/[dictionary]/[dictionary].aff
-     * @param {String} [wordsData]  The data from the dictionary's .dic file. If omitted
-     *                              and Typo.js is being used in a Chrome extension, the .dic
-     *                              file will be loaded automatically from
-     *                              lib/typo/dictionaries/[dictionary]/[dictionary].dic
-     *                              In other environments, it will be loaded from
-     *                              [settings.dictionaryPath]/dictionaries/[dictionary]/[dictionary].dic
-     * @param {Object} [settings]   Constructor settings. Available properties are:
-     *                              {Object} [flags]: flag information.
-     *
-     * @returns {Typo} A Typo object.
+     * Creates a new Typo instance.
+     * @param dictionary - The locale code of the dictionary.
+     * @param affData - The data from the dictionary's .aff file.
+     * @param wordsData - The data from the dictionary's .dic file.
+     * @param settings - Optional settings for the Typo instance.
      */
     constructor(dictionary: string, affData: string, wordsData: string, settings?: {});
+    /**
+     * Checks whether a word exists exactly as given in the dictionary.
+     * @param word - The word to check.
+     * @returns True if the word is found, false otherwise.
+     */
+    checkExact(word: string): boolean;
+    /**
+     * Returns a list of suggestions for a misspelled word.
+     * @see http://www.norvig.com/spell-correct.html for the basis of this suggestor.
+     * This suggestor is primitive, but it works.
+     * @param word - The misspelled word.
+     * @param limit - The maximum number of suggestions to return (default is 5).
+     * @returns An array of suggested corrections.
+     */
+    suggest(word: string, limit: number): any;
     private setup;
     /**
      * Parse the rules out from a .aff file.
@@ -105,23 +108,15 @@ declare class Typo {
      */
     private removeDicComments;
     /**
-     * Checks whether a word or a capitalization variant exists in the current dictionary.
+     * Checks whether a word or its capitalization variant exists in the dictionary.
      * The word is trimmed and several variations of capitalizations are checked.
      * If you want to check a word without any changes made to it, call checkExact()
      *
      * @see http://blog.stevenlevithan.com/archives/faster-trim-javascript re:trimming function
-     *
-     * @param {String} aWord The word to check.
-     * @returns {Boolean}
+     * @param aWord - The word to check.
+     * @returns True if the word is found, false otherwise.
      */
     check(aWord: any): boolean;
-    /**
-     * Checks whether a word exists in the current dictionary.
-     *
-     * @param {String} word The word to check.
-     * @returns {Boolean}
-     */
-    checkExact(word: string): boolean;
     /**
      * Looks up whether a given word is flagged with a given flag.
      *
@@ -130,16 +125,5 @@ declare class Typo {
      * @return {Boolean}
      */
     private hasFlag;
-    /**
-     * Returns a list of suggestions for a misspelled word.
-     *
-     * @see http://www.norvig.com/spell-correct.html for the basis of this suggestor.
-     * This suggestor is primitive, but it works.
-     *
-     * @param {String} word The misspelling.
-     * @param {Number} [limit=5] The maximum number of suggestions to return.
-     * @returns {String[]} The array of suggestions.
-     */
-    suggest(word: string, limit: number): any;
 }
 export { Typo };

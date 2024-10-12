@@ -1,4 +1,14 @@
+/**
+ * Represents a widget for displaying HTML processing status.
+ * @class
+ */
 class HtmlProcessingWidget {
+    /**
+     * Creates a new HtmlProcessingWidget and appends it to the specified parent element.
+     * @param {HTMLElement} parentElement - The parent element to which the widget will be appended.
+     * @param {string} prefix - The prefix text to display before the progress information.
+     * @returns {HtmlProcessingWidget} A new instance of HtmlProcessingWidget.
+     */
     static createElement(parentElement, prefix) {
         const widget = new HtmlProcessingWidget(prefix);
         const widgetBaseElement = widget.getBaseElement();
@@ -10,6 +20,10 @@ class HtmlProcessingWidget {
         }
         return widget;
     }
+    /**
+     * Initializes a new instance of HtmlProcessingWidget.
+     * @param {string} prefix - The prefix text to display before the progress information.
+     */
     constructor(prefix) {
         this.prefix = prefix;
         this.total = 0;
@@ -67,15 +81,34 @@ class HtmlProcessingWidget {
             }
         });
     }
+    /**
+     * Removes the throbbing effect from the widget.
+     * @public
+     */
     clearMessage() {
         this.baseElement.classList.remove("throbbing");
     }
+    /**
+     * Returns the base HTML element of the widget.
+     * @public
+     * @returns {HTMLElement} The base HTML element of the widget.
+     */
     getBaseElement() {
         return this.baseElement;
     }
+    /**
+     * Sets a new prefix for the widget.
+     * @public
+     * @param {string} prefix - The new prefix to set.
+     */
     setPrefix(prefix) {
         this.prefix = prefix;
     }
+    /**
+     * Sets a new message for the widget and adds the throbbing effect.
+     * @public
+     * @param {string} msg - The message to display in the widget.
+     */
     setMessage(msg) {
         this.baseElement.innerHTML = `${msg}`;
         this.baseElement.classList.add("throbbing");

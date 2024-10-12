@@ -1,12 +1,24 @@
-﻿class HtmlProcessingWidget {
-
+﻿/**
+ * Represents a widget for displaying HTML processing status.
+ * @class
+ */
+class HtmlProcessingWidget {
+    /** The base HTML element of the widget */
     private baseElement: HTMLElement;
+    /** The total number of items to process */
     private total: number;
+    /** The number of items currently processed */
     private loaded: number;
+    /** The prefix text to display before the progress information */
     private prefix: string;
-    
-    public static createElement(parentElement: HTMLElement, prefix: string): HtmlProcessingWidget {
 
+    /**
+     * Creates a new HtmlProcessingWidget and appends it to the specified parent element.
+     * @param {HTMLElement} parentElement - The parent element to which the widget will be appended.
+     * @param {string} prefix - The prefix text to display before the progress information.
+     * @returns {HtmlProcessingWidget} A new instance of HtmlProcessingWidget.
+     */
+    public static createElement(parentElement: HTMLElement, prefix: string): HtmlProcessingWidget {
         const widget: HtmlProcessingWidget = new HtmlProcessingWidget(prefix);
         const widgetBaseElement = widget.getBaseElement();
         if (parentElement && widgetBaseElement) {
@@ -14,12 +26,15 @@
         } else {
             console.warn(`unable to create processing widget: parent [${parentElement}], base [${widgetBaseElement}]`);
         }
-        
+
         return widget;
     }
 
+    /**
+     * Initializes a new instance of HtmlProcessingWidget.
+     * @param {string} prefix - The prefix text to display before the progress information.
+     */
     public constructor(prefix: string) {
-
         this.prefix = prefix;
         this.total = 0;
         this.loaded = 0;
@@ -29,12 +44,11 @@
         this.baseElement.innerHTML = ``;
 
         document.addEventListener("SearchResultHandled", async (ev: CustomEvent) => {
-
             const evdTotal = ev.detail.resultTotal;
             const evdLoaded = ev.detail.resultNum;
             const evdPercent = Math.ceil((evdLoaded / evdTotal) * 100);
             const currentPercent = Math.ceil((this.loaded / this.total) * 100);
-            
+
             if (evdPercent > 100.0 || currentPercent === 100.0) {
                 // out of order or freak event, close up shop (rather, keep shop closed)
                 this.baseElement.classList.remove("throbbing");
@@ -43,7 +57,7 @@
 
             this.total = evdTotal;
             this.loaded = evdLoaded;
-            this.baseElement.innerHTML = evdPercent > 100 ? "" : `${ this.prefix }
+            this.baseElement.innerHTML = evdPercent > 100 ? "" : `${this.prefix}
                 <span class="resultNum">##</span>/<span class="resultTotal">##</span>
                 (<span class="percentTotal">##</span>)`;
 
@@ -73,7 +87,7 @@
                 case "set":
                     this.baseElement.innerHTML = ``;
                     this.baseElement.innerText = ev.detail.message;
-                    this.baseElement.classList.add("throbbing");            
+                    this.baseElement.classList.add("throbbing");
                     break;
                 case "clear":
                 default:
@@ -83,19 +97,38 @@
         });
     }
 
+    /**
+     * Removes the throbbing effect from the widget.
+     * @public
+     */
     public clearMessage(): void {
         this.baseElement.classList.remove("throbbing");
     }
 
+    /**
+     * Returns the base HTML element of the widget.
+     * @public
+     * @returns {HTMLElement} The base HTML element of the widget.
+     */
     public getBaseElement(): HTMLElement {
         return this.baseElement;
     }
 
+    /**
+     * Sets a new prefix for the widget.
+     * @public
+     * @param {string} prefix - The new prefix to set.
+     */
     public setPrefix(prefix: string): void {
         this.prefix = prefix;
     }
 
-    public setMessage(msg: string): void {        
+    /**
+     * Sets a new message for the widget and adds the throbbing effect.
+     * @public
+     * @param {string} msg - The message to display in the widget.
+     */
+    public setMessage(msg: string): void {
         this.baseElement.innerHTML = `${msg}`;
         this.baseElement.classList.add("throbbing");
     }

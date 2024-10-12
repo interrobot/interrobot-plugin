@@ -13,7 +13,13 @@
  */
 import { BaseStemmer } from "./BaseStemmer.js";
 import { Among } from "../Among.js";
+/**
+ * Implements the Snowball stemming algorithm for the Portuguese language.
+ */
 class PortugueseStemmer extends BaseStemmer {
+    /**
+     * Initializes a new instance of the PortugueseStemmer class.
+     */
     constructor() {
         super();
         this.a_0 = [new Among("", -1, 3), new Among("\u00E3", 0, 1),
@@ -127,14 +133,25 @@ class PortugueseStemmer extends BaseStemmer {
         this.g_v = [17, 65, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 19, 12, 2];
         // , I_p2, I_p1, this.I_pV
     }
+    /**
+     * Sets the current word to be stemmed.
+     * @param word - The word to be stemmed.
+     */
     setCurrent(word) {
         this.sbp.setCurrent(word);
     }
     ;
+    /**
+     * Gets the current stemmed word.
+     * @returns The current stemmed word.
+     */
     getCurrent() {
         return this.sbp.getCurrent();
     }
     ;
+    /**
+     * Performs the prelude step of the stemming algorithm.
+     */
     r_prelude() {
         var among_var;
         while (true) {
@@ -159,6 +176,10 @@ class PortugueseStemmer extends BaseStemmer {
             break;
         }
     }
+    /**
+     * Helper method for r_mark_regions.
+     * @returns A boolean indicating the result of the operation.
+     */
     habr2() {
         if (this.sbp.out_grouping(this.g_v, 97, 250)) {
             while (!this.sbp.in_grouping(this.g_v, 97, 250)) {
@@ -170,6 +191,10 @@ class PortugueseStemmer extends BaseStemmer {
         }
         return true;
     }
+    /**
+    * Another helper method for r_mark_regions.
+    * @returns A boolean indicating the result of the operation.
+    */
     habr3() {
         if (this.sbp.in_grouping(this.g_v, 97, 250)) {
             while (!this.sbp.out_grouping(this.g_v, 97, 250)) {
@@ -181,6 +206,10 @@ class PortugueseStemmer extends BaseStemmer {
         this.I_pV = this.sbp.cursor;
         return true;
     }
+    /**
+    * Helper method for r_mark_regions.
+    * @returns A boolean indicating the result of the operation.
+    */
     habr4() {
         var v_1 = this.sbp.cursor, v_2, v_3;
         if (this.sbp.in_grouping(this.g_v, 97, 250)) {
@@ -205,6 +234,10 @@ class PortugueseStemmer extends BaseStemmer {
             this.I_pV = this.sbp.cursor;
         }
     }
+    /**
+     * Helper method for r_mark_regions.
+     * @returns A boolean indicating the result of the operation.
+     */
     habr5() {
         while (!this.sbp.in_grouping(this.g_v, 97, 250)) {
             if (this.sbp.cursor >= this.sbp.limit)
@@ -218,6 +251,9 @@ class PortugueseStemmer extends BaseStemmer {
         }
         return true;
     }
+    /**
+     * Marks regions in the word for the stemming process.
+     */
     r_mark_regions() {
         var v_1 = this.sbp.cursor;
         this.I_pV = this.sbp.limit;
@@ -231,6 +267,9 @@ class PortugueseStemmer extends BaseStemmer {
                 this.I_p2 = this.sbp.cursor;
         }
     }
+    /**
+     * Performs the postlude step of the stemming algorithm.
+     */
     r_postlude() {
         var among_var;
         while (true) {
@@ -255,15 +294,31 @@ class PortugueseStemmer extends BaseStemmer {
             break;
         }
     }
+    /**
+     * Checks if the cursor is within the RV region.
+     * @returns A boolean indicating if the cursor is in RV.
+     */
     r_RV() {
         return this.I_pV <= this.sbp.cursor;
     }
+    /**
+     * Checks if the cursor is within the R1 region.
+     * @returns A boolean indicating if the cursor is in R1.
+     */
     r_R1() {
         return this.I_p1 <= this.sbp.cursor;
     }
+    /**
+     * Checks if the cursor is within the R2 region.
+     * @returns A boolean indicating if the cursor is in R2.
+     */
     r_R2() {
         return this.I_p2 <= this.sbp.cursor;
     }
+    /**
+     * Performs the standard suffix removal step of the stemming algorithm.
+     * @returns A boolean indicating if any changes were made.
+     */
     r_standard_suffix() {
         var among_var;
         this.sbp.ket = this.sbp.cursor;
@@ -358,6 +413,10 @@ class PortugueseStemmer extends BaseStemmer {
         }
         return true;
     }
+    /**
+     * Removes verb suffixes.
+     * @returns A boolean indicating if any changes were made.
+     */
     r_verb_suffix() {
         var among_var, v_1;
         if (this.sbp.cursor >= this.I_pV) {
@@ -376,6 +435,9 @@ class PortugueseStemmer extends BaseStemmer {
         }
         return false;
     }
+    /**
+     * Removes residual suffixes.
+     */
     r_residual_suffix() {
         var among_var;
         this.sbp.ket = this.sbp.cursor;
@@ -387,6 +449,12 @@ class PortugueseStemmer extends BaseStemmer {
                     this.sbp.slice_del();
         }
     }
+    /**
+     * Helper method for handling specific character replacements.
+     * @param c1 - The first character to check.
+     * @param c2 - The second character to check.
+     * @returns A boolean indicating the result of the operation.
+     */
     habr6(c1, c2) {
         if (this.sbp.eq_s_b(1, c1)) {
             this.sbp.bra = this.sbp.cursor;
@@ -400,6 +468,9 @@ class PortugueseStemmer extends BaseStemmer {
         }
         return true;
     }
+    /**
+     * Handles residual word forms.
+     */
     r_residual_form() {
         var among_var, v_1, v_2, v_3;
         this.sbp.ket = this.sbp.cursor;
@@ -422,6 +493,9 @@ class PortugueseStemmer extends BaseStemmer {
             }
         }
     }
+    /**
+     * Main helper method for the stemming process.
+     */
     habr1() {
         if (!this.r_standard_suffix()) {
             this.sbp.cursor = this.sbp.limit;
@@ -442,6 +516,10 @@ class PortugueseStemmer extends BaseStemmer {
             }
         }
     }
+    /**
+     * Stems the current word.
+     * @returns A boolean indicating if stemming was successful.
+     */
     stem() {
         var v_1 = this.sbp.cursor;
         this.r_prelude();

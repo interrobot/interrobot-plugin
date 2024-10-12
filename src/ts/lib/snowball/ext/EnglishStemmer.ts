@@ -15,8 +15,14 @@
 import { BaseStemmer } from "./BaseStemmer.js";
 import { Among } from "../Among.js";
 
+/**
+ * Implements the Snowball stemming algorithm for the English language.
+ */
 class EnglishStemmer extends BaseStemmer {
 
+	/**
+	 * Initializes a new instance of the EnglishStemmer class.
+	 */
 	public constructor() {
 		// super creates sbp
 		super();
@@ -100,6 +106,9 @@ class EnglishStemmer extends BaseStemmer {
 		
 	}
 
+	/**
+	 * Performs the prelude step of the stemming algorithm.
+	 */
 	public r_prelude() {
 		let v_1: number = this.sbp.cursor;
 		let  v_2: number;
@@ -137,6 +146,9 @@ class EnglishStemmer extends BaseStemmer {
 		}
 	}
 
+	/**
+	 * Marks regions in the word for the stemming process.
+	 */
 	public r_mark_regions(): void {
 		var v_1 = this.sbp.cursor;
 		this.I_p1 = this.sbp.limit;
@@ -153,6 +165,10 @@ class EnglishStemmer extends BaseStemmer {
 			this.I_p2 = this.sbp.cursor;
 	}
 
+	/**
+	 * Helper method for r_mark_regions.
+	 * @returns A boolean indicating the result of the operation.
+	 */
 	public habr1(): boolean {
 		while (!this.sbp.in_grouping(this.g_v, 97, 121)) {
 			if (this.sbp.cursor >= this.sbp.limit)
@@ -167,6 +183,10 @@ class EnglishStemmer extends BaseStemmer {
 		return false;
 	}
 
+	/**
+	 * Checks if the current suffix is a short vowel.
+	 * @returns A boolean indicating if a short vowel was found.
+	 */
 	public r_shortv(): boolean {
 		var v_1 = this.sbp.limit - this.sbp.cursor;
 		if (!(this.sbp.out_grouping_b(this.g_v_WXY, 89, 121)
@@ -181,14 +201,25 @@ class EnglishStemmer extends BaseStemmer {
 		return true;
 	}
 
+	/**
+	 * Checks if the cursor is within the R1 region.
+	 * @returns A boolean indicating if the cursor is in R1.
+	 */
 	public r_R1(): boolean {
 		return this.I_p1 <= this.sbp.cursor;
 	}
 
+	/**
+	 * Checks if the cursor is within the R2 region.
+	 * @returns A boolean indicating if the cursor is in R2.
+	 */
 	public r_R2(): boolean {
 		return this.I_p2 <= this.sbp.cursor;
 	}
 
+	/**
+	 * Performs step 1a of the stemming algorithm.
+	 */
 	public r_Step_1a() {
 
 		let among_var: number;
@@ -233,6 +264,9 @@ class EnglishStemmer extends BaseStemmer {
 		}
 	}
 
+	/**
+	 * Performs step 1b of the stemming algorithm.
+	 */
 	public r_Step_1b() {
 		let among_var;
 		let v_1: number;
@@ -294,6 +328,9 @@ class EnglishStemmer extends BaseStemmer {
 		}
 	}
 
+	/**
+	 * Performs step 1c of the stemming algorithm.
+	 */
 	public r_Step_1c(): void {
 		var v_1 = this.sbp.limit - this.sbp.cursor;
 		this.sbp.ket = this.sbp.cursor;
@@ -307,6 +344,9 @@ class EnglishStemmer extends BaseStemmer {
 			this.sbp.slice_from("i");
 	}
 
+	/**
+	 * Performs step 2 of the stemming algorithm.
+	 */
 	public r_Step_2():void {
 		var among_var;
 		this.sbp.ket = this.sbp.cursor;
@@ -370,6 +410,9 @@ class EnglishStemmer extends BaseStemmer {
 		}
 	}
 
+	/**
+	 * Performs step 3 of the stemming algorithm.
+	 */
 	public r_Step_3(): void {
 		var among_var;
 		this.sbp.ket = this.sbp.cursor;
@@ -402,6 +445,9 @@ class EnglishStemmer extends BaseStemmer {
 		}
 	}
 
+	/**
+	 * Performs step 4 of the stemming algorithm.
+	 */
 	public r_Step_4() {
 		var among_var, v_1;
 		this.sbp.ket = this.sbp.cursor;
@@ -427,6 +473,9 @@ class EnglishStemmer extends BaseStemmer {
 		}
 	}
 
+	/**
+	 * Performs step 5 of the stemming algorithm.
+	 */
 	public r_Step_5() {
 		var among_var, v_1;
 		this.sbp.ket = this.sbp.cursor;
@@ -453,6 +502,10 @@ class EnglishStemmer extends BaseStemmer {
 		}
 	}
 
+	/**
+	 * Handles exceptions for the stemming process (part 2).
+	 * @returns A boolean indicating if an exception was handled.
+	 */
 	public r_exception2() {
 		this.sbp.ket = this.sbp.cursor;
 		if (this.sbp.find_among_b(this.a_9, 8)) {
@@ -462,6 +515,10 @@ class EnglishStemmer extends BaseStemmer {
 		return false;
 	}
 
+	/**
+	 * Handles exceptions for the stemming process (part 1).
+	 * @returns A boolean indicating if an exception was handled.
+	 */
 	public r_exception1() {
 		var among_var;
 		this.sbp.bra = this.sbp.cursor;
@@ -510,6 +567,9 @@ class EnglishStemmer extends BaseStemmer {
 		return false;
 	}
 
+	/**
+	 * Performs the postlude step of the stemming algorithm.
+	 */
 	public r_postlude(): void {
 		let v_1:number;
 		if (this.B_Y_found) {
@@ -530,6 +590,10 @@ class EnglishStemmer extends BaseStemmer {
 		}
 	}
 
+	/**
+	 * Stems the current word.
+	 * @returns A boolean indicating if stemming was successful.
+	 */
 	public stem() {
 		var v_1 = this.sbp.cursor;
 		if (!this.r_exception1()) {

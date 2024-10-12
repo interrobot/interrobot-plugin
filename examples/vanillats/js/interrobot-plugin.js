@@ -1,30 +1,65 @@
 (() => {
   // examples/vanillats/js/build/src/ts/core/html.js
-  var HtmlUtils = class _HtmlUtils {
+  var HtmlUtils = class {
+    /**
+     * Parses an HTML string into a Document object.
+     * @param html - The HTML string to parse.
+     * @returns A Document object or null if parsing fails.
+     */
     static getDocument(html) {
-      return new DOMParser().parseFromString(html, "text/html");
+      html = html.replace(HtmlUtils.styleAttributeRegex, "");
+      try {
+        return new DOMParser().parseFromString(html, "text/html");
+      } catch (ex) {
+        console.warn(ex);
+      }
     }
+    /**
+     * Creates a Document object from HTML string with certain elements removed.
+     * @param html - The HTML string to parse.
+     * @returns A cleaned Document object.
+     */
     static getDocumentCleanText(html) {
-      const dom = this.getDocument(html);
+      let dom = this.getDocument(html);
+      if (dom === null) {
+        dom = new Document();
+      }
       const textUnfriendly = dom.querySelectorAll("script, style, svg, noscript, iframe");
       for (let i = textUnfriendly.length - 1; i >= 0; i--) {
         textUnfriendly[i].parentElement.removeChild(textUnfriendly[i]);
       }
       return dom;
     }
+    /**
+     * Creates an XPathResult iterator for text nodes in a cleaned HTML document.
+     * @param html - The HTML string to parse.
+     * @returns An XPathResult iterator for text nodes.
+     */
     static getDocumentCleanTextIterator(html) {
-      const dom = _HtmlUtils.getDocumentCleanText(html);
+      const dom = HtmlUtils.getDocumentCleanText(html);
       const xpath = "//text() | //meta[@name='description']/@content | //@alt";
       const texts = dom.evaluate(xpath, dom, null, XPathResult.ANY_TYPE, null);
       return texts;
     }
+    /**
+     * Creates an XPathResult iterator for text nodes within a specific element.
+     * @param dom - The Document object.
+     * @param element - The HTMLElement to search within.
+     * @returns An XPathResult iterator for text nodes.
+     */
     static getElementTextIterator(dom, element) {
       const xpath = ".//text()";
       const texts = dom.evaluate(xpath, element, null, XPathResult.ANY_TYPE, null);
       return texts;
     }
+    /**
+     * Extracts text content from a specific element.
+     * @param dom - The Document object.
+     * @param element - The HTMLElement to extract text from.
+     * @returns A string containing the element's text content.
+     */
     static getElementTextOnly(dom, element) {
-      const xpr = _HtmlUtils.getElementTextIterator(dom, element);
+      const xpr = HtmlUtils.getElementTextIterator(dom, element);
       const texts = [];
       let node = xpr.iterateNext();
       while (node) {
@@ -33,19 +68,32 @@
       }
       return texts.join(" ");
     }
+    /**
+     * Checks if a string is a valid URL.
+     * @param str - The string to check.
+     * @returns True if the string is a valid URL, false otherwise.
+     */
     static isUrl(str) {
-      return str.match(_HtmlUtils.urlRegex) !== null;
+      return str.match(HtmlUtils.urlRegex) !== null;
     }
+    /**
+     * Encodes HTML special characters in a string.
+     * @param str - The string to encode.
+     * @returns An HTML-encoded string.
+     */
     static htmlEncode(str) {
       return new Option(str).innerHTML;
     }
   };
   HtmlUtils.urlsRegex = /((([A-Za-z]{3,9}:(?:\/\/)?)(?:[\-;:&=\+\$,\w]+@)?[A-Za-z0-9\.\-]+|(?:www\.|[\-;:&=\+\$,\w]+@)[A-Za-z0-9\.\-]+)((?:\/[\+~%\/\.\w\-_\:]*)?\??(?:[\-\+=&;%@\.\w_]*)#?(?:[\.\!\/\\\w]*))?)/g;
   HtmlUtils.urlRegex = /^((([A-Za-z]{3,9}:(?:\/\/)?)(?:[\-;:&=\+\$,\w]+@)?[A-Za-z0-9\.\-]+|(?:www\.|[\-;:&=\+\$,\w]+@)[A-Za-z0-9\.\-]+)((?:\/[\+~%\/\.\w\-_\:]*)?\??(?:[\-\+=&;%@\.\w_]*)#?(?:[\.\!\/\\\w]*))?)$/;
+  HtmlUtils.styleAttributeRegex = /style\s*=\s*("([^"]*)"|'([^']*)')/gi;
 
   // examples/vanillats/js/build/src/ts/core/touch.js
   var TouchProxy = class {
-    // pass touch events up to iframe container, proxies the navigation show/hide
+    /**
+     * Creates a new TouchProxy instance and sets up event listeners.
+     */
     constructor() {
       const content = document.body;
       content.addEventListener("touchstart", (ev) => {
@@ -58,6 +106,10 @@
         this.proxyToContainer(ev);
       }, { passive: true });
     }
+    /**
+     * Proxies touch events to the container iframe.
+     * @param ev - The TouchEvent to be proxied.
+     */
     async proxyToContainer(ev) {
       var _a;
       let primeTouch;
@@ -105,6 +157,11 @@
     DarkMode2[DarkMode2["Dark"] = 1] = "Dark";
   })(DarkMode || (DarkMode = {}));
   var PluginConnection = class {
+    /**
+     * Creates a new PluginConnection instance.
+     * @param iframeSrc - The source URL of the iframe.
+     * @param hostOrigin - The origin of the host (optional).
+     */
     constructor(iframeSrc, hostOrigin) {
       this.iframeSrc = iframeSrc;
       if (hostOrigin) {
@@ -119,20 +176,41 @@
         this.pluginOrigin = url.origin;
       }
     }
+    /**
+     * Gets the iframe source URL.
+     * @returns The iframe source URL.
+     */
     getIframeSrc() {
       return this.iframeSrc;
     }
+    /**
+     * Gets the host origin.
+     * @returns The host origin.
+     */
     getHostOrigin() {
       return this.hostOrigin;
     }
+    /**
+     * Gets the plugin origin.
+     * @returns The plugin origin.
+     */
     getPluginOrigin() {
       return this.pluginOrigin;
     }
+    /**
+     * Returns a string representation of the connection.
+     * @returns A string describing the host and plugin origins.
+     */
     toString() {
       return `host = ${this.hostOrigin}; plugin = ${this.pluginOrigin}`;
     }
   };
-  var Plugin = class _Plugin {
+  var Plugin = class {
+    /**
+     * Initializes the plugin class.
+     * @param classtype - The class type to initialize.
+     * @returns An instance of the initialized class.
+     */
     static initialize(classtype) {
       let instance = null;
       if (document.readyState === "complete" || document.readyState === "interactive") {
@@ -144,22 +222,30 @@
       }
       return instance;
     }
+    /**
+     * Posts the current content height to the parent frame.
+     */
     static postContentHeight() {
       const mainResults = document.querySelector(".main__results");
       let currentScrollHeight = document.body.scrollHeight;
       if (mainResults) {
         currentScrollHeight = Number(mainResults.getBoundingClientRect().bottom);
       }
-      if (currentScrollHeight !== _Plugin.contentScrollHeight) {
+      if (currentScrollHeight !== Plugin.contentScrollHeight) {
         const msg = {
           target: "interrobot",
           data: {
             reportHeight: currentScrollHeight
           }
         };
-        _Plugin.routeMessage(msg);
+        Plugin.routeMessage(msg);
       }
     }
+    /**
+     * Posts a request to open a resource link.
+     * @param resource - The resource identifier.
+     * @param openInBrowser - Whether to open the link in a browser.
+     */
     static postOpenResourceLink(resource, openInBrowser) {
       const msg = {
         target: "interrobot",
@@ -170,8 +256,12 @@
           }
         }
       };
-      _Plugin.routeMessage(msg);
+      Plugin.routeMessage(msg);
     }
+    /**
+     * Posts plugin metadata to the parent frame.
+     * @param meta - The metadata object to post.
+     */
     static postMeta(meta) {
       const msg = {
         target: "interrobot",
@@ -179,8 +269,14 @@
           reportMeta: meta
         }
       };
-      _Plugin.routeMessage(msg);
+      Plugin.routeMessage(msg);
     }
+    /**
+     * Sends an API request to the parent frame.
+     * @param apiMethod - The API method to call.
+     * @param apiKwargs - The arguments for the API call.
+     * @returns A promise that resolves with the API response.
+     */
     static async postApiRequest(apiMethod, apiKwargs) {
       let result = null;
       const getPromisedResult = async () => {
@@ -212,25 +308,37 @@
             }
           };
           window.addEventListener("message", listener);
-          _Plugin.routeMessage(msg);
+          Plugin.routeMessage(msg);
         });
       };
       await getPromisedResult();
       return result;
     }
+    /**
+     * Logs timing information to the console.
+     * @param msg - The message to log.
+     * @param millis - The time in milliseconds.
+     */
     static logTiming(msg, millis) {
       const seconds = (millis / 1e3).toFixed(3);
       console.log(`\u{1F916} [${seconds}s] ${msg}`);
     }
+    /**
+     * Routes a message to the parent frame.
+     * @param msg - The message to route.
+     */
     static routeMessage(msg) {
       let parentOrigin = "";
-      if (_Plugin.connection) {
-        parentOrigin = _Plugin.connection.getHostOrigin();
+      if (Plugin.connection) {
+        parentOrigin = Plugin.connection.getHostOrigin();
         window.parent.postMessage(msg, parentOrigin);
       } else {
         window.parent.postMessage(msg);
       }
     }
+    /**
+     * Creates a new Plugin instance.
+     */
     constructor() {
       this.projectId = -1;
       this.mode = DarkMode.Light;
@@ -248,7 +356,7 @@
         paramMode = parseInt(urlSearchParams.get("mode"), 10);
         paramOrigin = urlSearchParams.get("origin");
       }
-      _Plugin.connection = new PluginConnection(document.location.href, paramOrigin);
+      Plugin.connection = new PluginConnection(document.location.href, paramOrigin);
       if (isNaN(paramProject)) {
         const errorMessage = `missing project url argument`;
         throw new Error(errorMessage);
@@ -256,31 +364,61 @@
       this.data = null;
       this.projectId = paramProject;
       this.mode = isNaN(paramMode) || paramMode !== 1 ? DarkMode.Light : DarkMode.Dark;
-      _Plugin.contentScrollHeight = 0;
+      Plugin.contentScrollHeight = 0;
       const modeClass = DarkMode[this.mode].toLowerCase();
       document.body.classList.remove("light", "dark");
       document.body.classList.add(modeClass);
       const tp = new TouchProxy();
     }
+    /**
+     * Introduces a delay in the execution.
+     * @param ms - The number of milliseconds to delay.
+     * @returns A promise that resolves after the specified delay.
+     */
     delay(ms) {
       return new Promise((resolve) => setTimeout(resolve, ms));
     }
+    /**
+     * Gets the current project ID.
+     * @returns The project ID.
+     */
     getProjectId() {
       return this.projectId;
     }
+    /**
+     * Initializes the plugin with metadata and sets up event listeners.
+     * @param meta - The metadata for the plugin.
+     */
     async init(meta) {
-      _Plugin.postMeta(meta);
-      window.addEventListener("load", _Plugin.postContentHeight);
-      window.addEventListener("resize", _Plugin.postContentHeight);
+      Plugin.postMeta(meta);
+      window.addEventListener("load", Plugin.postContentHeight);
+      window.addEventListener("resize", Plugin.postContentHeight);
     }
+    /**
+     * Initializes the plugin data.
+     * @param meta - The metadata for the plugin.
+     * @param defaultData - The default data for the plugin.
+     * @param autoform - An array of HTML elements for the autoform.
+     */
     async initData(meta, defaultData, autoform) {
       this.data = new PluginData(this.getProjectId(), meta, defaultData, autoform);
       await this.data.loadData();
     }
+    /**
+     * Initializes and returns the plugin data.
+     * @param meta - The metadata for the plugin.
+     * @param defaultData - The default data for the plugin.
+     * @param autoform - An array of HTML elements for the autoform.
+     * @returns A promise that resolves with the initialized PluginData.
+     */
     async initAndGetData(meta, defaultData, autoform) {
       await this.initData(meta, defaultData, autoform);
       return this.data;
     }
+    /**
+     * Gets the current project.
+     * @returns A promise that resolves with the current Project.
+     */
     async getProject() {
       if (this.project === void 0) {
         const project = await Project.getApiProject(this.projectId);
@@ -292,14 +430,21 @@
       }
       return this.project;
     }
+    /**
+     * Renders HTML content in the document body.
+     * @param html - The HTML content to render.
+     */
     render(html) {
       document.body.innerHTML = html;
     }
+    /**
+     * Initializes the plugin index page.
+     */
     async index() {
-      this.init(_Plugin.meta);
+      this.init(Plugin.meta);
       const project = await Project.getApiProject(this.getProjectId());
       const encodedTitle = HtmlUtils.htmlEncode(project.getDisplayTitle());
-      const encodedMetaTitle = HtmlUtils.htmlEncode(_Plugin.meta["title"]);
+      const encodedMetaTitle = HtmlUtils.htmlEncode(Plugin.meta["title"]);
       this.render(`
             <div class="main__heading">
                 <div class="main__heading__icon">
@@ -324,6 +469,9 @@
         await this.process();
       });
     }
+    /**
+     * Processes the plugin data.
+     */
     async process() {
       const titleWords = /* @__PURE__ */ new Map();
       let resultsMap;
@@ -347,6 +495,10 @@
       });
       await this.report(titleWords);
     }
+    /**
+     * Generates and displays a report based on the processed data.
+     * @param titleWords - A map of title words and their counts.
+     */
     async report(titleWords) {
       const titleWordsRemap = new Map([...titleWords.entries()].sort((a, b) => {
         const aVal = a[1];
@@ -368,7 +520,7 @@
             <thead><tr><th>Term</th><th>Count</th></tr></thead>
             <tbody>${tableRows.join("")}</tbody>
             </table></section></div>`;
-      _Plugin.postContentHeight();
+      Plugin.postContentHeight();
     }
     parentIsOrigin() {
       try {
@@ -386,9 +538,8 @@
     }
   };
   Plugin.meta = {
-    "url": "https://example.com/path/to/plugin-page/",
     "title": "InterroBot Base Plugin",
-    "category": "Core Example",
+    "category": "Example",
     "version": "1.0",
     "author": "InterroBot",
     "description": `Welcome to InterroBot plugin development. This base-class Plugin can already 
@@ -407,6 +558,13 @@ This is the default plugin description. Set meta: {} values
     SearchQueryType2[SearchQueryType2["Any"] = 2] = "Any";
   })(SearchQueryType || (SearchQueryType = {}));
   var PluginData = class {
+    /**
+     * Creates an instance of PluginData.
+     * @param projectId - The ID of the project.
+     * @param meta - Metadata for the plugin.
+     * @param defaultData - Default data for the plugin.
+     * @param autoformInputs - Array of HTML elements for autoform inputs.
+     */
     constructor(projectId, meta, defaultData, autoformInputs) {
       this.meta = meta;
       this.defaultData = defaultData;
@@ -423,7 +581,7 @@ This is the default plugin description. Set meta: {} values
       if (autoformInputs.length > 0) {
         const changeHandler = async (el) => {
           let name = el.getAttribute("name");
-          const value = el.checked === void 0 ? el.value : el.checked;
+          const value = el.checked === void 0 || el.checked === false ? el.value : el.checked;
           await this.setAutoformField(name, value);
         };
         const radioHandler = async (el) => {
@@ -496,6 +654,12 @@ This is the default plugin description. Set meta: {} values
         }
       }
     }
+    /**
+     * Sets a data field and optionally updates the data.
+     * @param key - The key of the data field to set.
+     * @param value - The value to set for the data field.
+     * @param push - Whether to update the data after setting the field.
+     */
     async setDataField(key, value, push) {
       if (this.data[key] !== value) {
         this.data[key] = value;
@@ -504,6 +668,10 @@ This is the default plugin description. Set meta: {} values
         await this.updateData();
       }
     }
+    /**
+     * Gets the current plugin data.
+     * @returns A promise that resolves to the plugin data.
+     */
     async getData() {
       if (this.dataLoaded !== null) {
         return this.data;
@@ -512,6 +680,9 @@ This is the default plugin description. Set meta: {} values
         return this.data;
       }
     }
+    /**
+     * Loads the plugin data from the server.
+     */
     async loadData() {
       var _a;
       let pluginUrl = window.location.href;
@@ -630,6 +801,11 @@ ${JSON.stringify(kwargs)}`);
       });
       return;
     }
+    /**
+     * Sets an autoform field and updates the data.
+     * @param name - The name of the autoform field.
+     * @param value - The value to set for the autoform field.
+     */
     async setAutoformField(name, value) {
       var _a, _b;
       const data = await this.getData();
@@ -640,6 +816,9 @@ ${JSON.stringify(kwargs)}`);
         await this.setDataField("autoform", autoformData, true);
       }
     }
+    /**
+     * Updates the plugin data on the server.
+     */
     async updateData() {
       const data = await this.getData();
       data["meta"] = this.meta;
@@ -650,16 +829,32 @@ ${JSON.stringify(kwargs)}`);
       const result = await Plugin.postApiRequest("SetPluginData", kwargs);
       return;
     }
+    /**
+     * Gets the data slug for the plugin.
+     * @returns The base64 encoded plugin URL.
+     */
     getDataSlug() {
       const key = this.getPluginUrl();
       const b64Key = btoa(key);
       return b64Key;
     }
+    /**
+     * Gets the current plugin URL.
+     * @returns The full URL of the plugin.
+     */
     getPluginUrl() {
       return `${window.location.protocol}//${window.location.host}${window.location.pathname}`;
     }
   };
   var SearchQuery = class {
+    /**
+     * Creates an instance of SearchQuery.
+     * @param project - The project ID.
+     * @param query - The search query string.
+     * @param fields - The fields to search in.
+     * @param type - The type of search query.
+     * @param includeExternal - Whether to include external results.
+     */
     constructor(project, query, fields, type, includeExternal) {
       this.project = project;
       this.query = query;
@@ -667,19 +862,31 @@ ${JSON.stringify(kwargs)}`);
       this.type = type;
       this.includeExternal = includeExternal;
     }
+    /**
+     * Gets the cache key for the haystack.
+     * @returns A string representing the cache key.
+     */
     getHaystackCacheKey() {
       return `${this.project}~${this.fields}~${this.type}~${this.includeExternal}`;
     }
   };
-  var Search = class _Search {
+  var Search = class {
+    /**
+     * Executes a search query.
+     * @param query - The search query to execute.
+     * @param existingResults - Map of existing results.
+     * @param processingMessage - Message to display during processing.
+     * @param resultHandler - Function to handle each search result.
+     * @returns A promise that resolves to a boolean indicating if results were from cache.
+     */
     static async execute(query, existingResults, processingMessage, resultHandler) {
       const timeStart = (/* @__PURE__ */ new Date()).getTime();
       processingMessage = processingMessage !== null && processingMessage !== void 0 ? processingMessage : "Processing...";
-      if (query.getHaystackCacheKey() === _Search.resultsHaystackCacheKey && existingResults) {
+      if (query.getHaystackCacheKey() === Search.resultsHaystackCacheKey && existingResults) {
         const resultTotal2 = existingResults.size;
         const eventStart = new CustomEvent("ProcessingMessage", { detail: { action: "set", message: processingMessage } });
         document.dispatchEvent(eventStart);
-        await _Search.sleep(16);
+        await Search.sleep(16);
         let i = 0;
         await existingResults.forEach(async (result, resultId) => {
           await resultHandler(result);
@@ -690,8 +897,8 @@ ${JSON.stringify(kwargs)}`);
         document.dispatchEvent(eventFinished);
         return true;
       } else {
-        _Search.resultsHaystackCacheKey = query.getHaystackCacheKey();
-        _Search.resultsCacheTotal = 0;
+        Search.resultsHaystackCacheKey = query.getHaystackCacheKey();
+        Search.resultsCacheTotal = 0;
       }
       const kwargs = {
         "project": query.project,
@@ -703,11 +910,11 @@ ${JSON.stringify(kwargs)}`);
       };
       let responseJson = await Plugin.postApiRequest("GetResources", kwargs);
       const resultTotal = responseJson["__meta__"]["results"]["total"];
-      _Search.resultsCacheTotal = resultTotal;
+      Search.resultsCacheTotal = resultTotal;
       let results = responseJson.results;
       for (let i = 0; i < results.length; i++) {
         const result = results[i];
-        await _Search.handleResult(result, resultTotal, resultHandler);
+        await Search.handleResult(result, resultTotal, resultHandler);
       }
       while (responseJson["__meta__"]["results"]["pagination"]["nextOffset"] !== null) {
         const next = responseJson["__meta__"]["results"]["pagination"]["nextOffset"];
@@ -716,15 +923,25 @@ ${JSON.stringify(kwargs)}`);
         results = responseJson.results;
         for (let i = 0; i < results.length; i++) {
           const result = results[i];
-          await _Search.handleResult(result, resultTotal, resultHandler);
+          await Search.handleResult(result, resultTotal, resultHandler);
         }
       }
       Plugin.logTiming(`Loaded/processed ${resultTotal.toLocaleString()} search result(s)`, (/* @__PURE__ */ new Date()).getTime() - timeStart);
       return false;
     }
+    /**
+     * Sleeps for the specified number of milliseconds.
+     * @param millis - The number of milliseconds to sleep.
+     */
     static async sleep(millis) {
       return new Promise((resolve) => setTimeout(() => resolve(), millis));
     }
+    /**
+     * Handles a single search result.
+     * @param jsonResult - The JSON representation of the search result.
+     * @param resultTotal - The total number of results.
+     * @param resultHandler - Function to handle the search result.
+     */
     static async handleResult(jsonResult, resultTotal, resultHandler) {
       const searchResult = new SearchResult(jsonResult);
       await resultHandler(searchResult);
@@ -733,7 +950,7 @@ ${JSON.stringify(kwargs)}`);
       document.dispatchEvent(event);
     }
   };
-  var SearchResult = class _SearchResult {
+  var SearchResult = class {
     static normalizeContentWords(input) {
       const out = [];
       if (input !== "") {
@@ -742,9 +959,13 @@ ${JSON.stringify(kwargs)}`);
       return out;
     }
     static normalizeContentString(input) {
-      const words = _SearchResult.normalizeContentWords(input);
+      const words = SearchResult.normalizeContentWords(input);
       return words.join(" ");
     }
+    /**
+     * Creates an instance of SearchResult.
+     * @param jsonResult - The JSON representation of the search result.
+     */
     constructor(jsonResult) {
       this.optionalFields = [
         "created",
@@ -775,25 +996,45 @@ ${JSON.stringify(kwargs)}`);
         }
       }
     }
+    /**
+     * Checks if the result has processed content.
+     * @returns True if processed content exists, false otherwise.
+     */
     hasProcessedContent() {
       return this.processedContent != "";
     }
+    /**
+     * Gets the processed content of the search result.
+     * @returns The processed content.
+     */
     getProcessedContent() {
       return this.processedContent;
     }
+    /**
+     * Sets the processed content of the search result.
+     * @param processedContent - The processed content to set.
+     */
     setProcessedContent(processedContent) {
       this.processedContent = processedContent;
     }
+    /**
+     * Gets the raw content of the search result.
+     * @returns The raw content.
+     */
     getContent() {
       return this.content;
     }
+    /**
+     * Gets the content of the search result as text only.
+     * @returns The content as plain text.
+     */
     getContentTextOnly() {
       const out = [];
       let element = null;
       const texts = HtmlUtils.getDocumentCleanTextIterator(this.getContent());
       element = texts.iterateNext();
       while (element !== null) {
-        let elementValue = _SearchResult.normalizeContentString(element.nodeValue);
+        let elementValue = SearchResult.normalizeContentString(element.nodeValue);
         if (elementValue !== "") {
           const elementValueWords = elementValue.split(" ").filter((word) => word !== "");
           if (elementValueWords.length > 0) {
@@ -803,17 +1044,28 @@ ${JSON.stringify(kwargs)}`);
         element = texts.iterateNext();
       }
       let pageText = out.join(" ");
-      pageText = pageText.replace(_SearchResult.wordPunctuationRe, "");
-      pageText = pageText.replace(_SearchResult.wordWhitespaceRe, " ");
+      pageText = pageText.replace(SearchResult.wordPunctuationRe, "");
+      pageText = pageText.replace(SearchResult.wordWhitespaceRe, " ");
       return pageText;
     }
+    /**
+     * Gets the headers of the search result.
+     * @returns The headers.
+     */
     getHeaders() {
       return this.headers;
     }
+    /**
+     * Gets the path of the URL for the search result.
+     * @returns The URL path.
+     */
     getUrlPath() {
       const url = new URL(this.url);
       return url.pathname;
     }
+    /**
+     * Clears the full-text fields of the search result.
+     */
     clearFulltextFields() {
       this.content = "";
       this.headers = "";
@@ -822,6 +1074,16 @@ ${JSON.stringify(kwargs)}`);
   SearchResult.wordPunctuationRe = /\s+(?=[\.,;:!\?] )/g;
   SearchResult.wordWhitespaceRe = /\s+/g;
   var Crawl = class {
+    /**
+     * Creates an instance of Crawl.
+     * @param id - The crawl ID.
+     * @param project - The project ID.
+     * @param created - The creation date.
+     * @param modified - The last modified date.
+     * @param complete - Whether the crawl is complete.
+     * @param time - The time taken for the crawl.
+     * @param report - The crawl report.
+     */
     constructor(id, project, created, modified, complete, time, report) {
       this.id = -1;
       this.created = null;
@@ -837,12 +1099,24 @@ ${JSON.stringify(kwargs)}`);
       this.time = time;
       this.report = report;
     }
+    /**
+     * Gets the timings from the crawl report.
+     * @returns The timings object.
+     */
     getTimings() {
       return this.getReportDetailByKey("timings");
     }
+    /**
+     * Gets the sizes from the crawl report.
+     * @returns The sizes object.
+     */
     getSizes() {
       return this.getReportDetailByKey("sizes");
     }
+    /**
+     * Gets the counts from the crawl report.
+     * @returns The counts object.
+     */
     getCounts() {
       return this.getReportDetailByKey("counts");
     }
@@ -854,7 +1128,15 @@ ${JSON.stringify(kwargs)}`);
       }
     }
   };
-  var Project = class _Project {
+  var Project = class {
+    /**
+     * Creates an instance of Project.
+     * @param id - The project ID.
+     * @param created - The creation date.
+     * @param modified - The last modified date.
+     * @param url - The project URL.
+     * @param imageDataUri - The data URI of the project image.
+     */
     constructor(id, created, modified, url, imageDataUri) {
       this.id = -1;
       this.created = null;
@@ -865,12 +1147,25 @@ ${JSON.stringify(kwargs)}`);
       this.url = url;
       this.imageDataUri = imageDataUri;
     }
+    /**
+     * Gets the data URI of the project image.
+     * @returns The image data URI.
+     */
     getImageDataUri() {
       return this.imageDataUri;
     }
+    /**
+     * Gets the display title of the project.
+     * @returns The display title (hostname of the project URL).
+     */
     getDisplayTitle() {
       return new URL(this.url).hostname;
     }
+    /**
+     * Gets a project by its ID from the API.
+     * @param id - The project ID.
+     * @returns A promise that resolves to a Project instance, or null if not found.
+     */
     static async getApiProject(id) {
       const kwargs = {
         "projects": [id],
@@ -885,11 +1180,16 @@ ${JSON.stringify(kwargs)}`);
           const modified = new Date(project.modified);
           const url = project.url;
           const imageDataUri = project.image;
-          return new _Project(id, created, modified, url, imageDataUri);
+          return new Project(id, created, modified, url, imageDataUri);
         }
       }
       return null;
     }
+    /**
+     * Gets all crawls for a project from the API.
+     * @param project - The project ID.
+     * @returns A promise that resolves to an array of Crawl instances.
+     */
     static async getApiCrawls(project) {
       const kwargs = {
         complete: "complete",
@@ -909,9 +1209,15 @@ ${JSON.stringify(kwargs)}`);
   };
 
   // examples/vanillats/js/build/src/ts/ui/processing.js
-  var HtmlProcessingWidget = class _HtmlProcessingWidget {
+  var HtmlProcessingWidget = class {
+    /**
+     * Creates a new HtmlProcessingWidget and appends it to the specified parent element.
+     * @param {HTMLElement} parentElement - The parent element to which the widget will be appended.
+     * @param {string} prefix - The prefix text to display before the progress information.
+     * @returns {HtmlProcessingWidget} A new instance of HtmlProcessingWidget.
+     */
     static createElement(parentElement, prefix) {
-      const widget = new _HtmlProcessingWidget(prefix);
+      const widget = new HtmlProcessingWidget(prefix);
       const widgetBaseElement = widget.getBaseElement();
       if (parentElement && widgetBaseElement) {
         parentElement.appendChild(widgetBaseElement);
@@ -920,6 +1226,10 @@ ${JSON.stringify(kwargs)}`);
       }
       return widget;
     }
+    /**
+     * Initializes a new instance of HtmlProcessingWidget.
+     * @param {string} prefix - The prefix text to display before the progress information.
+     */
     constructor(prefix) {
       this.prefix = prefix;
       this.total = 0;
@@ -975,15 +1285,34 @@ ${JSON.stringify(kwargs)}`);
         }
       });
     }
+    /**
+     * Removes the throbbing effect from the widget.
+     * @public
+     */
     clearMessage() {
       this.baseElement.classList.remove("throbbing");
     }
+    /**
+     * Returns the base HTML element of the widget.
+     * @public
+     * @returns {HTMLElement} The base HTML element of the widget.
+     */
     getBaseElement() {
       return this.baseElement;
     }
+    /**
+     * Sets a new prefix for the widget.
+     * @public
+     * @param {string} prefix - The new prefix to set.
+     */
     setPrefix(prefix) {
       this.prefix = prefix;
     }
+    /**
+     * Sets a new message for the widget and adds the throbbing effect.
+     * @public
+     * @param {string} msg - The message to display in the widget.
+     */
     setMessage(msg) {
       this.baseElement.innerHTML = `${msg}`;
       this.baseElement.classList.add("throbbing");
@@ -1004,16 +1333,47 @@ ${JSON.stringify(kwargs)}`);
       this.extended = extended;
     }
   };
-  var HtmlResultsTable = class _HtmlResultsTable {
+  var HtmlResultsTable = class {
+    /**
+     * Creates a new HtmlResultsTable and appends it to the parent element.
+     * @param parentElement - The parent element to append the table to.
+     * @param project - The project number.
+     * @param perPage - The number of items per page.
+     * @param header - The header text for the table.
+     * @param headings - The column headings.
+     * @param results - The data to be displayed in the table.
+     * @param resultsSort - The initial sorting configuration.
+     * @param rowRenderer - A function to render custom rows.
+     * @param cellRenderer - An object with functions to render custom cells.
+     * @param cellHandler - A function to handle cell events.
+     * @param exportExtra - Additional data for export.
+     * @returns A new instance of HtmlResultsTable.
+     */
     static createElement(parentElement, project, perPage, header, headings, results, resultsSort, rowRenderer, cellRenderer, cellHandler, exportExtra) {
-      const pagedTable = new _HtmlResultsTable(project, perPage, header, headings, results, resultsSort, rowRenderer, cellRenderer, cellHandler, exportExtra);
+      const pagedTable = new HtmlResultsTable(project, perPage, header, headings, results, resultsSort, rowRenderer, cellRenderer, cellHandler, exportExtra);
       parentElement.appendChild(pagedTable.baseElement);
       Plugin.postContentHeight();
       return pagedTable;
     }
+    /**
+     * Generates a formatted column number.
+     * @param num - The number to format.
+     * @returns A string representation of the formatted number.
+     */
     static generateFormatedColumnNumber(num) {
       return `${num.toString().padStart(2, "0")}.`;
     }
+    /**
+     * Helper function for sorting results.
+     * @param a - First value to compare.
+     * @param aNum - Numeric representation of the first value.
+     * @param aIsNum - Indicates if the first value is a number.
+     * @param b - Second value to compare.
+     * @param bNum - Numeric representation of the second value.
+     * @param bIsNum - Indicates if the second value is a number.
+     * @param sortOrder - The sort order to apply.
+     * @returns A number indicating the sort order of the two values.
+     */
     static sortResultsHelper(a, aNum, aIsNum, b, bNum, bIsNum, sortOrder) {
       if (aIsNum && bIsNum) {
         if (sortOrder === SortOrder.Ascending) {
@@ -1032,6 +1392,19 @@ ${JSON.stringify(kwargs)}`);
         return 0;
       }
     }
+    /**
+     * Creates a new instance of HtmlResultsTable.
+     * @param project - The project number.
+     * @param perPage - The number of items per page.
+     * @param header - The header text for the table.
+     * @param headings - The column headings.
+     * @param results - The data to be displayed in the table.
+     * @param resultsSort - The initial sorting configuration.
+     * @param rowRenderer - A function to render custom rows.
+     * @param cellRenderer - An object with functions to render custom cells.
+     * @param cellHandler - A function to handle cell events.
+     * @param exportExtra - Additional data for export.
+     */
     constructor(project, perPage, header, headings, results, resultsSort, rowRenderer, cellRenderer, cellHandler, exportExtra) {
       this.paginationEdgeRangeDesktop = 2;
       this.paginationEdgeRangeMobile = 1;
@@ -1115,10 +1488,11 @@ ${JSON.stringify(kwargs)}`);
         }
       };
       this.downloadHandler = (ev) => {
+        var _a, _b;
         ev.preventDefault();
         const dlLinks = this.baseElement.querySelector(".info__dl");
         dlLinks.classList.remove("visible");
-        let exportHeaders = this.headings.concat(Object.keys(this.exportExtra));
+        let exportHeaders = this.headings.concat(Object.keys((_a = this.exportExtra) !== null && _a !== void 0 ? _a : {}));
         let truncatedExport = false;
         if (exportHeaders[0] === "") {
           truncatedExport = true;
@@ -1127,7 +1501,7 @@ ${JSON.stringify(kwargs)}`);
         const exportRows = [];
         for (let i = 0; i < this.results.length; i++) {
           const result = this.results[i];
-          const resultValues = Object.values(this.exportExtra);
+          const resultValues = Object.values((_b = this.exportExtra) !== null && _b !== void 0 ? _b : {});
           const textResultValues = [];
           for (let resultValue of resultValues) {
             if (typeof resultValue === "function") {
@@ -1157,18 +1531,39 @@ ${JSON.stringify(kwargs)}`);
       };
       this.renderSection();
     }
+    /**
+     * Gets the index of a heading in the headings array.
+     * @param headingLabel - The label of the heading to find.
+     * @returns The index of the heading, or -1 if not found.
+     */
     getHeadingIndex(headingLabel) {
       return this.headings.indexOf(headingLabel);
     }
+    /**
+     * Gets the results data.
+     * @returns The results data as a 2D array of strings.
+     */
     getResults() {
       return this.results;
     }
+    /**
+     * Gets the headings of the table.
+     * @returns An array of heading strings.
+     */
     getHeadings() {
       return this.headings;
     }
+    /**
+     * Gets the current sorting configuration.
+     * @returns The current HTMLResultsTableSort object.
+     */
     getResultsSort() {
       return this.resultsSort;
     }
+    /**
+     * Sets the sticky headers based on the current scroll position.
+     * @param scrollY - The current vertical scroll position.
+     */
     setStickyHeaders(scrollY) {
       const thead = this.baseElement.querySelector("thead");
       const table = thead === null || thead === void 0 ? void 0 : thead.parentElement;
@@ -1185,6 +1580,17 @@ ${JSON.stringify(kwargs)}`);
         thead.style.top = `auto`;
       }
       return;
+    }
+    /**
+     * Sets the current page offset.
+     * @param page - The page number to set (0-indexed).
+     */
+    setOffsetPage(page) {
+      const requestedPage = page * this.perPage;
+      if (requestedPage !== this.resultsOffset) {
+        this.resultsOffset = requestedPage;
+        this.renderSection();
+      }
     }
     sortResults() {
       const primaryHeading = this.resultsSort.primaryHeading;
@@ -1212,27 +1618,20 @@ ${JSON.stringify(kwargs)}`);
           const secondaryBVal = b[secondarySortOnIndex];
           const secondaryBValNumber = parseFloat(secondaryBVal);
           const secondaryBValIsNumber = !isNaN(secondaryBValNumber);
-          return _HtmlResultsTable.sortResultsHelper(secondaryAVal, secondaryAValNumber, secondaryAValIsNumber, secondaryBVal, secondaryBValNumber, secondaryBValIsNumber, secondarySort);
+          return HtmlResultsTable.sortResultsHelper(secondaryAVal, secondaryAValNumber, secondaryAValIsNumber, secondaryBVal, secondaryBValNumber, secondaryBValIsNumber, secondarySort);
         } else {
-          return _HtmlResultsTable.sortResultsHelper(primaryAVal, primaryAValNumber, primaryAValIsNumber, primaryBVal, primaryBValNumber, primaryBValIsNumber, primarySort);
+          return HtmlResultsTable.sortResultsHelper(primaryAVal, primaryAValNumber, primaryAValIsNumber, primaryBVal, primaryBValNumber, primaryBValIsNumber, primarySort);
         }
       };
       this.results.sort(compoundSort);
       if (this.headings[0] === "") {
         for (let i = 0; i < this.results.length; i++) {
-          this.results[i][0] = _HtmlResultsTable.generateFormatedColumnNumber(i + 1);
+          this.results[i][0] = HtmlResultsTable.generateFormatedColumnNumber(i + 1);
         }
       }
     }
     getColumnClass(heading) {
       return `column__${heading ? heading.replace(/[^\w]+/g, "").toLowerCase() : "empty"}`;
-    }
-    setOffsetPage(page) {
-      const requestedPage = page * this.perPage;
-      if (requestedPage !== this.resultsOffset) {
-        this.resultsOffset = requestedPage;
-        this.renderSection();
-      }
     }
     renderTableHeadings(headings) {
       const out = [];
@@ -1334,12 +1733,13 @@ ${JSON.stringify(kwargs)}`);
       }
       const resultStart = this.resultsOffset + 1;
       const resultEnd = Math.min(this.resultsCount, this.resultsOffset + this.perPage);
+      const exportIconChar = this.isCorePlugin() ? "`" : "\u229E";
       let section = `<section>
             ${this.header}
             <hgroup>
                 <div class="info">
                     <span class="info__dl export">
-                        <button class="icon">\`</button>
+                        <button class="icon">\u229E</button>
                         <ul class="export__ulink">
                             <li><a class="ulink" href="#" data-format="csv">Export CSV</a></li>
                             <li><a class="ulink" href="#" data-format="xlsx">Export Excel</a></li>
@@ -1375,11 +1775,32 @@ ${JSON.stringify(kwargs)}`);
       }
       this.addHandlers();
     }
+    /**
+     * Adds event handlers to the table elements.
+     */
     addHandlers() {
       this.applyHandlers(true);
     }
+    /**
+     * Removes event handlers from the table elements.
+     */
     removeHandlers() {
       this.applyHandlers(false);
+    }
+    /**
+     * Identifies a core plugin (as true)
+     */
+    isCorePlugin() {
+      const iframed = window.self !== window.top;
+      let sameDomain = false;
+      if (iframed) {
+        try {
+          sameDomain = Boolean(window.parent.location.href);
+        } catch (e) {
+          sameDomain = false;
+        }
+      }
+      return iframed && sameDomain;
     }
     applyHandlers(add) {
       const navLinkMethod = add ? "addEventListener" : "removeEventListener";
@@ -1423,8 +1844,10 @@ ${JSON.stringify(kwargs)}`);
         }, { passive: true });
       }
       const customButtons = this.baseElement.querySelectorAll("button.custom");
-      for (let button of customButtons) {
-        button[navLinkMethod]("click", this.cellHandler);
+      if (this.cellHandler) {
+        for (let button of customButtons) {
+          button[navLinkMethod]("click", this.cellHandler);
+        }
       }
       const browserLinks = this.baseElement.querySelectorAll("td.url a");
       for (let i = 0; i < browserLinks.length; i++) {
@@ -1446,6 +1869,10 @@ ${JSON.stringify(kwargs)}`);
         sortable[navLinkMethod]("click", this.sortableHandler);
       }
     }
+    /**
+     * Gets the pagination configuration.
+     * @returns An array of HTMLResultsTablePage objects representing the pagination.
+     */
     getPagination() {
       const pages = [];
       let pagesAdded = 0;
@@ -1501,7 +1928,13 @@ ${JSON.stringify(kwargs)}`);
   };
 
   // examples/vanillats/js/build/src/ts/ui/templates.js
-  var Templates = class _Templates {
+  var Templates = class {
+    /**
+     * Generates a standard heading HTML structure.
+     * @param project - The project object containing project details.
+     * @param title - The title to be displayed in the heading.
+     * @returns A string containing the HTML for the standard heading.
+     */
     static standardHeading(project, title) {
       return `<div class="main__heading">
             <div class="main__heading__icon">
@@ -1513,12 +1946,29 @@ ${JSON.stringify(kwargs)}`);
             </div>
         </div>`;
     }
+    /**
+     * Wraps form HTML in a standard container.
+     * @param formHtml - The HTML string of the form to be wrapped.
+     * @returns A string containing the wrapped form HTML.
+     */
     static standardForm(formHtml) {
       return `<div class="main__form">${formHtml}</div>`;
     }
+    /**
+     * Generates a standard results container.
+     * @returns A string containing the HTML for the standard results container.
+     */
     static standardResults() {
       return `<div class="main__results"></div>`;
     }
+    /**
+     * Generates HTML for a standard checkbox input.
+     * @param name - The name attribute for the checkbox.
+     * @param value - The value attribute for the checkbox.
+     * @param label - The label text for the checkbox.
+     * @param synopsis - Optional synopsis text for the checkbox.
+     * @returns A string containing the HTML for the checkbox.
+     */
     static standardCheckbox(name, value, label, synopsis) {
       return `
         <label>
@@ -1530,6 +1980,14 @@ ${JSON.stringify(kwargs)}`);
             ${synopsis ? `<span class="checkbox__synopsis">` + HtmlUtils.htmlEncode(synopsis) + `</span>` : ""}
         </label>`;
     }
+    /**
+     * Generates HTML for a standard radio input.
+     * @param name - The name attribute for the radio button.
+     * @param value - The value attribute for the radio button.
+     * @param label - The label text for the radio button.
+     * @param synopsis - Optional synopsis text for the radio button.
+     * @returns A string containing the HTML for the radio button.
+     */
     static standardRadio(name, value, label, synopsis) {
       return `        
         <label>
@@ -1541,6 +1999,13 @@ ${JSON.stringify(kwargs)}`);
             ${synopsis ? `<span class="radio__synopsis">` + HtmlUtils.htmlEncode(synopsis) + `</span>` : ""}
         </label>`;
     }
+    /**
+     * Renders a cell with "same as last" functionality.
+     * @param cellValue - The value of the current cell.
+     * @param rowData - An object containing the data for the entire row.
+     * @param i - The index of the current row.
+     * @returns An object containing classes and content for the cell.
+     */
     static cellRendererSameAsLast(cellValue, rowData, i) {
       var _a;
       if (!("ID" in rowData)) {
@@ -1551,21 +2016,35 @@ ${JSON.stringify(kwargs)}`);
       const valueIndex = values.indexOf(cellValue);
       const cellHeading = keys[valueIndex];
       const currentId = rowData["ID"].toString();
-      const lastId = (_a = _Templates.cellHandlerSameAsLastMemo[cellHeading]) !== null && _a !== void 0 ? _a : "";
+      const lastId = (_a = Templates.cellHandlerSameAsLastMemo[cellHeading]) !== null && _a !== void 0 ? _a : "";
       const classes = [];
       if (i > 0 && lastId === currentId) {
         classes.push("sameaslast");
       }
-      _Templates.cellHandlerSameAsLastMemo[cellHeading] = currentId;
+      Templates.cellHandlerSameAsLastMemo[cellHeading] = currentId;
       return { "classes": classes, "content": `${HtmlUtils.htmlEncode(cellValue)}` };
     }
+    /**
+     * Renders a cell with a link and "same as last" functionality.
+     * @param cellValue - The value of the current cell (used as the link URL).
+     * @param rowData - An object containing the data for the entire row.
+     * @param i - The index of the current row.
+     * @returns An object containing classes and content for the cell.
+     */
     static cellRendererSameAsLastLink(cellValue, rowData, i) {
-      const result = _Templates.cellRendererSameAsLast(cellValue, rowData, i);
+      const result = Templates.cellRendererSameAsLast(cellValue, rowData, i);
       result["content"] = `<a class= "ulink" 
             data-id="${HtmlUtils.htmlEncode(rowData["ID"])}" 
             href="${HtmlUtils.htmlEncode(cellValue)}">${HtmlUtils.htmlEncode(cellValue)}</a>`;
       return result;
     }
+    /**
+     * Renders a cell with a linked ID.
+     * @param cellValue - The value of the current cell (used as the ID).
+     * @param rowData - An object containing the data for the entire row.
+     * @param i - The index of the current row.
+     * @returns An object containing classes and content for the cell.
+     */
     static cellRendererLinkedId(cellValue, rowData, i) {
       const urlSearchParams = new URLSearchParams(window.location.search);
       const params = Object.fromEntries(urlSearchParams.entries());
@@ -1583,6 +2062,13 @@ ${JSON.stringify(kwargs)}`);
       };
       return result;
     }
+    /**
+     * Renders a cell with wrapped content.
+     * @param cellValue - The value of the current cell.
+     * @param rowData - An object containing the data for the entire row.
+     * @param i - The index of the current row.
+     * @returns An object containing classes and content for the cell.
+     */
     static cellRendererWrappedContent(cellValue, rowData, i) {
       return {
         "classes": ["wrap"],

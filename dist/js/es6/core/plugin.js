@@ -5,12 +5,23 @@
 import { Project, PluginData, SearchQuery, Search, SearchQueryType } from "./api.js";
 import { HtmlUtils } from "./html.js";
 import { TouchProxy } from "./touch.js";
+/**
+ * Enumeration for dark mode settings.
+ */
 var DarkMode;
 (function (DarkMode) {
     DarkMode[DarkMode["Light"] = 0] = "Light";
     DarkMode[DarkMode["Dark"] = 1] = "Dark";
 })(DarkMode || (DarkMode = {}));
+/**
+ * Represents a connection between the plugin and its host.
+ */
 class PluginConnection {
+    /**
+     * Creates a new PluginConnection instance.
+     * @param iframeSrc - The source URL of the iframe.
+     * @param hostOrigin - The origin of the host (optional).
+     */
     constructor(iframeSrc, hostOrigin) {
         this.iframeSrc = iframeSrc;
         if (hostOrigin) {
@@ -27,20 +38,44 @@ class PluginConnection {
             this.pluginOrigin = url.origin;
         }
     }
+    /**
+     * Gets the iframe source URL.
+     * @returns The iframe source URL.
+     */
     getIframeSrc() {
         return this.iframeSrc;
     }
+    /**
+     * Gets the host origin.
+     * @returns The host origin.
+     */
     getHostOrigin() {
         return this.hostOrigin;
     }
+    /**
+     * Gets the plugin origin.
+     * @returns The plugin origin.
+     */
     getPluginOrigin() {
         return this.pluginOrigin;
     }
+    /**
+     * Returns a string representation of the connection.
+     * @returns A string describing the host and plugin origins.
+     */
     toString() {
         return `host = ${this.hostOrigin}; plugin = ${this.pluginOrigin}`;
     }
 }
+/**
+ * Main Plugin class for InterroBot.
+ */
 class Plugin {
+    /**
+     * Initializes the plugin class.
+     * @param classtype - The class type to initialize.
+     * @returns An instance of the initialized class.
+     */
     static initialize(classtype) {
         let instance = null;
         if (document.readyState === "complete" || document.readyState === "interactive") {
@@ -53,6 +88,9 @@ class Plugin {
         }
         return instance;
     }
+    /**
+     * Posts the current content height to the parent frame.
+     */
     static postContentHeight() {
         const mainResults = document.querySelector(".main__results");
         let currentScrollHeight = document.body.scrollHeight;
@@ -70,6 +108,11 @@ class Plugin {
             Plugin.routeMessage(msg);
         }
     }
+    /**
+     * Posts a request to open a resource link.
+     * @param resource - The resource identifier.
+     * @param openInBrowser - Whether to open the link in a browser.
+     */
     static postOpenResourceLink(resource, openInBrowser) {
         const msg = {
             target: "interrobot",
@@ -82,6 +125,10 @@ class Plugin {
         };
         Plugin.routeMessage(msg);
     }
+    /**
+     * Posts plugin metadata to the parent frame.
+     * @param meta - The metadata object to post.
+     */
     static postMeta(meta) {
         // meta { url, title, category, version, author, description}
         const msg = {
@@ -92,6 +139,12 @@ class Plugin {
         };
         Plugin.routeMessage(msg);
     }
+    /**
+     * Sends an API request to the parent frame.
+     * @param apiMethod - The API method to call.
+     * @param apiKwargs - The arguments for the API call.
+     * @returns A promise that resolves with the API response.
+     */
     static async postApiRequest(apiMethod, apiKwargs) {
         // meta { url, title, category, version, author, description}
         let result = null;
@@ -138,10 +191,19 @@ class Plugin {
         await getPromisedResult();
         return result;
     }
+    /**
+     * Logs timing information to the console.
+     * @param msg - The message to log.
+     * @param millis - The time in milliseconds.
+     */
     static logTiming(msg, millis) {
         const seconds = (millis / 1000).toFixed(3);
         console.log(`🤖 [${seconds}s] ${msg}`);
     }
+    /**
+     * Routes a message to the parent frame.
+     * @param msg - The message to route.
+     */
     static routeMessage(msg) {
         // Pt 1 of 2
         // window.parent.origin can't be read from external URL, only works with core
@@ -159,6 +221,9 @@ class Plugin {
             window.parent.postMessage(msg);
         }
     }
+    /**
+     * Creates a new Plugin instance.
+     */
     constructor() {
         this.projectId = -1;
         this.mode = DarkMode.Light;
@@ -197,26 +262,56 @@ class Plugin {
         document.body.classList.add(modeClass);
         const tp = new TouchProxy();
     }
+    /**
+     * Introduces a delay in the execution.
+     * @param ms - The number of milliseconds to delay.
+     * @returns A promise that resolves after the specified delay.
+     */
     delay(ms) {
         // for ui to force painting
         return new Promise(resolve => setTimeout(resolve, ms));
     }
+    /**
+     * Gets the current project ID.
+     * @returns The project ID.
+     */
     getProjectId() {
         return this.projectId;
     }
+    /**
+     * Initializes the plugin with metadata and sets up event listeners.
+     * @param meta - The metadata for the plugin.
+     */
     async init(meta) {
         Plugin.postMeta(meta);
         window.addEventListener("load", Plugin.postContentHeight);
         window.addEventListener("resize", Plugin.postContentHeight);
     }
+    /**
+     * Initializes the plugin data.
+     * @param meta - The metadata for the plugin.
+     * @param defaultData - The default data for the plugin.
+     * @param autoform - An array of HTML elements for the autoform.
+     */
     async initData(meta, defaultData, autoform) {
         this.data = new PluginData(this.getProjectId(), meta, defaultData, autoform);
         await this.data.loadData();
     }
+    /**
+     * Initializes and returns the plugin data.
+     * @param meta - The metadata for the plugin.
+     * @param defaultData - The default data for the plugin.
+     * @param autoform - An array of HTML elements for the autoform.
+     * @returns A promise that resolves with the initialized PluginData.
+     */
     async initAndGetData(meta, defaultData, autoform) {
         await this.initData(meta, defaultData, autoform);
         return this.data;
     }
+    /**
+     * Gets the current project.
+     * @returns A promise that resolves with the current Project.
+     */
     async getProject() {
         if (this.project === undefined) {
             const project = await Project.getApiProject(this.projectId);
@@ -228,9 +323,16 @@ class Plugin {
         }
         return this.project;
     }
+    /**
+     * Renders HTML content in the document body.
+     * @param html - The HTML content to render.
+     */
     render(html) {
         document.body.innerHTML = html;
     }
+    /**
+     * Initializes the plugin index page.
+     */
     async index() {
         // init() would generally would go into a constructor
         // it is here contain it to the example it will push meta
@@ -266,6 +368,9 @@ class Plugin {
             await this.process();
         });
     }
+    /**
+     * Processes the plugin data.
+     */
     async process() {
         // as an example, collect page title word counts across all html pages
         // it's a contrived example, but let us keep things simple
@@ -303,6 +408,10 @@ class Plugin {
         // call for html presentation
         await this.report(titleWords);
     }
+    /**
+     * Generates and displays a report based on the processed data.
+     * @param titleWords - A map of title words and their counts.
+     */
     async report(titleWords) {
         // sort titleWords by count, then by term
         const titleWordsRemap = new Map([...titleWords.entries()].sort((a, b) => {
@@ -349,10 +458,12 @@ class Plugin {
         }
     }
 }
+/**
+ * Metadata for the plugin.
+ */
 Plugin.meta = {
-    "url": "https://example.com/path/to/plugin-page/",
     "title": "InterroBot Base Plugin",
-    "category": "Core Example",
+    "category": "Example",
     "version": "1.0",
     "author": "InterroBot",
     "description": `Welcome to InterroBot plugin development. This base-class Plugin can already 

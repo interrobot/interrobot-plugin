@@ -1,12 +1,22 @@
+/**
+ * A class that proxies touch events from the iframe to its container.
+ */
 class TouchProxy {
-    // pass touch events up to iframe container, proxies the navigation show/hide
+    /**
+     * Creates a new TouchProxy instance and sets up event listeners.
+     */
     constructor() {
+        // pass touch events up to iframe container, proxies the navigation show/hide
         // listen for swipe
         const content = document.body;
         content.addEventListener("touchstart", (ev) => { this.proxyToContainer(ev); }, { passive: true });
         content.addEventListener("touchend", (ev) => { this.proxyToContainer(ev); }, { passive: true });
         content.addEventListener("touchmove", (ev) => { this.proxyToContainer(ev); }, { passive: true });
     }
+    /**
+     * Proxies touch events to the container iframe.
+     * @param ev - The TouchEvent to be proxied.
+     */
     async proxyToContainer(ev) {
         var _a;
         let primeTouch;

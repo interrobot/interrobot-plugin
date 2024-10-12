@@ -4,12 +4,18 @@
 import { HtmlUtils } from "./html.js";
 import { Plugin } from "./plugin.js";
 
+/**
+ * Enumeration for different types of search queries.
+ */
 enum SearchQueryType {
     Page,
     Asset,
     Any,
 }
 
+/**
+ * Container for plugin settings
+ */
 class PluginData {
 
     private autoformInputs: HTMLElement[];
@@ -19,6 +25,13 @@ class PluginData {
     private meta: { [key: string]: string };
     private project: number;
 
+    /**
+     * Creates an instance of PluginData.
+     * @param projectId - The ID of the project.
+     * @param meta - Metadata for the plugin.
+     * @param defaultData - Default data for the plugin.
+     * @param autoformInputs - Array of HTML elements for autoform inputs.
+     */
     public constructor(projectId: number, meta: {}, defaultData: {}, autoformInputs: HTMLElement[]) {
 
         this.meta = meta;
@@ -51,7 +64,8 @@ class PluginData {
 
             const changeHandler = async (el: any) => {                
                 let name: string = el.getAttribute("name");
-                const value = el.checked === undefined ? el.value : el.checked;
+                // el.checked === undefined ? el.value : el.checked;
+                const value = el.checked === undefined || el.checked === false ? el.value : el.checked
                 await this.setAutoformField(name, value);
             }
 
@@ -143,7 +157,13 @@ class PluginData {
             }
         }
     }
-    
+
+    /**
+     * Sets a data field and optionally updates the data.
+     * @param key - The key of the data field to set.
+     * @param value - The value to set for the data field.
+     * @param push - Whether to update the data after setting the field.
+     */
     public async setDataField(key: string, value: any, push: boolean): Promise<void> {
         
         if (this.data[key] !== value) {
@@ -155,6 +175,10 @@ class PluginData {
         }
     }
 
+    /**
+     * Gets the current plugin data.
+     * @returns A promise that resolves to the plugin data.
+     */
     public async getData(): Promise<{}> {
         if (this.dataLoaded !== null) {
             return this.data;
@@ -164,6 +188,9 @@ class PluginData {
         }
     }
 
+    /**
+     * Loads the plugin data from the server.
+     */
     public async loadData(): Promise<void> {
         
         let pluginUrl = window.location.href;
@@ -310,6 +337,11 @@ class PluginData {
         return;
     }
 
+    /**
+     * Sets an autoform field and updates the data.
+     * @param name - The name of the autoform field.
+     * @param value - The value to set for the autoform field.
+     */
     public async setAutoformField(name: string, value: string): Promise<void> {
         const data: {} = await this.getData();
         const autoformData: {} = data["autoform"] ?? {};
@@ -320,6 +352,9 @@ class PluginData {
         }
     }
 
+    /**
+     * Updates the plugin data on the server.
+     */
     public async updateData(): Promise<void> {
         // const updateEndpoint = this.getDataEndpoint();        
         const data: {} = await this.getData();
@@ -350,12 +385,20 @@ class PluginData {
         */
     }
 
+    /**
+     * Gets the data slug for the plugin.
+     * @returns The base64 encoded plugin URL.
+     */
     private getDataSlug(): string {
         const key: string = this.getPluginUrl();
         const b64Key: string = btoa(key);
         return b64Key;
     }
-    
+
+    /**
+     * Gets the current plugin URL.
+     * @returns The full URL of the plugin.
+     */
     private getPluginUrl(): string {
         return `${window.location.protocol}//${window.location.host}${window.location.pathname}`;
     }
@@ -369,6 +412,14 @@ class SearchQuery {
     public readonly type: SearchQueryType;
     public readonly includeExternal: boolean;
 
+    /**
+     * Creates an instance of SearchQuery.
+     * @param project - The project ID.
+     * @param query - The search query string.
+     * @param fields - The fields to search in.
+     * @param type - The type of search query.
+     * @param includeExternal - Whether to include external results.
+     */
     public constructor(project: number, query: string, fields: string, type: SearchQueryType,
         includeExternal: boolean) {
 
@@ -379,6 +430,10 @@ class SearchQuery {
         this.includeExternal = includeExternal;
     }
 
+    /**
+     * Gets the cache key for the haystack.
+     * @returns A string representing the cache key.
+     */
     public getHaystackCacheKey(): string {
         return `${this.project}~${this.fields}~${this.type}~${this.includeExternal}`;
     }
@@ -389,6 +444,14 @@ class Search {
     private static resultsCacheTotal: number;
     private static resultsHaystackCacheKey: string;
 
+    /**
+     * Executes a search query.
+     * @param query - The search query to execute.
+     * @param existingResults - Map of existing results.
+     * @param processingMessage - Message to display during processing.
+     * @param resultHandler - Function to handle each search result.
+     * @returns A promise that resolves to a boolean indicating if results were from cache.
+     */
     public static async execute(query: SearchQuery, existingResults: Map<number, SearchResult>,
         processingMessage: string, resultHandler: any): Promise<boolean> {
 
@@ -484,10 +547,20 @@ class Search {
         return false;
     }
 
+    /**
+     * Sleeps for the specified number of milliseconds.
+     * @param millis - The number of milliseconds to sleep.
+     */
     private static async sleep(millis: number): Promise<void> {
         return new Promise((resolve) => setTimeout(() => resolve(), millis));
     }
-    
+
+    /**
+     * Handles a single search result.
+     * @param jsonResult - The JSON representation of the search result.
+     * @param resultTotal - The total number of results.
+     * @param resultHandler - Function to handle the search result.
+     */
     private static async handleResult(jsonResult: any, resultTotal: number, resultHandler: any) {
         const searchResult: SearchResult = new SearchResult(jsonResult);
         await resultHandler(searchResult);
@@ -498,6 +571,9 @@ class Search {
     }   
 }
 
+/**
+ * Class representing a search result.
+ */
 class SearchResult {
 
     private static readonly wordPunctuationRe: RegExp = /\s+(?=[\.,;:!\?] )/g;
@@ -540,6 +616,10 @@ class SearchResult {
         return words.join(" ");
     }
 
+    /**
+     * Creates an instance of SearchResult.
+     * @param jsonResult - The JSON representation of the search result.
+     */
     public constructor(jsonResult: any) {
         this.result = jsonResult["result"];
         this.id = jsonResult["id"];
@@ -556,22 +636,42 @@ class SearchResult {
         }
     }
 
+    /**
+     * Checks if the result has processed content.
+     * @returns True if processed content exists, false otherwise.
+     */
     public hasProcessedContent() {
         return this.processedContent != "";
     }
 
+    /**
+     * Gets the processed content of the search result.
+     * @returns The processed content.
+     */
     public getProcessedContent() {
         return this.processedContent;
     }
 
+    /**
+     * Sets the processed content of the search result.
+     * @param processedContent - The processed content to set.
+     */
     public setProcessedContent(processedContent: string) {
         this.processedContent = processedContent;
     }
 
+    /**
+     * Gets the raw content of the search result.
+     * @returns The raw content.
+     */
     public getContent() {
         return this.content;
     }
 
+    /**
+     * Gets the content of the search result as text only.
+     * @returns The content as plain text.
+     */
     public getContentTextOnly() {
 
         // out is the haystack string builder
@@ -599,16 +699,27 @@ class SearchResult {
         pageText = pageText.replace(SearchResult.wordWhitespaceRe, " ");
         return pageText;
     }
-    
+
+    /**
+     * Gets the headers of the search result.
+     * @returns The headers.
+     */
     public getHeaders() {
         return this.headers;
     }
 
+    /**
+     * Gets the path of the URL for the search result.
+     * @returns The URL path.
+     */
     public getUrlPath() {
         const url: URL = new URL(this.url);
         return url.pathname;
     }
 
+    /**
+     * Clears the full-text fields of the search result.
+     */
     public clearFulltextFields() {
         // an attempt to clear memory after use
         // other fields are small in comparison
@@ -617,6 +728,9 @@ class SearchResult {
     }
 }
 
+/**
+ * Class representing a crawl.
+ */
 class Crawl {
 
     id: number = -1;
@@ -627,6 +741,16 @@ class Crawl {
     time: number = -1;
     report: any = null;
 
+    /**
+     * Creates an instance of Crawl.
+     * @param id - The crawl ID.
+     * @param project - The project ID.
+     * @param created - The creation date.
+     * @param modified - The last modified date.
+     * @param complete - Whether the crawl is complete.
+     * @param time - The time taken for the crawl.
+     * @param report - The crawl report.
+     */
     public constructor(id: number, project: number, created: Date, modified: Date, complete: boolean, time: number, report: any) {
         this.id = id;
         this.created = created;
@@ -637,17 +761,30 @@ class Crawl {
         this.report = report;
     }
 
+    /**
+     * Gets the timings from the crawl report.
+     * @returns The timings object.
+     */
     public getTimings(): {} {
         return this.getReportDetailByKey("timings");
     }
 
+    /**
+     * Gets the sizes from the crawl report.
+     * @returns The sizes object.
+     */
     public getSizes(): {} {
         return this.getReportDetailByKey("sizes");
     }
 
+    /**
+     * Gets the counts from the crawl report.
+     * @returns The counts object.
+     */
     public getCounts(): {} {
         return this.getReportDetailByKey("counts");
     }
+
 
     private getReportDetailByKey(key: string): boolean {
         // returns a dictionary of key/values for the corresponding key
@@ -662,6 +799,9 @@ class Crawl {
 
 }
 
+/**
+ * Class representing a project.
+ */
 class Project {
 
     id: number = -1;
@@ -670,6 +810,14 @@ class Project {
     url: string;
     imageDataUri: string;
 
+    /**
+     * Creates an instance of Project.
+     * @param id - The project ID.
+     * @param created - The creation date.
+     * @param modified - The last modified date.
+     * @param url - The project URL.
+     * @param imageDataUri - The data URI of the project image.
+     */
     public constructor(id: number, created: Date, modified: Date, url: string, imageDataUri: string) {
         this.id = id;
         this.created = created;
@@ -678,14 +826,27 @@ class Project {
         this.imageDataUri = imageDataUri;
     }
 
+    /**
+     * Gets the data URI of the project image.
+     * @returns The image data URI.
+     */
     public getImageDataUri(): string {
         return this.imageDataUri;
     }
 
+    /**
+     * Gets the display title of the project.
+     * @returns The display title (hostname of the project URL).
+     */
     public getDisplayTitle(): string {
         return new URL(this.url).hostname;
     }
 
+    /**
+     * Gets a project by its ID from the API.
+     * @param id - The project ID.
+     * @returns A promise that resolves to a Project instance, or null if not found.
+     */
     public static async getApiProject(id: number): Promise<Project> {
         const kwargs = {
             "projects": [id],
@@ -709,6 +870,11 @@ class Project {
         return null;
     }
 
+    /**
+     * Gets all crawls for a project from the API.
+     * @param project - The project ID.
+     * @returns A promise that resolves to an array of Crawl instances.
+     */
     public static async getApiCrawls(project: number): Promise<Crawl[]> {
         
         const kwargs = {

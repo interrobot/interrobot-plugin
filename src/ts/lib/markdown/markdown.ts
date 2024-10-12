@@ -1,8 +1,14 @@
 ﻿import { HtmlUtils } from "../../core/html";
 
+/**
+ * Utility class for converting HTML to Markdown
+ */
 class Markdown {
 
 	// fine displayed result, each SearchResult can contain many of these (or none at all)
+	/**
+	 * XSLT stylesheet for HTML to Markdown conversion
+	 */
 	public static readonly stylesheet: string = `<?xml version="1.0" encoding="UTF-8"?>
 <xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 
@@ -581,8 +587,16 @@ class Markdown {
 
 </xsl:stylesheet>`;
 
+	/**
+	 * Total time spent on Markdown conversion
+	 */
 	private static totalTime: number = 0;
 
+	/**
+	 * Converts HTML to Markdown
+	 * @param html - The HTML string to convert
+	 * @returns The converted Markdown string
+	 */
 	public static fromHtml(html: string): string {
 
 		// 0.005 milliseconds each (performance read in 5 microsecond units)

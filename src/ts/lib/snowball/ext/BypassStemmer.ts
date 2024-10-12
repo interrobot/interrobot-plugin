@@ -14,12 +14,23 @@
 
 import { BaseStemmer } from "./BaseStemmer.js";
 
+/**
+ * A stemmer that bypasses the stemming process, leaving words unchanged.
+ * This can be useful for languages or scenarios where stemming is not desired.
+ */
 class BypassStemmer extends BaseStemmer {
 
+	/**
+	 * Initializes a new instance of the BypassStemmer class.
+	 */
 	public constructor() {
 		super();
 	}
 
+	/**
+	 * Performs the stemming operation, which in this case does nothing.
+	 * @returns Always returns true, indicating that the "stemming" process is complete.
+	 */
 	public stem(): boolean {
 		return true;
 	}

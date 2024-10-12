@@ -16,7 +16,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.GermanStemmer = void 0;
 const BaseStemmer_js_1 = require("./BaseStemmer.js");
 const Among_js_1 = require("../Among.js");
+/**
+ * Implements the Snowball stemming algorithm for the German language.
+ */
 class GermanStemmer extends BaseStemmer_js_1.BaseStemmer {
+    /**
+     * Initializes a new instance of the GermanStemmer class.
+     */
     constructor() {
         super();
         this.a_0 = [new Among_js_1.Among("", -1, 6), new Among_js_1.Among("U", 0, 2),
@@ -42,14 +48,29 @@ class GermanStemmer extends BaseStemmer_js_1.BaseStemmer {
         this.g_s_ending = [117, 30, 5];
         this.g_st_ending = [117, 30, 4];
     }
+    /**
+     * Sets the current word to be stemmed.
+     * @param word - The word to be stemmed.
+     */
     setCurrent(word) {
         this.sbp.setCurrent(word);
     }
     ;
+    /**
+     * Gets the current stemmed word.
+     * @returns The current stemmed word.
+     */
     getCurrent() {
         return this.sbp.getCurrent();
     }
     ;
+    /**
+     * Helper method for handling specific character replacements.
+     * @param c1 - The character to be replaced.
+     * @param c2 - The replacement character.
+     * @param v_1 - The cursor position to reset to after replacement.
+     * @returns A boolean indicating if the replacement was made.
+     */
     habr1(c1, c2, v_1) {
         if (this.sbp.eq_s(1, c1)) {
             this.sbp.ket = this.sbp.cursor;
@@ -61,6 +82,9 @@ class GermanStemmer extends BaseStemmer_js_1.BaseStemmer {
         }
         return false;
     }
+    /**
+     * Performs the prelude step of the stemming algorithm.
+     */
     r_prelude() {
         var v_1 = this.sbp.cursor, v_2, v_3, v_4, v_5;
         while (true) {
@@ -98,6 +122,10 @@ class GermanStemmer extends BaseStemmer_js_1.BaseStemmer {
             }
         }
     }
+    /**
+     * Helper method for r_mark_regions.
+     * @returns A boolean indicating the result of the operation.
+     */
     habr2() {
         while (!this.sbp.in_grouping(this.g_v, 97, 252)) {
             if (this.sbp.cursor >= this.sbp.limit)
@@ -111,6 +139,9 @@ class GermanStemmer extends BaseStemmer_js_1.BaseStemmer {
         }
         return false;
     }
+    /**
+     * Marks regions in the word for the stemming process.
+     */
     r_mark_regions() {
         this.I_p1 = this.sbp.limit;
         this.I_p2 = this.I_p1;
@@ -126,6 +157,9 @@ class GermanStemmer extends BaseStemmer_js_1.BaseStemmer {
             }
         }
     }
+    /**
+     * Performs the postlude step of the stemming algorithm.
+     */
     r_postlude() {
         var among_var, v_1;
         while (true) {
@@ -157,12 +191,23 @@ class GermanStemmer extends BaseStemmer_js_1.BaseStemmer {
             }
         }
     }
+    /**
+     * Checks if the cursor is within the R1 region.
+     * @returns A boolean indicating if the cursor is in R1.
+     */
     r_R1() {
         return this.I_p1 <= this.sbp.cursor;
     }
+    /**
+     * Checks if the cursor is within the R2 region.
+     * @returns A boolean indicating if the cursor is in R2.
+     */
     r_R2() {
         return this.I_p2 <= this.sbp.cursor;
     }
+    /**
+     * Performs the standard suffix removal step of the stemming algorithm.
+     */
     r_standard_suffix() {
         var among_var, v_1 = this.sbp.limit - this.sbp.cursor, v_2, v_3, v_4;
         this.sbp.ket = this.sbp.cursor;
@@ -266,6 +311,10 @@ class GermanStemmer extends BaseStemmer_js_1.BaseStemmer {
             }
         }
     }
+    /**
+     * Stems the current word.
+     * @returns A boolean indicating if stemming was successful.
+     */
     stem() {
         var v_1 = this.sbp.cursor;
         this.r_prelude();

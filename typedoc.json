@@ -1,0 +1,11 @@
+{
+    "name": "interrobot-plugin",
+    "navigationLinks": {
+        "GitHub": "https://github.com/interrobot/interrobot-plugin",
+        "InterroBot": "https://interro.bot"
+        
+    },
+    "titleLink": "/",
+    "entryPoints": ["./src/ts"],
+    "out": "docs"
+}

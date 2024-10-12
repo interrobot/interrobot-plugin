@@ -16,7 +16,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.RussianStemmer = void 0;
 const BaseStemmer_js_1 = require("./BaseStemmer.js");
 const Among_js_1 = require("../Among.js");
+/**
+ * Implements the Snowball stemming algorithm for the Russian language.
+ */
 class RussianStemmer extends BaseStemmer_js_1.BaseStemmer {
+    /**
+     * Initializes a new instance of the RussianStemmer class.
+     */
     constructor() {
         super();
         this.a_0 = [new Among_js_1.Among("\u0432", -1, 1), new Among_js_1.Among("\u0438\u0432", 0, 2),
@@ -131,14 +137,26 @@ class RussianStemmer extends BaseStemmer_js_1.BaseStemmer {
         this.g_v = [33, 65, 8, 232];
         //, I_p2, I_pV,
     }
+    /**
+     * Sets the current word to be stemmed.
+     * @param word - The word to be stemmed.
+     */
     setCurrent(word) {
         this.sbp.setCurrent(word);
     }
     ;
+    /**
+     * Gets the current stemmed word.
+     * @returns The current stemmed word.
+     */
     getCurrent() {
         return this.sbp.getCurrent();
     }
     ;
+    /**
+     * Helper method for r_mark_regions.
+     * @returns A boolean indicating the result of the operation.
+     */
     habr3() {
         while (!this.sbp.in_grouping(this.g_v, 1072, 1103)) {
             if (this.sbp.cursor >= this.sbp.limit)
@@ -147,6 +165,10 @@ class RussianStemmer extends BaseStemmer_js_1.BaseStemmer {
         }
         return true;
     }
+    /**
+     * Helper method for r_mark_regions.
+     * @returns A boolean indicating the result of the operation.
+     */
     habr4() {
         while (!this.sbp.out_grouping(this.g_v, 1072, 1103)) {
             if (this.sbp.cursor >= this.sbp.limit)
@@ -155,6 +177,9 @@ class RussianStemmer extends BaseStemmer_js_1.BaseStemmer {
         }
         return true;
     }
+    /**
+     * Marks regions in the word for the stemming process.
+     */
     r_mark_regions() {
         this.I_pV = this.sbp.limit;
         this.I_p2 = this.I_pV;
@@ -166,9 +191,19 @@ class RussianStemmer extends BaseStemmer_js_1.BaseStemmer {
                         this.I_p2 = this.sbp.cursor;
         }
     }
+    /**
+     * Checks if the cursor is within the R2 region.
+     * @returns A boolean indicating if the cursor is in R2.
+     */
     r_R2() {
         return this.I_p2 <= this.sbp.cursor;
     }
+    /**
+     * Helper method for various stemming steps.
+     * @param a - The array of Among objects to search.
+     * @param n - The number of Among objects in the array.
+     * @returns A boolean indicating the result of the operation.
+     */
     habr2(a, n) {
         var among_var, v_1;
         this.sbp.ket = this.sbp.cursor;
@@ -191,9 +226,19 @@ class RussianStemmer extends BaseStemmer_js_1.BaseStemmer {
         }
         return false;
     }
+    /**
+     * Handles perfective gerund suffixes.
+     * @returns A boolean indicating if any changes were made.
+     */
     r_perfective_gerund() {
         return this.habr2(this.a_0, 9);
     }
+    /**
+     * Another helper method for various stemming steps.
+     * @param a - The array of Among objects to search.
+     * @param n - The number of Among objects in the array.
+     * @returns A boolean indicating the result of the operation.
+     */
     habr1(a, n) {
         var among_var;
         this.sbp.ket = this.sbp.cursor;
@@ -206,9 +251,17 @@ class RussianStemmer extends BaseStemmer_js_1.BaseStemmer {
         }
         return false;
     }
+    /**
+     * Handles adjective suffixes.
+     * @returns A boolean indicating if any changes were made.
+     */
     r_adjective() {
         return this.habr1(this.a_1, 26);
     }
+    /**
+     * Handles adjectival suffixes.
+     * @returns A boolean indicating if any changes were made.
+     */
     r_adjectival() {
         var among_var;
         if (this.r_adjective()) {
@@ -217,16 +270,30 @@ class RussianStemmer extends BaseStemmer_js_1.BaseStemmer {
         }
         return false;
     }
+    /**
+     * Handles reflexive suffixes.
+     * @returns A boolean indicating if any changes were made.
+     */
     r_reflexive() {
         return this.habr1(this.a_3, 2);
     }
+    /**
+     * Handles verb suffixes.
+     * @returns A boolean indicating if any changes were made.
+     */
     r_verb() {
         return this.habr2(this.a_4, 46);
     }
     // TODO is this right?, maybe return it instead?
+    /**
+     * Handles noun suffixes.
+     */
     r_noun() {
         this.habr1(this.a_5, 36);
     }
+    /**
+     * Handles derivational suffixes.
+     */
     r_derivational() {
         var among_var;
         this.sbp.ket = this.sbp.cursor;
@@ -237,6 +304,9 @@ class RussianStemmer extends BaseStemmer_js_1.BaseStemmer {
                 this.sbp.slice_del();
         }
     }
+    /**
+     * Performs final cleanup steps on the stem.
+     */
     r_tidy_up() {
         var among_var;
         this.sbp.ket = this.sbp.cursor;
@@ -259,6 +329,10 @@ class RussianStemmer extends BaseStemmer_js_1.BaseStemmer {
             }
         }
     }
+    /**
+     * Stems the current word.
+     * @returns A boolean indicating if stemming was successful.
+     */
     stem() {
         this.r_mark_regions();
         this.sbp.cursor = this.sbp.limit;

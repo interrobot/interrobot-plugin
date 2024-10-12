@@ -16,9 +16,19 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SpanishStemmer = void 0;
 const BaseStemmer_js_1 = require("./BaseStemmer.js");
 const Among_js_1 = require("../Among.js");
+/**
+ * Implements the Snowball stemming algorithm for the Spanish language.
+ */
 class SpanishStemmer extends BaseStemmer_js_1.BaseStemmer {
+    /**
+     * Initializes a new instance of the SpanishStemmer class.
+     */
     constructor() {
         super();
+        /**
+         * Stems the current word.
+         * @returns A boolean indicating if stemming was successful.
+         */
         this.stem = function () {
             var v_1 = this.sbp.cursor;
             this.r_mark_regions();
@@ -159,11 +169,11 @@ class SpanishStemmer extends BaseStemmer_js_1.BaseStemmer {
             new Among_js_1.Among("\u00ED", -1, 1), new Among_js_1.Among("\u00F3", -1, 1)
         ];
         this.g_v = [17, 65, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 17, 4, 10];
-        // this.I_p2;
-        // this.I_p1;
-        // this.I_pV;
-        // this.sbp = new SnowballProgram();
     }
+    /**
+     * Helper method for r_mark_regions.
+     * @returns A boolean indicating the result of the operation.
+     */
     habr1() {
         if (this.sbp.out_grouping(this.g_v, 97, 252)) {
             while (!this.sbp.in_grouping(this.g_v, 97, 252)) {
@@ -175,6 +185,10 @@ class SpanishStemmer extends BaseStemmer_js_1.BaseStemmer {
         }
         return true;
     }
+    /**
+     * Helper method for r_mark_regions.
+     * @returns A boolean indicating the result of the operation.
+     */
     habr2() {
         if (this.sbp.in_grouping(this.g_v, 97, 252)) {
             var v_1 = this.sbp.cursor;
@@ -192,6 +206,9 @@ class SpanishStemmer extends BaseStemmer_js_1.BaseStemmer {
         }
         return true;
     }
+    /**
+     * Helper method for r_mark_regions.
+     */
     habr3() {
         var v_1 = this.sbp.cursor, v_2;
         if (this.habr2()) {
@@ -208,6 +225,10 @@ class SpanishStemmer extends BaseStemmer_js_1.BaseStemmer {
         }
         this.I_pV = this.sbp.cursor;
     }
+    /**
+     * Helper method for r_mark_regions.
+     * @returns A boolean indicating the result of the operation.
+     */
     habr4() {
         while (!this.sbp.in_grouping(this.g_v, 97, 252)) {
             if (this.sbp.cursor >= this.sbp.limit)
@@ -221,6 +242,9 @@ class SpanishStemmer extends BaseStemmer_js_1.BaseStemmer {
         }
         return true;
     }
+    /**
+     * Marks regions in the word for the stemming process.
+     */
     r_mark_regions() {
         var v_1 = this.sbp.cursor;
         this.I_pV = this.sbp.limit;
@@ -235,6 +259,9 @@ class SpanishStemmer extends BaseStemmer_js_1.BaseStemmer {
             }
         }
     }
+    /**
+     * Performs the postlude step of the stemming algorithm.
+     */
     r_postlude() {
         var g_var;
         while (true) {
@@ -268,15 +295,30 @@ class SpanishStemmer extends BaseStemmer_js_1.BaseStemmer {
             break;
         }
     }
+    /**
+     * Checks if the cursor is within the RV region.
+     * @returns A boolean indicating if the cursor is in RV.
+     */
     r_RV() {
         return this.I_pV <= this.sbp.cursor;
     }
+    /**
+     * Checks if the cursor is within the R1 region.
+     * @returns A boolean indicating if the cursor is in R1.
+     */
     r_R1() {
         return this.I_p1 <= this.sbp.cursor;
     }
+    /**
+     * Checks if the cursor is within the R2 region.
+     * @returns A boolean indicating if the cursor is in R2.
+     */
     r_R2() {
         return this.I_p2 <= this.sbp.cursor;
     }
+    /**
+     * Handles attached pronouns in the word.
+     */
     r_attached_pronoun() {
         var g_var;
         this.sbp.ket = this.sbp.cursor;
@@ -315,6 +357,12 @@ class SpanishStemmer extends BaseStemmer_js_1.BaseStemmer {
                 }
         }
     }
+    /**
+     * Helper method for r_standard_suffix.
+     * @param a - The array of Among objects to search.
+     * @param n - The number of Among objects in the array.
+     * @returns A boolean indicating the result of the operation.
+     */
     habr5(a, n) {
         if (!this.r_R2())
             return true;
@@ -328,6 +376,11 @@ class SpanishStemmer extends BaseStemmer_js_1.BaseStemmer {
         }
         return false;
     }
+    /**
+     * Helper method for r_standard_suffix.
+     * @param c1 - The characters to check for.
+     * @returns A boolean indicating the result of the operation.
+     */
     habr6(c1) {
         if (!this.r_R2())
             return true;
@@ -340,6 +393,10 @@ class SpanishStemmer extends BaseStemmer_js_1.BaseStemmer {
         }
         return false;
     }
+    /**
+     * Handles standard suffixes.
+     * @returns A boolean indicating if any changes were made.
+     */
     r_standard_suffix() {
         var g_var;
         this.sbp.ket = this.sbp.cursor;
@@ -409,6 +466,10 @@ class SpanishStemmer extends BaseStemmer_js_1.BaseStemmer {
         }
         return false;
     }
+    /**
+     * Handles 'y' verb suffixes.
+     * @returns A boolean indicating if any changes were made.
+     */
     r_y_verb_suffix() {
         var g_var, v_1;
         if (this.sbp.cursor >= this.I_pV) {
@@ -429,6 +490,9 @@ class SpanishStemmer extends BaseStemmer_js_1.BaseStemmer {
         }
         return false;
     }
+    /**
+     * Handles verb suffixes.
+     */
     r_verb_suffix() {
         var g_var, v_1, v_2, v_3;
         if (this.sbp.cursor >= this.I_pV) {
@@ -459,6 +523,9 @@ class SpanishStemmer extends BaseStemmer_js_1.BaseStemmer {
             }
         }
     }
+    /**
+     * Handles residual suffixes.
+     */
     r_residual_suffix() {
         var g_var, v_1;
         this.sbp.ket = this.sbp.cursor;

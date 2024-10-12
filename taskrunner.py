@@ -21,7 +21,15 @@ import logging
 import shutil
 import subprocess
 import datetime
+#from zoneinfo import ZoneInfo
 from glob import glob
+
+# need to work on 3.10 and 3.12
+try:
+    UTC = datetime.UTC
+except:
+    from zoneinfo import ZoneInfo
+    UTC = ZoneInfo("UTC")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 LOGGER = logging.getLogger()
@@ -57,7 +65,7 @@ class TsHandler(FileSystemEventHandler):
 
     def __init__(self):
         super().__init__()
-        self.last_updated = datetime.datetime.now(datetime.UTC)
+        self.last_updated = datetime.datetime.now(UTC)
         self.last_updated_recover = datetime.timedelta(seconds=0.05)
     
     def on_modified(self, event):
@@ -69,10 +77,12 @@ class TsHandler(FileSystemEventHandler):
 
         if not event.is_directory and agnostic_path_head.endswith(".ts"):
             
-            utcnow = datetime.datetime.now(datetime.UTC)
+            utcnow = datetime.datetime.now(UTC)
             if utcnow < self.last_updated + self.last_updated_recover:
-                LOGGER.info(agnostic_path + " ignored due to 0.05s recovery")
+                LOGGER.debug(agnostic_path + " ignored")
                 return
+            
+            # still needs another update after the shell commands
             self.last_updated = utcnow
             LOGGER.info(agnostic_path + " modified, compiling")
 
@@ -81,10 +91,7 @@ class TsHandler(FileSystemEventHandler):
 
             # run bundler: examples/vanillats/ts/*.js is where the vanillats examples build to
             js_built_examples = glob(JS_BUILD_PATH + "examples/vanillats/ts/*.js")
-            print(JS_BUILD_PATH + "examples/vanillats/ts/*.js")
-            print(js_built_examples)
             for js_built_example in js_built_examples:
-                print(js_built_example)
                 js_built_example_path, js_built_example_filename = os.path.split(js_built_example)
                 if  js_built_example_filename.endswith(".min.js"):
                     continue
@@ -93,6 +100,10 @@ class TsHandler(FileSystemEventHandler):
                 js_bundled_min = JS_PATH + js_built_example_filename.replace(".js", ".min.js")
                 subprocess.run(["esbuild", js_built_example, "--outfile={0}".format(js_bundled_std), "--bundle"], shell=True)
                 subprocess.run(["esbuild", js_built_example, "--outfile={0}".format(js_bundled_min), "--bundle", "--minify"], shell=True)
+            
+            # the previous bundler(?) command will result in the very same ts file running again without this
+            utcnow = datetime.datetime.now(UTC)
+            self.last_updated = utcnow
         else:
             LOGGER.info(agnostic_path + " modified")
 
@@ -100,7 +111,7 @@ class SassHandler(FileSystemEventHandler):
 
     def __init__(self):
         super().__init__()
-        self.last_updated = datetime.datetime.now(datetime.UTC)
+        self.last_updated = datetime.datetime.now(UTC)
         self.last_updated_recover = datetime.timedelta(seconds=0.10)
         
     
@@ -113,7 +124,7 @@ class SassHandler(FileSystemEventHandler):
         _, agnostic_path_head = os.path.split(agnostic_path)
         
         if not event.is_directory and event.src_path.endswith(".scss"):            
-            utcnow = datetime.datetime.now(datetime.UTC)
+            utcnow = datetime.datetime.now(UTC)
             if utcnow < self.last_updated + self.last_updated_recover:
                 LOGGER.info(agnostic_path + " ignored due to 0.05s recovery")
                 return

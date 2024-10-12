@@ -46,8 +46,6 @@ class BasicExamplePlugin extends InterroBot.Core.Plugin {
             }
         });
 
-        
-
         Plugin.postContentHeight();
     }
 
@@ -82,6 +80,7 @@ class BasicExamplePlugin extends InterroBot.Core.Plugin {
         await InterroBot.Core.Search.execute(internalHtmlPagesQuery, resultsMap, "Processing…", async (result) => {
             await exampleResultHandler(result, titleWords);
         });
+        
         // call for html presentation
         await this.report(titleWords);
     }

@@ -12,13 +12,27 @@
  * http://www.mozilla.org/MPL/
  */
 import { SnowballProgram } from "../SnowballProgram.js";
+/**
+ * Base class for implementing stemming algorithms using the Snowball framework.
+ */
 class BaseStemmer {
+    /**
+     * Initializes a new instance of the BaseStemmer class.
+     */
     constructor() {
         this.sbp = new SnowballProgram();
     }
+    /**
+     * Sets the current word to be stemmed.
+     * @param word - The word to be stemmed.
+     */
     setCurrent(word) {
         this.sbp.setCurrent(word);
     }
+    /**
+     * Gets the current stemmed word.
+     * @returns The current stemmed word.
+     */
     getCurrent() {
         return this.sbp.getCurrent();
     }

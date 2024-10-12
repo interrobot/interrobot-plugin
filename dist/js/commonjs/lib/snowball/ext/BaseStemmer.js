@@ -15,13 +15,27 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BaseStemmer = void 0;
 const SnowballProgram_js_1 = require("../SnowballProgram.js");
+/**
+ * Base class for implementing stemming algorithms using the Snowball framework.
+ */
 class BaseStemmer {
+    /**
+     * Initializes a new instance of the BaseStemmer class.
+     */
     constructor() {
         this.sbp = new SnowballProgram_js_1.SnowballProgram();
     }
+    /**
+     * Sets the current word to be stemmed.
+     * @param word - The word to be stemmed.
+     */
     setCurrent(word) {
         this.sbp.setCurrent(word);
     }
+    /**
+     * Gets the current stemmed word.
+     * @returns The current stemmed word.
+     */
     getCurrent() {
         return this.sbp.getCurrent();
     }

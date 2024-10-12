@@ -2,7 +2,15 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Markdown = void 0;
 const html_1 = require("../../core/html");
+/**
+ * Utility class for converting HTML to Markdown
+ */
 class Markdown {
+    /**
+     * Converts HTML to Markdown
+     * @param html - The HTML string to convert
+     * @returns The converted Markdown string
+     */
     static fromHtml(html) {
         // 0.005 milliseconds each (performance read in 5 microsecond units)
         // verdict, soho.nascom is processing 1000+ in 14ms totalTime
@@ -46,6 +54,9 @@ class Markdown {
 }
 exports.Markdown = Markdown;
 // fine displayed result, each SearchResult can contain many of these (or none at all)
+/**
+ * XSLT stylesheet for HTML to Markdown conversion
+ */
 Markdown.stylesheet = `<?xml version="1.0" encoding="UTF-8"?>
 <xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 
@@ -623,4 +634,7 @@ Markdown.stylesheet = `<?xml version="1.0" encoding="UTF-8"?>
 </xsl:template>
 
 </xsl:stylesheet>`;
+/**
+ * Total time spent on Markdown conversion
+ */
 Markdown.totalTime = 0;

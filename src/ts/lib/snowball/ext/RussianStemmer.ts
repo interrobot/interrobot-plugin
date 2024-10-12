@@ -15,10 +15,17 @@
 import { BaseStemmer } from "./BaseStemmer.js";
 import { Among } from "../Among.js";
 
+/**
+ * Implements the Snowball stemming algorithm for the Russian language.
+ */
 class RussianStemmer extends BaseStemmer {
 
+	/** Position marker for the beginning of the word's ending. */
 	protected I_pV: number;
 
+	/**
+	 * Initializes a new instance of the RussianStemmer class.
+	 */
 	public constructor() {
 		super();
 
@@ -126,14 +133,26 @@ class RussianStemmer extends BaseStemmer {
 		//, I_p2, I_pV,
 	}
 
+	/**
+	 * Sets the current word to be stemmed.
+	 * @param word - The word to be stemmed.
+	 */
 	public setCurrent(word): void {
 		this.sbp.setCurrent(word);
 	};
 
+	/**
+	 * Gets the current stemmed word.
+	 * @returns The current stemmed word.
+	 */
 	public getCurrent(): string {
 		return this.sbp.getCurrent();
 	};
 
+	/**
+	 * Helper method for r_mark_regions.
+	 * @returns A boolean indicating the result of the operation.
+	 */
 	public habr3(): boolean {
 		while (!this.sbp.in_grouping(this.g_v, 1072, 1103)) {
 			if (this.sbp.cursor >= this.sbp.limit)
@@ -143,6 +162,10 @@ class RussianStemmer extends BaseStemmer {
 		return true;
 	}
 
+	/**
+	 * Helper method for r_mark_regions.
+	 * @returns A boolean indicating the result of the operation.
+	 */
 	public habr4(): boolean {
 		while (!this.sbp.out_grouping(this.g_v, 1072, 1103)) {
 			if (this.sbp.cursor >= this.sbp.limit)
@@ -152,6 +175,9 @@ class RussianStemmer extends BaseStemmer {
 		return true;
 	}
 
+	/**
+	 * Marks regions in the word for the stemming process.
+	 */
 	public r_mark_regions(): void {
 		this.I_pV = this.sbp.limit;
 		this.I_p2 = this.I_pV;
@@ -164,10 +190,20 @@ class RussianStemmer extends BaseStemmer {
 		}
 	}
 
+	/**
+	 * Checks if the cursor is within the R2 region.
+	 * @returns A boolean indicating if the cursor is in R2.
+	 */
 	public r_R2(): boolean {
 		return this.I_p2 <= this.sbp.cursor;
 	}
 
+	/**
+	 * Helper method for various stemming steps.
+	 * @param a - The array of Among objects to search.
+	 * @param n - The number of Among objects in the array.
+	 * @returns A boolean indicating the result of the operation.
+	 */
 	public habr2(a, n): boolean {
 		var among_var, v_1;
 		this.sbp.ket = this.sbp.cursor;
@@ -191,10 +227,20 @@ class RussianStemmer extends BaseStemmer {
 		return false;
 	}
 
+	/**
+	 * Handles perfective gerund suffixes.
+	 * @returns A boolean indicating if any changes were made.
+	 */
 	public r_perfective_gerund(): boolean {
 		return this.habr2(this.a_0, 9);
 	}
 
+	/**
+	 * Another helper method for various stemming steps.
+	 * @param a - The array of Among objects to search.
+	 * @param n - The number of Among objects in the array.
+	 * @returns A boolean indicating the result of the operation.
+	 */
 	public habr1(a, n): boolean {
 		var among_var;
 		this.sbp.ket = this.sbp.cursor;
@@ -207,10 +253,19 @@ class RussianStemmer extends BaseStemmer {
 		}
 		return false;
 	}
+
+	/**
+	 * Handles adjective suffixes.
+	 * @returns A boolean indicating if any changes were made.
+	 */
 	public r_adjective(): boolean {
 		return this.habr1(this.a_1, 26);
 	}
 
+	/**
+	 * Handles adjectival suffixes.
+	 * @returns A boolean indicating if any changes were made.
+	 */
 	public r_adjectival(): boolean {
 		var among_var;
 		if (this.r_adjective()) {
@@ -220,19 +275,33 @@ class RussianStemmer extends BaseStemmer {
 		return false;
 	}
 
+	/**
+	 * Handles reflexive suffixes.
+	 * @returns A boolean indicating if any changes were made.
+	 */
 	public r_reflexive(): boolean {
 		return this.habr1(this.a_3, 2);
 	}
 
+	/**
+	 * Handles verb suffixes.
+	 * @returns A boolean indicating if any changes were made.
+	 */
 	public r_verb(): boolean {
 		return this.habr2(this.a_4, 46);
 	}
 
 	// TODO is this right?, maybe return it instead?
+	/**
+	 * Handles noun suffixes.
+	 */
 	public r_noun(): void {
 		this.habr1(this.a_5, 36);
 	}
 
+	/**
+	 * Handles derivational suffixes.
+	 */
 	public r_derivational(): void {
 		var among_var;
 		this.sbp.ket = this.sbp.cursor;
@@ -244,6 +313,10 @@ class RussianStemmer extends BaseStemmer {
 		}
 	}
 
+
+	/**
+	 * Performs final cleanup steps on the stem.
+	 */
 	public r_tidy_up(): void {
 		var among_var;
 		this.sbp.ket = this.sbp.cursor;
@@ -267,6 +340,10 @@ class RussianStemmer extends BaseStemmer {
 		}
 	}
 
+	/**
+	 * Stems the current word.
+	 * @returns A boolean indicating if stemming was successful.
+	 */
 	public stem(): boolean {
 		this.r_mark_regions();
 		this.sbp.cursor = this.sbp.limit;

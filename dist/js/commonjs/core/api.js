@@ -5,13 +5,27 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.PluginData = exports.SearchResult = exports.Search = exports.SearchQuery = exports.SearchQueryType = exports.Crawl = exports.Project = void 0;
 const html_js_1 = require("./html.js");
 const plugin_js_1 = require("./plugin.js");
+/**
+ * Enumeration for different types of search queries.
+ */
 var SearchQueryType;
 (function (SearchQueryType) {
     SearchQueryType[SearchQueryType["Page"] = 0] = "Page";
     SearchQueryType[SearchQueryType["Asset"] = 1] = "Asset";
     SearchQueryType[SearchQueryType["Any"] = 2] = "Any";
-})(SearchQueryType || (exports.SearchQueryType = SearchQueryType = {}));
+})(SearchQueryType || (SearchQueryType = {}));
+exports.SearchQueryType = SearchQueryType;
+/**
+ * Container for plugin settings
+ */
 class PluginData {
+    /**
+     * Creates an instance of PluginData.
+     * @param projectId - The ID of the project.
+     * @param meta - Metadata for the plugin.
+     * @param defaultData - Default data for the plugin.
+     * @param autoformInputs - Array of HTML elements for autoform inputs.
+     */
     constructor(projectId, meta, defaultData, autoformInputs) {
         this.meta = meta;
         this.defaultData = defaultData;
@@ -39,7 +53,8 @@ class PluginData {
             // }
             const changeHandler = async (el) => {
                 let name = el.getAttribute("name");
-                const value = el.checked === undefined ? el.value : el.checked;
+                // el.checked === undefined ? el.value : el.checked;
+                const value = el.checked === undefined || el.checked === false ? el.value : el.checked;
                 await this.setAutoformField(name, value);
             };
             const radioHandler = async (el) => {
@@ -125,6 +140,12 @@ class PluginData {
             }
         }
     }
+    /**
+     * Sets a data field and optionally updates the data.
+     * @param key - The key of the data field to set.
+     * @param value - The value to set for the data field.
+     * @param push - Whether to update the data after setting the field.
+     */
     async setDataField(key, value, push) {
         if (this.data[key] !== value) {
             this.data[key] = value;
@@ -134,6 +155,10 @@ class PluginData {
             await this.updateData();
         }
     }
+    /**
+     * Gets the current plugin data.
+     * @returns A promise that resolves to the plugin data.
+     */
     async getData() {
         if (this.dataLoaded !== null) {
             return this.data;
@@ -143,6 +168,9 @@ class PluginData {
             return this.data;
         }
     }
+    /**
+     * Loads the plugin data from the server.
+     */
     async loadData() {
         var _a;
         let pluginUrl = window.location.href;
@@ -280,6 +308,11 @@ class PluginData {
         });
         return;
     }
+    /**
+     * Sets an autoform field and updates the data.
+     * @param name - The name of the autoform field.
+     * @param value - The value to set for the autoform field.
+     */
     async setAutoformField(name, value) {
         var _a, _b;
         const data = await this.getData();
@@ -290,6 +323,9 @@ class PluginData {
             await this.setDataField("autoform", autoformData, true);
         }
     }
+    /**
+     * Updates the plugin data on the server.
+     */
     async updateData() {
         // const updateEndpoint = this.getDataEndpoint();        
         const data = await this.getData();
@@ -317,17 +353,33 @@ class PluginData {
         return;
         */
     }
+    /**
+     * Gets the data slug for the plugin.
+     * @returns The base64 encoded plugin URL.
+     */
     getDataSlug() {
         const key = this.getPluginUrl();
         const b64Key = btoa(key);
         return b64Key;
     }
+    /**
+     * Gets the current plugin URL.
+     * @returns The full URL of the plugin.
+     */
     getPluginUrl() {
         return `${window.location.protocol}//${window.location.host}${window.location.pathname}`;
     }
 }
 exports.PluginData = PluginData;
 class SearchQuery {
+    /**
+     * Creates an instance of SearchQuery.
+     * @param project - The project ID.
+     * @param query - The search query string.
+     * @param fields - The fields to search in.
+     * @param type - The type of search query.
+     * @param includeExternal - Whether to include external results.
+     */
     constructor(project, query, fields, type, includeExternal) {
         this.project = project;
         this.query = query;
@@ -335,12 +387,24 @@ class SearchQuery {
         this.type = type;
         this.includeExternal = includeExternal;
     }
+    /**
+     * Gets the cache key for the haystack.
+     * @returns A string representing the cache key.
+     */
     getHaystackCacheKey() {
         return `${this.project}~${this.fields}~${this.type}~${this.includeExternal}`;
     }
 }
 exports.SearchQuery = SearchQuery;
 class Search {
+    /**
+     * Executes a search query.
+     * @param query - The search query to execute.
+     * @param existingResults - Map of existing results.
+     * @param processingMessage - Message to display during processing.
+     * @param resultHandler - Function to handle each search result.
+     * @returns A promise that resolves to a boolean indicating if results were from cache.
+     */
     static async execute(query, existingResults, processingMessage, resultHandler) {
         const timeStart = new Date().getTime();
         processingMessage = processingMessage !== null && processingMessage !== void 0 ? processingMessage : "Processing...";
@@ -420,9 +484,19 @@ class Search {
         plugin_js_1.Plugin.logTiming(`Loaded/processed ${resultTotal.toLocaleString()} search result(s)`, new Date().getTime() - timeStart);
         return false;
     }
+    /**
+     * Sleeps for the specified number of milliseconds.
+     * @param millis - The number of milliseconds to sleep.
+     */
     static async sleep(millis) {
         return new Promise((resolve) => setTimeout(() => resolve(), millis));
     }
+    /**
+     * Handles a single search result.
+     * @param jsonResult - The JSON representation of the search result.
+     * @param resultTotal - The total number of results.
+     * @param resultHandler - Function to handle the search result.
+     */
     static async handleResult(jsonResult, resultTotal, resultHandler) {
         const searchResult = new SearchResult(jsonResult);
         await resultHandler(searchResult);
@@ -432,6 +506,9 @@ class Search {
     }
 }
 exports.Search = Search;
+/**
+ * Class representing a search result.
+ */
 class SearchResult {
     static normalizeContentWords(input) {
         const out = [];
@@ -444,6 +521,10 @@ class SearchResult {
         const words = SearchResult.normalizeContentWords(input);
         return words.join(" ");
     }
+    /**
+     * Creates an instance of SearchResult.
+     * @param jsonResult - The JSON representation of the search result.
+     */
     constructor(jsonResult) {
         this.optionalFields = ["created", "modified", "size", "status",
             "time", "norobots", "name", "type", "content", "headers", "links", "assets", "origin"];
@@ -462,18 +543,38 @@ class SearchResult {
             }
         }
     }
+    /**
+     * Checks if the result has processed content.
+     * @returns True if processed content exists, false otherwise.
+     */
     hasProcessedContent() {
         return this.processedContent != "";
     }
+    /**
+     * Gets the processed content of the search result.
+     * @returns The processed content.
+     */
     getProcessedContent() {
         return this.processedContent;
     }
+    /**
+     * Sets the processed content of the search result.
+     * @param processedContent - The processed content to set.
+     */
     setProcessedContent(processedContent) {
         this.processedContent = processedContent;
     }
+    /**
+     * Gets the raw content of the search result.
+     * @returns The raw content.
+     */
     getContent() {
         return this.content;
     }
+    /**
+     * Gets the content of the search result as text only.
+     * @returns The content as plain text.
+     */
     getContentTextOnly() {
         // out is the haystack string builder
         const out = [];
@@ -497,13 +598,24 @@ class SearchResult {
         pageText = pageText.replace(SearchResult.wordWhitespaceRe, " ");
         return pageText;
     }
+    /**
+     * Gets the headers of the search result.
+     * @returns The headers.
+     */
     getHeaders() {
         return this.headers;
     }
+    /**
+     * Gets the path of the URL for the search result.
+     * @returns The URL path.
+     */
     getUrlPath() {
         const url = new URL(this.url);
         return url.pathname;
     }
+    /**
+     * Clears the full-text fields of the search result.
+     */
     clearFulltextFields() {
         // an attempt to clear memory after use
         // other fields are small in comparison
@@ -514,7 +626,20 @@ class SearchResult {
 exports.SearchResult = SearchResult;
 SearchResult.wordPunctuationRe = /\s+(?=[\.,;:!\?] )/g;
 SearchResult.wordWhitespaceRe = /\s+/g;
+/**
+ * Class representing a crawl.
+ */
 class Crawl {
+    /**
+     * Creates an instance of Crawl.
+     * @param id - The crawl ID.
+     * @param project - The project ID.
+     * @param created - The creation date.
+     * @param modified - The last modified date.
+     * @param complete - Whether the crawl is complete.
+     * @param time - The time taken for the crawl.
+     * @param report - The crawl report.
+     */
     constructor(id, project, created, modified, complete, time, report) {
         this.id = -1;
         this.created = null;
@@ -530,12 +655,24 @@ class Crawl {
         this.time = time;
         this.report = report;
     }
+    /**
+     * Gets the timings from the crawl report.
+     * @returns The timings object.
+     */
     getTimings() {
         return this.getReportDetailByKey("timings");
     }
+    /**
+     * Gets the sizes from the crawl report.
+     * @returns The sizes object.
+     */
     getSizes() {
         return this.getReportDetailByKey("sizes");
     }
+    /**
+     * Gets the counts from the crawl report.
+     * @returns The counts object.
+     */
     getCounts() {
         return this.getReportDetailByKey("counts");
     }
@@ -552,7 +689,18 @@ class Crawl {
     }
 }
 exports.Crawl = Crawl;
+/**
+ * Class representing a project.
+ */
 class Project {
+    /**
+     * Creates an instance of Project.
+     * @param id - The project ID.
+     * @param created - The creation date.
+     * @param modified - The last modified date.
+     * @param url - The project URL.
+     * @param imageDataUri - The data URI of the project image.
+     */
     constructor(id, created, modified, url, imageDataUri) {
         this.id = -1;
         this.created = null;
@@ -563,12 +711,25 @@ class Project {
         this.url = url;
         this.imageDataUri = imageDataUri;
     }
+    /**
+     * Gets the data URI of the project image.
+     * @returns The image data URI.
+     */
     getImageDataUri() {
         return this.imageDataUri;
     }
+    /**
+     * Gets the display title of the project.
+     * @returns The display title (hostname of the project URL).
+     */
     getDisplayTitle() {
         return new URL(this.url).hostname;
     }
+    /**
+     * Gets a project by its ID from the API.
+     * @param id - The project ID.
+     * @returns A promise that resolves to a Project instance, or null if not found.
+     */
     static async getApiProject(id) {
         const kwargs = {
             "projects": [id],
@@ -590,6 +751,11 @@ class Project {
         // not found
         return null;
     }
+    /**
+     * Gets all crawls for a project from the API.
+     * @param project - The project ID.
+     * @returns A promise that resolves to an array of Crawl instances.
+     */
     static async getApiCrawls(project) {
         const kwargs = {
             complete: "complete",
