@@ -92,7 +92,7 @@ protected async process() {
             await exampleResultHandler(result, titleWords);
         }
     );
-    // call for html presentation of titleWords with processing complete
+    // call for HTML presentation of titleWords with processing complete
     await this.report(titleWords);
 }
 ```
