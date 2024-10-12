@@ -17,7 +17,7 @@ Our plugin ecosystem is designed for versatility. Whether you're building propri
 Here's a glimpse of how easy it is to create a custom plugin script with InterroBot:
 
 ```javascript
-class ExamplePlugin extends Plugin {
+class BasicExamplePlugin extends Plugin {
     
     static meta = {
         "title": "Example Plugin",
