@@ -2,7 +2,6 @@
     <img alt="InterroBot logo" src="https://interro.bot/media/static/images/icons/interrobot.webp">
 </p>
 
-
 <p align="center">
    <a href="https://interrobot.github.io/interrobot-plugin/">Plugin/API Docs</a> · 
    <a href="https://interro.bot/plugins/">Plugins Directory</a> · 
@@ -162,6 +161,6 @@ MPL 2.0, with exceptions. This repo contains JavaScript to TypeScript ports and 
 
 * *Typo.js*: TypeScript port continues under the original [Modified BSD License](https://raw.githubusercontent.com/cfinke/Typo.js/master/license.txt).
 * *Snowball.js*: TypeScript port continues under the original [MPL 1.1](https://raw.githubusercontent.com/fortnightlabs/snowball-js/master/LICENSE) license.
-* *HTML To Markdown Text*: The Markdown library contains a modified version of an HTML to Markdown XSLT transformer by Michael Eichelsdoerfer [MIT](https://en.wikipedia.org/wiki/MIT_License) license.
+* *HTML To Markdown Text*: The Markdown library contains a modified version of an HTML to Markdown XSLT transformer by Michael Eichelsdoerfer. [MIT](https://en.wikipedia.org/wiki/MIT_License) license.
 
 The InterroBot plugins and the Typo.js TypeScript port make use of a handful of unmodified Hunspell dictionaries, as found in [wooorm's UTF-8 collection](https://github.com/wooorm/dictionaries/): [`dictionary-en`](https://github.com/wooorm/dictionaries/en), [`dictionary-en-gb`](https://github.com/wooorm/dictionaries/en-GB), [`dictionary-es`](https://github.com/wooorm/dictionaries/es),  [`dictionary-es-mx`](https://github.com/wooorm/dictionaries/es-MX), [`dictionary-fr`](https://github.com/wooorm/dictionaries/fr), and [`dictionary-ru`](https://github.com/wooorm/dictionaries/ru).
