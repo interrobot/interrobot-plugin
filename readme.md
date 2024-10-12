@@ -115,7 +115,7 @@ Retrieves a list of projects using the Plugin API.
 | image | datauri of project icon |
 | modified | ISO 8601 date/time, project modified |
 
-### FilterProjects
+### GetResources
 
 Retrieves a list of resources associated with a project using the Plugin API.
 
