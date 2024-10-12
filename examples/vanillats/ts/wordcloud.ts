@@ -1,5 +1,5 @@
 // Wordcloud, EN only. Take web copy, pull out interesting words. 
-//  Present aforementioned words as "cloud."
+// Present aforementioned words as "cloud."
 
 import { Plugin } from "../../../src/ts/core/plugin";
 import { SearchQueryType, SearchQuery, Search, SearchResult, Project, PluginData } from "../../../src/ts/core/api";
@@ -138,7 +138,6 @@ class Wordcloud extends Plugin {
     private static readonly wordTrimRe: RegExp = /^[^\da-zA-ZÀ-ɏ]+|[^\da-zA-ZÀ-ɏ]+$/g;
     private static readonly wordAnyNumberRe: RegExp = /\d/;
     private static readonly wordAnyPunctuationRe: RegExp = /\p{P}/u;
-    
 
     private static readonly svgWidth: number = 1920;
     private static readonly svgHeight: number = 1080;

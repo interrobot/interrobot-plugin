@@ -5,7 +5,7 @@
         "InterroBot": "https://interro.bot"
         
     },
-    "titleLink": "/",
+    "titleLink": "https://interrobot.github.io/interrobot-plugin/",
     "entryPoints": ["./src/ts"],
     "out": "docs"
 }

@@ -3,9 +3,10 @@
 </p>
 
 <p align="center">
-   <a href="https://interrobot.github.io/interrobot-plugin/">Plugin/API Docs</a> · 
-   <a href="https://interro.bot/plugins/">Plugins Directory</a> · 
-   <a href="https://interro.bot/">InterroBot Crawler</a>
+   <a href="https://interrobot.github.io/interrobot-plugin/">API Docs</a> · 
+   <a href="https://interrobot.github.io/interrobot-plugin/">Repo</a> · 
+   <a href="https://interro.bot/plugins/">Plugins</a> · 
+   <a href="https://interro.bot/">InterroBot</a>
 <p>
 
 Your web crawler just got superpowers. InterroBot plugins transform your web crawler into a customizable data powerhouse, unleashing unlimited potential for data extraction and analysis.
@@ -14,11 +15,14 @@ InterroBot plugins are simple HTML/JS/CSS pages that transform raw web crawl dat
 
 Our plugin ecosystem is designed for versatility. Whether you're building proprietary tools, developing plugins for clients, or contributing to the open-source community, InterroBot plugins adapt to your needs. Available for Windows 10/11, macOS, and Android, our platform ensures your data analysis can happen wherever you work.
 
-Here's a glimpse of how easy it is to create a custom plugin script with InterroBot:
+## How Does it Work?
+
+If you're familiar with vanilla TypeScript or JavaScript, creating a custom plugin script for InterroBot is remarkably straight forward. First you start with a [bare-bones HTML file](https://raw.githubusercontent.com/interrobot/interrobot-plugin/refs/heads/master/examples/vanillajs/basic.html) and a script extending the Plugin base class.
 
 ```javascript
-class BasicExamplePlugin extends Plugin {
-    
+// TypeScript vs. JavaScript, both are fine. See examples.
+import { Plugin } from "./src/ts/core/plugin";
+class BasicExamplePlugin extends Plugin {    
     static meta = {
         "title": "Example Plugin",
         "category": "Example",
@@ -27,81 +31,71 @@ class BasicExamplePlugin extends Plugin {
         "synopsis": `a basic plugin example`,
         "description": `This example is as simple as it gets.`,
     };
-
     constructor() {
         super();
-        this.init(BasicExamplePlugin.meta);
+        // initialize InterroBot plugin from iframe - i.e. your plugin page
+        this.init(BasicExamplePlugin.meta);        
+        // index() has nothing to do with the crawl index, btw. it is 
+        // the plugin index (think index.html), a view that shows by
+        // default, and would generally consist of a form or visualization.
         this.index();
     }
 }
+Plugin.initialize(BasicExamplePlugin);
 ```
 
-ExamplePlugin will not do much at this point, but it will load and run the default index() behavior.
-You can, of course, override the default index() behavior, rendering your page however you wish.
+BasicExamplePlugin will not do much at this point, but it will load and run the default `index()` behavior.
+You can, of course, override the default `index()` behavior, rendering your page however you wish.
 
 ```javascript
-async index() {    
+async index() {
     // add your form and supporting HTML
-    this.render(`[HTML to add to page body]`);
-    
-    // initialize the plugin
-    await this.initData(BasicExamplePlugin.meta, {}, []);
-    
+    this.render(`<div>HTML</div>`);
+    // initialize the plugin within InterroBot, from within iframe
+    await this.initData(BasicExamplePlugin.meta, {}, []);    
     // add handlers to the form
     const button = document.querySelector("button");
     button.addEventListener("click", async (ev) => { 
-        await this.process(); // where process is a form handler
+        await this.process(); // where process() is a form handler
     });
 }
 ```
 
-The process() method called above would be where you process data. Here a query is executed on 
+The `process()` method called above would be where you process data. Here a query is executed on 
 the crawl index, and each result run through the exampleResultsHandler.
+
 
 ```
 protected async process() {
-
-    // gather title words with a result handler
+    // gather title words and running counts with a result handler
     const titleWords: Map<string, number> = new Map<string, number>();
     let resultsMap: Map<number, SearchResult>;
     const exampleResultHandler = async (result: SearchResult, 
         titleWordsMap: Map<string, number>) => {
         const terms: string[] = result.name.trim().split(/[\s\-—]+/g);
-        for (let term of terms) {
-            if (!titleWordsMap.has(term)) {
-                titleWordsMap.set(term, 1);
-            } else {
-                const currentCount = titleWordsMap.get(term);
-                titleWordsMap.set(term, currentCount + 1);
-            }
-        }
+        terms.forEach(term => titleWordsMap.set(term, 
+            (titleWordsMap.get(term) ?? 0) + 1));
     }
-
     // projectId comes for free as a member of Plugin
     const projectId: number = this.getProjectId();
-
-    // build a query, these are exactly as you'd type them into InterroBot search
     const freeQueryString: string = "headers: text/html";
-
-    // pipe delimited fields you want retrieved
-    // id and url come with the base model, everything else costs time
+    // pipe delimited fields you want retrieved. id and url come with 
+    // the base model, everything else must be requested explicitly
     const fields: string = "name";
-    const internalHtmlPagesQuery = new SearchQuery(projectId, freeQueryString, fields,
-        SearchQueryType.Any, false);
-
+    const internalHtmlPagesQuery = new SearchQuery(projectId, 
+        freeQueryString, fields, SearchQueryType.Any, false);
     // run each SearchResult through its handler, and we're done processing
     await Search.execute(internalHtmlPagesQuery, resultsMap, "Processing…", 
         async (result: SearchResult) => {
             await exampleResultHandler(result, titleWords);
         }
     );
-
-    // call for html presentation
+    // call for html presentation of titleWords with processing complete
     await this.report(titleWords);
 }
 ```
 
-The above snippets are a modified version of an example plugin in the repository, [basic.js](https://github.com/interrobot/interrobot-plugin/blob/master/examples/vanillajs/basic.js) 
+The above snippets are pulled (and gently modified) from a plugin in the repository, [basic.js](https://github.com/interrobot/interrobot-plugin/blob/master/examples/vanillajs/basic.js). For more ideas getting started, check out the [examples](https://github.com/interrobot/interrobot-plugin/blob/master/examples/) directory.
 
 ## What data is available via API?
 
