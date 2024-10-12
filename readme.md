@@ -78,6 +78,8 @@ protected async process() {
     }
     // projectId comes for free as a member of Plugin
     const projectId: number = this.getProjectId();
+    // anything you put into InterroBot search, field or fulltext works
+    // here we limit to HTML documents, which will have a <title> -> name
     const freeQueryString: string = "headers: text/html";
     // pipe delimited fields you want retrieved. id and url come with 
     // the base model, everything else must be requested explicitly
