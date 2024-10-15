@@ -1,15 +1,13 @@
-.. image:: https://interro.bot/media/static/images/icons/interrobot.webp
-   :alt: InterroBot logo
-   :align: center
+<p align="center">
+    <img alt="InterroBot logo" src="https://interro.bot/media/static/images/icons/interrobot.webp">
+</p>
 
-.. raw:: html
-
-   <p align="center">
-   <a href="https://interrobot.github.io/interrobot-plugin/">API Docs</a> ·
-   <a href="https://github.com/interrobot/interrobot-plugin/">Repo</a> ·
-   <a href="https://interro.bot/plugins/">Plugins</a> ·
+<p align="center">
+   <a href="https://interrobot.github.io/interrobot-plugin/">API Docs</a> · 
+   <a href="https://github.com/interrobot/interrobot-plugin/">Repo</a> · 
+   <a href="https://interro.bot/plugins/">Plugins</a> · 
    <a href="https://interro.bot/">InterroBot</a>
-   </p>
+<p>
 
 Your web crawler just got superpowers. InterroBot plugins transform your web crawler into a customizable data powerhouse, unleashing unlimited potential for data extraction and analysis.
 

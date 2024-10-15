@@ -3,27 +3,21 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-
 interrobot-plugin
 =============================================
 
+.. image:: https://interro.bot/media/static/images/icons/interrobot.webp
+   :alt: InterroBot logo
+   :align: center
+
 .. raw:: html
 
    <p align="center">
-
-.. raw:: html
-
+   <a href="https://interrobot.github.io/interrobot-plugin/">API Docs</a> ·
+   <a href="https://github.com/interrobot/interrobot-plugin/">Repo</a> ·
+   <a href="https://interro.bot/plugins/">Plugins</a> ·
+   <a href="https://interro.bot/">InterroBot</a>
    </p>
-
-.. raw:: html
-
-   <p align="center">
-
-API Docs · Repo · Plugins · InterroBot
-
-.. raw:: html
-
-   <p>
 
 Your web crawler just got superpowers. InterroBot plugins transform your
 web crawler into a customizable data powerhouse, unleashing unlimited
