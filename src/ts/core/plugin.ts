@@ -103,17 +103,25 @@ class Plugin {
      * @param classtype - The class type to initialize.
      * @returns An instance of the initialized class.
      */
-    public static initialize(classtype: any): any {
-        let instance: any | null = null;
+    public static async initialize(classtype: any): Promise<any> {
+        console.log("hi");
+        const createAndConfigure = () => {
+            let instance: any | null = new classtype();
+            Plugin.postMeta(instance.constructor.meta);
+            window.addEventListener("load", Plugin.postContentHeight);
+            window.addEventListener("resize", Plugin.postContentHeight);
+            return instance;
+        };
+
         if (document.readyState === "complete" || document.readyState === "interactive") {
-            instance = new classtype();
-        }
-        else {
-            document.addEventListener("DOMContentLoaded", async () => {
-                instance = new classtype();
+            return createAndConfigure();
+        } else {
+            return new Promise((resolve) => {
+                document.addEventListener("DOMContentLoaded", () => {
+                    resolve(createAndConfigure());
+                });
             });
         }
-        return instance;
     }
 
     /**
@@ -333,35 +341,31 @@ class Plugin {
     }
 
     /**
-     * Initializes the plugin with metadata and sets up event listeners.
-     * @param meta - The metadata for the plugin.
+     * Gets the instance meta, the subclassed override data
+     * @returns the class meta.
      */
-    public async init(meta: {}): Promise<void> {
-        Plugin.postMeta(meta);
-        window.addEventListener("load", Plugin.postContentHeight);
-        window.addEventListener("resize", Plugin.postContentHeight);
+    public getInstanceMeta(): {} {
+        return this.constructor["meta"];
     }
 
     /**
      * Initializes the plugin data.
-     * @param meta - The metadata for the plugin.
      * @param defaultData - The default data for the plugin.
      * @param autoform - An array of HTML elements for the autoform.
      */
-    public async initData(meta: {}, defaultData: {}, autoform: HTMLElement[]): Promise<void> {
-        this.data = new PluginData(this.getProjectId(), meta, defaultData, autoform);
+    public async initData(defaultData: {}, autoform: HTMLElement[]): Promise<void> {
+        this.data = new PluginData(this.getProjectId(), this.getInstanceMeta(), defaultData, autoform);
         await this.data.loadData();
     }
 
     /**
      * Initializes and returns the plugin data.
-     * @param meta - The metadata for the plugin.
      * @param defaultData - The default data for the plugin.
      * @param autoform - An array of HTML elements for the autoform.
      * @returns A promise that resolves with the initialized PluginData.
      */
-    public async initAndGetData(meta: {}, defaultData: any, autoform: HTMLElement[]): Promise<PluginData> {
-        await this.initData(meta, defaultData, autoform);
+    public async initAndGetData(defaultData: any, autoform: HTMLElement[]): Promise<PluginData> {
+        await this.initData(defaultData, autoform);
         return this.data;
     }
 
@@ -397,7 +401,7 @@ class Plugin {
         // init() would generally would go into a constructor
         // it is here contain it to the example it will push meta
         // to the host page, and activate some resize handlers
-        this.init(Plugin.meta);
+        // this.init(Plugin.meta);
 
         // this collects project information given the project id passed in
         // as url argument, there will always be a project id passed

@@ -869,16 +869,24 @@ ${JSON.stringify(kwargs)}`);
      * @param classtype - The class type to initialize.
      * @returns An instance of the initialized class.
      */
-    static initialize(classtype) {
-      let instance = null;
+    static async initialize(classtype) {
+      console.log("hi");
+      const createAndConfigure = () => {
+        let instance = new classtype();
+        Plugin.postMeta(instance.constructor.meta);
+        window.addEventListener("load", Plugin.postContentHeight);
+        window.addEventListener("resize", Plugin.postContentHeight);
+        return instance;
+      };
       if (document.readyState === "complete" || document.readyState === "interactive") {
-        instance = new classtype();
+        return createAndConfigure();
       } else {
-        document.addEventListener("DOMContentLoaded", async () => {
-          instance = new classtype();
+        return new Promise((resolve) => {
+          document.addEventListener("DOMContentLoaded", () => {
+            resolve(createAndConfigure());
+          });
         });
       }
-      return instance;
     }
     /**
      * Posts the current content height to the parent frame.
@@ -1044,22 +1052,29 @@ ${JSON.stringify(kwargs)}`);
       return this.projectId;
     }
     /**
+     * Gets the instance meta, the subclassed override data
+     * @returns the class meta.
+     */
+    getInstanceMeta() {
+      return this.constructor["meta"];
+    }
+    /**
      * Initializes the plugin with metadata and sets up event listeners.
      * @param meta - The metadata for the plugin.
      */
-    async init(meta) {
-      Plugin.postMeta(meta);
-      window.addEventListener("load", Plugin.postContentHeight);
-      window.addEventListener("resize", Plugin.postContentHeight);
-    }
+    // public async init(meta: {}): Promise<void> {
+    //     Plugin.postMeta(meta);
+    //     window.addEventListener("load", Plugin.postContentHeight);
+    //     window.addEventListener("resize", Plugin.postContentHeight);
+    // }
     /**
      * Initializes the plugin data.
      * @param meta - The metadata for the plugin.
      * @param defaultData - The default data for the plugin.
      * @param autoform - An array of HTML elements for the autoform.
      */
-    async initData(meta, defaultData, autoform) {
-      this.data = new PluginData(this.getProjectId(), meta, defaultData, autoform);
+    async initData(defaultData, autoform) {
+      this.data = new PluginData(this.getProjectId(), this.getInstanceMeta(), defaultData, autoform);
       await this.data.loadData();
     }
     /**
@@ -1069,8 +1084,8 @@ ${JSON.stringify(kwargs)}`);
      * @param autoform - An array of HTML elements for the autoform.
      * @returns A promise that resolves with the initialized PluginData.
      */
-    async initAndGetData(meta, defaultData, autoform) {
-      await this.initData(meta, defaultData, autoform);
+    async initAndGetData(defaultData, autoform) {
+      await this.initData(defaultData, autoform);
       return this.data;
     }
     /**
@@ -1099,7 +1114,6 @@ ${JSON.stringify(kwargs)}`);
      * Initializes the plugin index page.
      */
     async index() {
-      this.init(Plugin.meta);
       const project = await Project.getApiProject(this.getProjectId());
       const encodedTitle = HtmlUtils.htmlEncode(project.getDisplayTitle());
       const encodedMetaTitle = HtmlUtils.htmlEncode(Plugin.meta["title"]);
@@ -4095,7 +4109,6 @@ This is the default plugin description. Set meta: {} values
       this.table = null;
       this.progress = null;
       this.stopwordsTruth = Stopwords.getStopwordsTruth("en");
-      this.init(Wordcloud.meta);
       this.deleteWordHandler = async (ev) => {
         const button = ev.target;
         for (let i = 0; i < this.wordMapPresentation.length; i++) {
@@ -4267,7 +4280,7 @@ This is the default plugin description. Set meta: {} values
       });
       const defaultData = {};
       const autoformFields = [strategySelect, minWordLengthSelect, layoutSelect, backgroundColorInput, fontFamilyInput];
-      await this.initData(Wordcloud.meta, defaultData, autoformFields);
+      await this.initData(defaultData, autoformFields);
       const updateFormValues = () => {
         var _a;
         this.strategy = Number(strategySelect.value);

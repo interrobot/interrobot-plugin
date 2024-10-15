@@ -17,6 +17,8 @@ Our plugin ecosystem is designed for versatility. Whether you're building propri
 
 ## How Does it Work?
 
+InterroBot hosts an iframe of your webpage and exposes an API from which you can pull data down for analysis. 
+
 If you're familiar with vanilla TypeScript or JavaScript, creating a custom plugin script for InterroBot is remarkably straight forward. First you start with a [bare-bones HTML file](https://raw.githubusercontent.com/interrobot/interrobot-plugin/refs/heads/master/examples/vanillajs/basic.html) and a script extending the Plugin base class.
 
 ```javascript
@@ -33,14 +35,13 @@ class BasicExamplePlugin extends Plugin {
     };
     constructor() {
         super();
-        // initialize InterroBot plugin from iframe - i.e. your plugin page
-        this.init(BasicExamplePlugin.meta);        
         // index() has nothing to do with the crawl index, btw. it is 
         // the plugin index (think index.html), a view that shows by
         // default, and would generally consist of a form or visualization.
         this.index();
     }
 }
+// configure to initialize when the page is ready
 Plugin.initialize(BasicExamplePlugin);
 ```
 

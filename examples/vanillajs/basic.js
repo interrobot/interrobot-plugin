@@ -1,3 +1,5 @@
+
+
 class BasicExamplePlugin extends InterroBot.Core.Plugin {
     
     static meta = {
@@ -12,7 +14,6 @@ class BasicExamplePlugin extends InterroBot.Core.Plugin {
 
     constructor() {
         super();
-        this.init(BasicExamplePlugin.meta);
         this.index();
     }
 
@@ -33,7 +34,7 @@ class BasicExamplePlugin extends InterroBot.Core.Plugin {
             ${InterroBot.Ui.Templates.standardResults()}
         `);
         
-        await this.initData(BasicExamplePlugin.meta, {}, []);
+        await this.initData({}, []);
         
         const button = document.querySelector("button");
         button.addEventListener("click", async (ev) => {
@@ -46,7 +47,7 @@ class BasicExamplePlugin extends InterroBot.Core.Plugin {
             }
         });
 
-        Plugin.postContentHeight();
+        InterroBot.Core.Plugin.postContentHeight();
     }
 
     async process() {
@@ -111,10 +112,8 @@ class BasicExamplePlugin extends InterroBot.Core.Plugin {
             <tbody>${tableRows.join("")}</tbody>
             </table></section></div>`;
         // send signal back to iframe host to alot current page height
-        Plugin.postContentHeight();
+        InterroBot.Core.Plugin.postContentHeight();
     }
 }
 
-document.addEventListener("DOMContentLoaded", async () => {
-    const report = new BasicExamplePlugin();
-});
+InterroBot.Core.Plugin.initialize(BasicExamplePlugin);

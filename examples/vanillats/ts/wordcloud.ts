@@ -176,8 +176,6 @@ class Wordcloud extends Plugin {
         this.table = null;
         this.progress = null;
         this.stopwordsTruth = Stopwords.getStopwordsTruth("en");
-        this.init(Wordcloud.meta);        
-
         // <a> handler for delete links per word
         this.deleteWordHandler = async(ev: MouseEvent) => {
             // find in presentation list and remove
@@ -384,7 +382,7 @@ class Wordcloud extends Plugin {
         // initialize PluginData for autoform to work
         const defaultData: {} = {};
         const autoformFields: HTMLElement[] = [strategySelect, minWordLengthSelect, layoutSelect, backgroundColorInput, fontFamilyInput];
-        await this.initData(Wordcloud.meta, defaultData, autoformFields);
+        await this.initData(defaultData, autoformFields);
         
         const updateFormValues = () => {
             this.strategy = Number(strategySelect.value);

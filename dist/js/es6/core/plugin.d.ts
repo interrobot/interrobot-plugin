@@ -46,7 +46,7 @@ declare class Plugin {
      * @param classtype - The class type to initialize.
      * @returns An instance of the initialized class.
      */
-    static initialize(classtype: any): any;
+    static initialize(classtype: any): Promise<any>;
     /**
      * Posts the current content height to the parent frame.
      */
@@ -102,25 +102,23 @@ declare class Plugin {
      */
     getProjectId(): number;
     /**
-     * Initializes the plugin with metadata and sets up event listeners.
-     * @param meta - The metadata for the plugin.
+     * Gets the instance meta, the subclassed override data
+     * @returns the class meta.
      */
-    init(meta: {}): Promise<void>;
+    getInstanceMeta(): {};
     /**
      * Initializes the plugin data.
-     * @param meta - The metadata for the plugin.
      * @param defaultData - The default data for the plugin.
      * @param autoform - An array of HTML elements for the autoform.
      */
-    initData(meta: {}, defaultData: {}, autoform: HTMLElement[]): Promise<void>;
+    initData(defaultData: {}, autoform: HTMLElement[]): Promise<void>;
     /**
      * Initializes and returns the plugin data.
-     * @param meta - The metadata for the plugin.
      * @param defaultData - The default data for the plugin.
      * @param autoform - An array of HTML elements for the autoform.
      * @returns A promise that resolves with the initialized PluginData.
      */
-    initAndGetData(meta: {}, defaultData: any, autoform: HTMLElement[]): Promise<PluginData>;
+    initAndGetData(defaultData: any, autoform: HTMLElement[]): Promise<PluginData>;
     /**
      * Gets the current project.
      * @returns A promise that resolves with the current Project.
