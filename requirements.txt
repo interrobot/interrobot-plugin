@@ -1,0 +1,7 @@
+# This file is for Read the Docs documentation building
+# It specifies the Python packages required to build the docs
+
+# Sphinx is the main documentation generator
+# Version 7.2.6 is used for consistency and compatibility
+
+sphinx==7.2.6
