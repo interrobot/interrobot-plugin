@@ -3,9 +3,6 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-interrobot-plugin
-=============================================
-
 .. image:: https://interro.bot/media/static/images/icons/interrobot.webp
    :alt: InterroBot logo
    :align: center
@@ -18,6 +15,9 @@ interrobot-plugin
    <a href="https://interro.bot/plugins/">Plugins</a> ·
    <a href="https://interro.bot/">InterroBot</a>
    </p>
+
+interrobot-plugin
+=============================================
 
 Your web crawler just got superpowers. InterroBot plugins transform your
 web crawler into a customizable data powerhouse, unleashing unlimited
