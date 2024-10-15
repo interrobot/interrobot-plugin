@@ -53,7 +53,7 @@ protected async index() {
     // add your form and supporting HTML
     this.render(`<div>HTML</div>`);
     // initialize the plugin within InterroBot, from within iframe
-    await this.initData(BasicExamplePlugin.meta, {}, []);    
+    await this.initData({}, []);    
     // add handlers to the form
     const button = document.querySelector("button");
     button.addEventListener("click", async (ev) => { 
