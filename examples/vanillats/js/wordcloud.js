@@ -870,7 +870,6 @@ ${JSON.stringify(kwargs)}`);
      * @returns An instance of the initialized class.
      */
     static async initialize(classtype) {
-      console.log("hi");
       const createAndConfigure = () => {
         let instance = new classtype();
         Plugin.postMeta(instance.constructor.meta);
@@ -1059,17 +1058,7 @@ ${JSON.stringify(kwargs)}`);
       return this.constructor["meta"];
     }
     /**
-     * Initializes the plugin with metadata and sets up event listeners.
-     * @param meta - The metadata for the plugin.
-     */
-    // public async init(meta: {}): Promise<void> {
-    //     Plugin.postMeta(meta);
-    //     window.addEventListener("load", Plugin.postContentHeight);
-    //     window.addEventListener("resize", Plugin.postContentHeight);
-    // }
-    /**
      * Initializes the plugin data.
-     * @param meta - The metadata for the plugin.
      * @param defaultData - The default data for the plugin.
      * @param autoform - An array of HTML elements for the autoform.
      */
@@ -1079,7 +1068,6 @@ ${JSON.stringify(kwargs)}`);
     }
     /**
      * Initializes and returns the plugin data.
-     * @param meta - The metadata for the plugin.
      * @param defaultData - The default data for the plugin.
      * @param autoform - An array of HTML elements for the autoform.
      * @returns A promise that resolves with the initialized PluginData.
@@ -4113,7 +4101,6 @@ This is the default plugin description. Set meta: {} values
         const button = ev.target;
         for (let i = 0; i < this.wordMapPresentation.length; i++) {
           const cloudword = this.wordMapPresentation[i];
-          console.log(`-- ${button.dataset.word} ${cloudword.word}`);
           if (cloudword.word === button.dataset.word) {
             this.wordMapPresentation.splice(i, 1);
             await this.displayResults();
@@ -4138,10 +4125,8 @@ This is the default plugin description. Set meta: {} values
           return;
         }
         const newWord = new WordcloudWord(word, count);
-        console.log(newWord);
         this.wordMapPresentation.push(newWord);
         this.wordMapPresentation = this.sortAndTruncatePresentation(this.wordMapPresentation);
-        console.log(this.wordMapPresentation);
         await this.displayResults();
         ev.preventDefault();
       };
@@ -4606,8 +4591,6 @@ This is the default plugin description. Set meta: {} values
         const rgb = parseInt(this.backgroundColor.slice(1), 16);
         const r = rgb >> 16 & 255, g = rgb >> 8 & 255, b = rgb & 255;
         const isLight = 0.2126 * r + 0.7152 * g + 0.0722 * b > 128;
-        console.log(this.backgroundColor);
-        console.log(isLight);
         if (isLight) {
           actions[0].classList.add("light");
           actions[1].classList.add("light");

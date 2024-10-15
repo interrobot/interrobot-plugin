@@ -12,6 +12,7 @@
    <p align="center">
    <a href="https://interrobot.github.io/interrobot-plugin/">API Docs</a> ·
    <a href="https://github.com/interrobot/interrobot-plugin/">Repo</a> ·
+   <a href="https://www.npmjs.com/package/interrobot-plugin">NPM</a> ·
    <a href="https://interro.bot/plugins/">Plugins</a> ·
    <a href="https://interro.bot/">InterroBot</a>
    </p>

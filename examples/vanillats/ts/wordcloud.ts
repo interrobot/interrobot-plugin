@@ -182,7 +182,7 @@ class Wordcloud extends Plugin {
             const button: HTMLButtonElement = ev.target as HTMLButtonElement;
             for (let i=0; i< this.wordMapPresentation.length; i++){
                 const cloudword: WordcloudWord = this.wordMapPresentation[i];
-                console.log(`-- ${button.dataset.word} ${cloudword.word}`);
+                // console.log(`-- ${button.dataset.word} ${cloudword.word}`);
                 if (cloudword.word === button.dataset.word){
                     this.wordMapPresentation.splice(i, 1);
                     await this.displayResults();
@@ -212,10 +212,10 @@ class Wordcloud extends Plugin {
 
 
             const newWord = new WordcloudWord(word, count);
-            console.log(newWord);
+            // console.log(newWord);
             this.wordMapPresentation.push(newWord);
             this.wordMapPresentation = this.sortAndTruncatePresentation(this.wordMapPresentation);
-            console.log(this.wordMapPresentation);
+            // console.log(this.wordMapPresentation);
             await this.displayResults();
 
             // const form: HTMLFormElement  | null= ev.target as HTMLFormElement;
@@ -786,8 +786,8 @@ class Wordcloud extends Plugin {
             const rgb = parseInt(this.backgroundColor.slice(1), 16);
             const r = (rgb >> 16) & 255, g = (rgb >> 8) & 255, b = rgb & 255;
             const isLight: boolean = (0.2126 * r + 0.7152 * g + 0.0722 * b) > 128;
-            console.log(this.backgroundColor);
-            console.log(isLight);
+            // console.log(this.backgroundColor);
+            // console.log(isLight);
             if (isLight){
                 actions[0].classList.add("light");
                 actions[1].classList.add("light");

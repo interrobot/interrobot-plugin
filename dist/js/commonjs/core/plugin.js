@@ -81,7 +81,6 @@ class Plugin {
      * @returns An instance of the initialized class.
      */
     static async initialize(classtype) {
-        console.log("hi");
         const createAndConfigure = () => {
             let instance = new classtype();
             Plugin.postMeta(instance.constructor.meta);
