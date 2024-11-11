@@ -2,7 +2,7 @@
 /* tslint:disable:no-console */
 /* tslint:disable:max-line-length */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PluginConnection = exports.Plugin = void 0;
+exports.DarkMode = exports.PluginConnection = exports.Plugin = void 0;
 // important note: this script runs from the context of the plugin iframe
 // but static methods will have the context of the caller
 const api_js_1 = require("./api.js");
@@ -16,6 +16,7 @@ var DarkMode;
     DarkMode[DarkMode["Light"] = 0] = "Light";
     DarkMode[DarkMode["Dark"] = 1] = "Dark";
 })(DarkMode || (DarkMode = {}));
+exports.DarkMode = DarkMode;
 /**
  * Represents a connection between the plugin and its host.
  */
@@ -281,6 +282,13 @@ class Plugin {
     delay(ms) {
         // for ui to force painting
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    /**
+     * Gets the current mode.
+     * @returns The mode (DarkMode.Light, DarkMode.Dark).
+     */
+    getMode() {
+        return this.mode;
     }
     /**
      * Gets the current project ID.

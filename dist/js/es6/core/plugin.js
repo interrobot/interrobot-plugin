@@ -279,6 +279,13 @@ class Plugin {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
     /**
+     * Gets the current mode.
+     * @returns The mode (DarkMode.Light, DarkMode.Dark).
+     */
+    getMode() {
+        return this.mode;
+    }
+    /**
      * Gets the current project ID.
      * @returns The project ID.
      */
@@ -474,4 +481,4 @@ Plugin.meta = {
         your own creation.\n\nThis is the default plugin description. Set meta: {} values
         in the source to update these display values.`,
 };
-export { Plugin, PluginConnection };
+export { Plugin, PluginConnection, DarkMode };

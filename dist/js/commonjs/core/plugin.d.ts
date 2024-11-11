@@ -1,5 +1,12 @@
 import { Project, PluginData } from "./api.js";
 /**
+ * Enumeration for dark mode settings.
+ */
+declare enum DarkMode {
+    Light = 0,
+    Dark = 1
+}
+/**
  * Represents a connection between the plugin and its host.
  */
 declare class PluginConnection {
@@ -97,6 +104,11 @@ declare class Plugin {
      */
     protected delay(ms: number): Promise<unknown>;
     /**
+     * Gets the current mode.
+     * @returns The mode (DarkMode.Light, DarkMode.Dark).
+     */
+    getMode(): DarkMode;
+    /**
      * Gets the current project ID.
      * @returns The project ID.
      */
@@ -144,4 +156,4 @@ declare class Plugin {
     protected report(titleWords: any): Promise<void>;
     private parentIsOrigin;
 }
-export { Plugin, PluginConnection };
+export { Plugin, PluginConnection, DarkMode };
