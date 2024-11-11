@@ -1,4 +1,4 @@
-// Wordcloud, EN only. Take web copy, pull out interesting words. 
+// Wordcloud, EN only. Take web copy, pull out interesting words.
 // Present aforementioned words as "cloud."
 
 import { Plugin } from "../../../src/ts/core/plugin";
@@ -12,8 +12,8 @@ import { HtmlResultsTable, HTMLResultsTableSort, SortOrder } from "../../../src/
 
 // d3 is modular, and not friendly outside npm
 // don't bother, not worth the effort to reconcile types
-declare var d3: any;
-declare var d3cloud: any;
+declare const d3: any;
+declare const d3cloud: any;
 
 class WordcloudLayout {
 
@@ -21,7 +21,7 @@ class WordcloudLayout {
     public readonly name: string;
     public readonly spiral: string;
     public readonly separated: boolean; // measured layout with padding
-    
+
     public constructor(id: number, name: string, spiral: string, separated: boolean) {
         if (["archimedean", "rectangular"].indexOf(spiral) === -1){
             throw new Error("invalid spiral value");
@@ -29,7 +29,7 @@ class WordcloudLayout {
         this.id = id;
         this.name = name;
         this.spiral = spiral;
-        this.separated = separated;        
+        this.separated = separated;
     }
 
     public toString(): string {
@@ -42,7 +42,7 @@ class WordcloudWord {
     // fine displayed result, each SearchResult can contain many of these (or none at all)
     public readonly word: string;
     private count: number = 0;
-    
+
     public constructor(word: string, count: number) {
         this.word = word;
         this.count = count;
@@ -67,21 +67,21 @@ class WordcloudWord {
 
 class Wordcloud extends Plugin {
 
-    public static override readonly meta: {} = {        
+    public static override readonly meta: {} = {
         "title": "Website Word Cloud",
         "category": "Visualization",
         "version": "1.0.0",
         "author": "InterroBot",
         "synopsis": `create a wordcloud from website content`,
-        "description": `Relive the Web 2.0 dream in all its grandeur! Website Word Cloud finds unique and 
-            interesting keywords in your web content and generates a word cloud, and the tools to tweak the 
+        "description": `Relive the Web 2.0 dream in all its grandeur! Website Word Cloud finds unique and
+            interesting keywords in your web content and generates a word cloud, and the tools to tweak the
             visualization.\n\n
-            Word selection is governed by strategy, extracting unique terms (jargon) or by frequency, which 
-            selects for any and all terms. The Layout option changes the aesthetic of the word cloud, while 
-            Min Word Length filters exactly that. For font options, you can enter any installed font on your device or 
+            Word selection is governed by strategy, extracting unique terms (jargon) or by frequency, which
+            selects for any and all terms. The Layout option changes the aesthetic of the word cloud, while
+            Min Word Length filters exactly that. For font options, you can enter any installed font on your device or
             select from a list of "web safe" fonts.
             \n\n
-            InterroBot Word Cloud utilizes the d3 and d3-cloud open-source visualization libraries to bring 
+            InterroBot Word Cloud utilizes the d3 and d3-cloud open-source visualization libraries to bring
             your word clouds to life.`,
     }
 
@@ -91,14 +91,14 @@ class Wordcloud extends Plugin {
         new WordcloudLayout(3, "Stacked", "rectangular", false),
     ];
 
-    // this is a hassle due to svg/canvas rendering requirements, but least hassle right here    
+    // this is a hassle due to svg/canvas rendering requirements, but least hassle right here
     private static readonly baseMediaPath: string = "";
     private static readonly embedFont: string = Wordcloud.baseMediaPath + "/fonts/Montserrat-SemiBold.woff2";
-    
+
     // this memo needs to be cleared manually prior to a process
     private static cloudWordLayoutMemo: {} | undefined = undefined;
     public static getWordLayoutFontSize(words:{}[], value: number): number {
-        
+
         if (Wordcloud.cloudWordLayoutMemo === undefined){
             // log scale range of counts so size is more predictable
             let wordsMaxVal:number = 0;
@@ -149,7 +149,7 @@ class Wordcloud extends Plugin {
     private readonly language: string = "en_US";
     private progress: HtmlProcessingWidget | null;
     private table: HtmlResultsTable | null;
-    
+
     private strategy: number;
     private layout: WordcloudLayout;
     private minWordLength: number;
@@ -171,7 +171,7 @@ class Wordcloud extends Plugin {
     private perPage: number = 25;
 
     public constructor() {
-        
+
         super();
         this.table = null;
         this.progress = null;
@@ -207,30 +207,14 @@ class Wordcloud extends Plugin {
                     form.classList.remove("error");
                 }, 900);
                 ev.preventDefault();
-                return;                
+                return;
             }
 
-
             const newWord = new WordcloudWord(word, count);
-            // console.log(newWord);
             this.wordMapPresentation.push(newWord);
             this.wordMapPresentation = this.sortAndTruncatePresentation(this.wordMapPresentation);
-            // console.log(this.wordMapPresentation);
             await this.displayResults();
-
-            // const form: HTMLFormElement  | null= ev.target as HTMLFormElement;
-            // 
-            // console.log("add word called");
-            // console.log(ev.target);
-            // 
-            // const form: HTMLFormElement | null = button.form;
-            // console.log(form);
-            ev.preventDefault();
         };
-
-        // this.fullscreenHandler = (ev: MouseEvent) => {
-        //     (document.getElementById(Wordcloud.svgId) as HTMLElement)?.requestFullscreen();
-        // };
 
         this.cloudExpandHandler = (ev: MouseEvent) => {
             ev.preventDefault();
@@ -286,13 +270,13 @@ class Wordcloud extends Plugin {
                     <select name="strategy">
                         <option value="1">Frequency</option>
                         <option value="0">Jargon</option>
-                        
-                    </select>                 
+
+                    </select>
                 </label>
                 <label>
                     <span>Layout</span>
                     <select name="layout">
-                    </select>                 
+                    </select>
                 </label>
                 <label>
                     <span>Min Word Length</span>
@@ -300,7 +284,7 @@ class Wordcloud extends Plugin {
                         <option value="3">3 characters</option>
                         <option value="4">4 characters</option>
                         <option value="5">5 characters</option>
-                    </select>                 
+                    </select>
                 </label>
                 <label>
                     <span>Font Family</span>
@@ -311,7 +295,7 @@ class Wordcloud extends Plugin {
                     <input type="color" name="backgroundColor" value="#ffffff" />
                     <span class="main__form__color">#??????</span>
                 </label>
-                <div><button class="submit">Generate</button></div> 
+                <div><button class="submit">Generate</button></div>
             </form>
             <div id="WordcloudFormProgress"></div>`)}
             ${Templates.standardResults()}
@@ -322,8 +306,8 @@ class Wordcloud extends Plugin {
         const layoutSelect: HTMLSelectElement = document.querySelector("select[name='layout']") as HTMLSelectElement;
         const backgroundColorInput: HTMLInputElement = document.querySelector("input[name='backgroundColor']") as HTMLInputElement;
         const fontFamilyInput: HTMLInputElement = document.querySelector("input[name='fontFamily']") as HTMLInputElement;
-        const progressWrapper: HTMLDivElement = document.getElementById("WordcloudFormProgress") as HTMLDivElement;         
-        
+        const progressWrapper: HTMLDivElement = document.getElementById("WordcloudFormProgress") as HTMLDivElement;
+
         for (let i=0; i< Wordcloud.layouts.length; i++){
             const clayout = Wordcloud.layouts[i];
             const option = document.createElement("option")
@@ -335,7 +319,7 @@ class Wordcloud extends Plugin {
         fontFamilyInput.addEventListener("mousedown", () => {
             const elementId: string = "Fontlist";
             let container: HTMLDivElement | null = document.getElementById(elementId) as HTMLDivElement;
-            
+
             if (container === null){
                 container = document.createElement("div");
                 container.id = elementId;
@@ -353,10 +337,10 @@ class Wordcloud extends Plugin {
                 options.forEach(font => {
                     const option: HTMLAnchorElement = document.createElement("a");
                     option.innerText = font;
-                    option.href = "#";                    
+                    option.href = "#";
                     container!.appendChild(option);
-                    option.addEventListener("mousedown", (ev: Event) => {                        
-                        fontFamilyInput.value = font;                        
+                    option.addEventListener("mousedown", (ev: Event) => {
+                        fontFamilyInput.value = font;
                         container!.style.display = "none";
                         const event = new Event('change', {
                             bubbles: true,
@@ -376,21 +360,21 @@ class Wordcloud extends Plugin {
             }
             fontFamilyInput.addEventListener("blur", () => {
                 container.style.display = "none";
-            });            
+            });
         });
 
         // initialize PluginData for autoform to work
         const defaultData: {} = {};
         const autoformFields: HTMLElement[] = [strategySelect, minWordLengthSelect, layoutSelect, backgroundColorInput, fontFamilyInput];
         await this.initData(defaultData, autoformFields);
-        
+
         const updateFormValues = () => {
             this.strategy = Number(strategySelect.value);
             this.layout = Wordcloud.layouts.find(a => a.id.toString() == layoutSelect.value) ?? Wordcloud.layouts[0];
             this.minWordLength = Number(minWordLengthSelect.value);
             this.backgroundColor = backgroundColorInput.value;
             this.fontFamily = fontFamilyInput.value ? fontFamilyInput.value : "Montserrat SemiBold";
-            
+
             const colorEcho: HTMLElement | null = document.querySelector(".main__form__color");
             if (colorEcho){
                 colorEcho.innerText = this.backgroundColor;
@@ -404,7 +388,7 @@ class Wordcloud extends Plugin {
         this.progress = HtmlProcessingWidget.createElement(progressWrapper, "Scanning: ");
         this.strategy = Number(strategySelect.value);
         updateFormValues();
-        
+
         const button: HTMLButtonElement = document.querySelector("button") as HTMLButtonElement;
         button.addEventListener("click", async (ev: MouseEvent) => {
             ev.preventDefault();
@@ -437,7 +421,7 @@ class Wordcloud extends Plugin {
             fetch(`${Wordcloud.baseMediaPath}/hunspell/${this.language}.aff`, requestOptions).then(response => response.text()),
             fetch(`${Wordcloud.baseMediaPath}/hunspell/${this.language}.dic`, requestOptions).then(response => response.text()),
         ]);
-        
+
         Wordcloud.typo = new Typo(this.language, affData, wordsData);
         this.wordMap.clear();
         const projectId: number = this.getProjectId();
@@ -446,7 +430,7 @@ class Wordcloud extends Plugin {
         await Search.execute(internalHtmlPagesQuery, this.resultsMap, "Finding jargon…", async (result: SearchResult) => {
             await this.wordcloudResultHandler(result);
         });
-        
+
         let wordcloudWordList: WordcloudWord[] = [...this.wordMap.values()];
         this.wordMapPresentation = this.sortAndTruncatePresentation(wordcloudWordList);
         await this.report();
@@ -464,7 +448,7 @@ class Wordcloud extends Plugin {
 
     private async displayResults(): Promise<void> {
         Wordcloud.cloudWordLayoutMemo = undefined;
-        // called from report, but also rerender        
+        // called from report, but also rerender
         this.removeHandlers();
         const resultsBits: string[] = [];
         resultsBits.push(`<div class="cloud__wrapper">`);
@@ -490,7 +474,7 @@ class Wordcloud extends Plugin {
             </button>
             <button class="cloud__action" aria-label="Download">
             <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="128px"
-                    height="128px" viewBox="1028.5 1212.5 128 128" xml:space="preserve">                    
+                    height="128px" viewBox="1028.5 1212.5 128 128" xml:space="preserve">
                     <path d="M1066.222,1283.45l23.792,23.762c1.328,1.33,3.645,1.33,4.973,0l23.839-23.839c-0.018-0.049-0.116-0.781-1.131-2.058 c-1.345-1.692-3.121-2.872-3.875-2.872l-17.801,17.788v-75.353c-0.15-0.188-1.402-0.727-3.519-0.727s-3.368,0.539-3.54,0.814 l0.021,75.265l-17.834-17.832c-0.722,0.044-2.498,1.224-3.842,2.916C1066.291,1282.592,1066.192,1283.323,1066.222,1283.45z"/>
                     <path d="M1040.056,1290.463c-2.116,0-3.367,0.538-3.539,0.813l0.021,40.054c0,0.383,0,1.126,0.062,1.456 c0.33,0.062,1.073,0.062,1.456,0.062h108.889c0.383,0,1.126,0,1.456-0.062c0.062-0.33,0.062-1.073,0.062-1.456v-40.142 c-0.15-0.188-1.401-0.726-3.518-0.726c-2.115,0-3.366,0.538-3.538,0.813l0.021,34.537h-97.855v-34.625 C1043.422,1291.001,1042.171,1290.463,1040.056,1290.463z"/>                </svg>
             </button>
@@ -499,7 +483,7 @@ class Wordcloud extends Plugin {
                 Hello, how are you?
             </div>
         </form>`);
-        
+
         // canvas otherwise won't generate image correctly without default embedded font
         // all other fonts must be installed on users local computer, css fonts not good
         // enough
@@ -519,7 +503,7 @@ class Wordcloud extends Plugin {
         }
 
         // not going to fight this, this is a dupe of plugin css, but necessary
-        // along with fontdata to get canvas image rendering right, esp. with 
+        // along with fontdata to get canvas image rendering right, esp. with
         // regard stacked display.
         const stackedEmbedCss: string = `
             text {
@@ -531,7 +515,7 @@ class Wordcloud extends Plugin {
                 stroke-width: 5px;
                 paint-order: stroke;
             }
-            .stacked .zsort {position: relative;}  
+            .stacked .zsort {position: relative;}
             .stacked .zsort5 {opacity: 10%;}
             .stacked .zsort6 {opacity: 10%;}
             .stacked .zsort7 {opacity: 11%;}
@@ -585,7 +569,7 @@ class Wordcloud extends Plugin {
             .stacked .zsort55 {opacity: 92%;}`;
 
         resultsBits.push(`<svg class="cloud ${this.layout.spiral}" id="${Wordcloud.svgId}" width="${Wordcloud.svgWidth}" height="${Wordcloud.svgHeight}"
-            viewBox="0 0 ${Wordcloud.svgWidth} ${Wordcloud.svgHeight}" fill="${this.backgroundColor}" 
+            viewBox="0 0 ${Wordcloud.svgWidth} ${Wordcloud.svgHeight}" fill="${this.backgroundColor}"
             preserveAspectRatio="xMidYMid meet">
             <style>
             @font-face {
@@ -600,12 +584,12 @@ class Wordcloud extends Plugin {
             ${stackedEmbedCss}
             </style>
             </svg>`);
-        
+
         resultsBits.push(`</div>`);
         // resultsBits.push(this.generateWordTable());
         const resultsElement: HTMLElement | null = document.querySelector(".main__results");
         // console.log(resultsElement);
-        if (resultsElement !== null) {            
+        if (resultsElement !== null) {
             resultsElement.innerHTML = resultsBits.join("");
             const svg = resultsElement.querySelector("svg.cloud") as HTMLElement;
             if (svg !== null) {
@@ -626,22 +610,20 @@ class Wordcloud extends Plugin {
             </div>`;
         const headings: string[] = ["", "TERM", "COUNT",]; // "TYPE", "CAPTURE",
         const results: string[][] = [];
-        // const captureMap: Map<number, string> = new Map<number, string>();
-        // const typeMap: Map<number, string> = new Map<number, string>();
 
         for (let i=0; i< this.wordMapPresentation.length; i++){
             const cloudword: WordcloudWord = this.wordMapPresentation[i];
             const encodedCloudword: string = HtmlUtils.htmlEncode(cloudword.word);
             results.push([
                 HtmlResultsTable.generateFormatedColumnNumber(i + 1),
-                `${cloudword.getWord()}`,                
+                `${cloudword.getWord()}`,
                 `${cloudword.getCount()}`,
             ]);
         }
 
         // augmented csv, these are unnecessary with the form context, but useful
         const exportExtra: {} = {};
-        const cellHandler: Function = async (ev: MouseEvent) => {     
+        const cellHandler: Function = async (ev: MouseEvent) => {
             const button: HTMLButtonElement = ev.target as HTMLButtonElement;
             if (!button){
                 return;
@@ -689,8 +671,8 @@ class Wordcloud extends Plugin {
         // of larger words on top of zIndex
         words.reverse();
 
-        const halfWidth = Wordcloud.svgWidth / 2; 
-        const halfHeight = Wordcloud.svgHeight / 2; 
+        const halfWidth = Wordcloud.svgWidth / 2;
+        const halfHeight = Wordcloud.svgHeight / 2;
         const color = d3.scaleOrdinal(d3.schemeCategory10);
         const transform: string = `translate(${halfWidth},${halfHeight})`;
         const svg = d3.select(`#${Wordcloud.svgId}`);
@@ -715,8 +697,6 @@ class Wordcloud extends Plugin {
             const textSize: number = parseInt(text.style.fontSize, 10);
             text.classList.add(`zsort`, `zsort${textSize}`); // 5 - 55
         }
-        // console.log(allText);
-
     }
 
     private generateCloud(): void {
@@ -744,7 +724,7 @@ class Wordcloud extends Plugin {
         if (!this.layout.separated){
             svgEl.classList.add("stacked");
         }
-        
+
         // keep an eye on .font(), it is not only applying font, but affecting separation
         this.cloudLayout = d3.layout.cloud()
             .size([Wordcloud.svgWidth, Wordcloud.svgHeight])
@@ -756,10 +736,8 @@ class Wordcloud extends Plugin {
             .spiral(this.layout.spiral)
             .on("end", this.draw);
         this.cloudLayout.start();
-
-        
     }
-    
+
     private addHandlers(): void {
         if (this.table) {
             this.table.addHandlers();
@@ -776,7 +754,6 @@ class Wordcloud extends Plugin {
     private applyHandlers(add: boolean): void {
 
         const navLinkMethod: string = add ? "addEventListener" : "removeEventListener";
-        
         const actions: NodeListOf<HTMLElement> = document.querySelectorAll(".cloud__action");
         if (actions.length == 3){
             actions[0][navLinkMethod]("click", this.cloudExpandHandler);
@@ -810,7 +787,7 @@ class Wordcloud extends Plugin {
     }
 
     private async wordcloudResultHandler(result: SearchResult) {
-        
+
         if (!result.getContent() && !result.hasProcessedContent()) {
             return;
         }
@@ -824,11 +801,11 @@ class Wordcloud extends Plugin {
 
         const documentTextWords: string[] = result.getProcessedContent().split(Wordcloud.wordSplitRe);
         for (let documentTextWord of documentTextWords) {
-            
+
             // common processing
             let cleanedWord = documentTextWord.replace(Wordcloud.wordTrimRe, "");
-            cleanedWord = cleanedWord.replace(/[‘’]/, "'");       
-            
+            cleanedWord = cleanedWord.replace(/[‘’]/, "'");
+
             if (this.stopwordsTruth[cleanedWord.toLowerCase()] !== undefined) {
                 continue;
             }
@@ -847,11 +824,11 @@ class Wordcloud extends Plugin {
                     wordcloudWord.incrementCount();
                 }
             };
-            
+
             switch(this.strategy){
                 case 0: // jargon
                     // misspelled *is* the jargon detection
-                    let misspelled: boolean = this.isMisspelling(cleanedWord, {});                    
+                    let misspelled: boolean = this.isMisspelling(cleanedWord, {});
                     if (misspelled) {
                         // this is what is desired (presumed jargon)
                         addToWordmap(cleanedWord);
@@ -866,7 +843,7 @@ class Wordcloud extends Plugin {
 
         if (!this.resultsMap.has(result.id)) {
             this.resultsMap.set(result.id, result);
-        }        
+        }
     }
 
     private isMisspelling(cleanedWord: string, ignoredMap: {}): boolean {
@@ -903,7 +880,7 @@ class Wordcloud extends Plugin {
 
         // Get the SVG data
         const svgData = new XMLSerializer().serializeToString(svgElement);
-        
+
         // Create a canvas element
         const canvas = document.createElement("canvas");
         const img = document.createElement("img");
@@ -927,4 +904,3 @@ class Wordcloud extends Plugin {
 
 // handles DOMContentLoaded initialization
 Plugin.initialize(Wordcloud);
-

@@ -333,6 +333,14 @@ class Plugin {
     }
 
     /**
+     * Gets the current mode.
+     * @returns The mode (DarkMode.Light, DarkMode.Dark).
+     */
+    public getMode(): DarkMode {
+        return this.mode;
+    }
+
+    /**
      * Gets the current project ID.
      * @returns The project ID.
      */
@@ -539,4 +547,4 @@ class Plugin {
     }
 }
 
-export { Plugin, PluginConnection };
+export { Plugin, PluginConnection, DarkMode };

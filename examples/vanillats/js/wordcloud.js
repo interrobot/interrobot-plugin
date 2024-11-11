@@ -1044,6 +1044,13 @@ ${JSON.stringify(kwargs)}`);
       return new Promise((resolve) => setTimeout(resolve, ms));
     }
     /**
+     * Gets the current mode.
+     * @returns The mode (DarkMode.Light, DarkMode.Dark).
+     */
+    getMode() {
+      return this.mode;
+    }
+    /**
      * Gets the current project ID.
      * @returns The project ID.
      */
@@ -4128,7 +4135,6 @@ This is the default plugin description. Set meta: {} values
         this.wordMapPresentation.push(newWord);
         this.wordMapPresentation = this.sortAndTruncatePresentation(this.wordMapPresentation);
         await this.displayResults();
-        ev.preventDefault();
       };
       this.cloudExpandHandler = (ev) => {
         ev.preventDefault();
@@ -4175,13 +4181,13 @@ This is the default plugin description. Set meta: {} values
                     <select name="strategy">
                         <option value="1">Frequency</option>
                         <option value="0">Jargon</option>
-                        
-                    </select>                 
+
+                    </select>
                 </label>
                 <label>
                     <span>Layout</span>
                     <select name="layout">
-                    </select>                 
+                    </select>
                 </label>
                 <label>
                     <span>Min Word Length</span>
@@ -4189,7 +4195,7 @@ This is the default plugin description. Set meta: {} values
                         <option value="3">3 characters</option>
                         <option value="4">4 characters</option>
                         <option value="5">5 characters</option>
-                    </select>                 
+                    </select>
                 </label>
                 <label>
                     <span>Font Family</span>
@@ -4200,7 +4206,7 @@ This is the default plugin description. Set meta: {} values
                     <input type="color" name="backgroundColor" value="#ffffff" />
                     <span class="main__form__color">#??????</span>
                 </label>
-                <div><button class="submit">Generate</button></div> 
+                <div><button class="submit">Generate</button></div>
             </form>
             <div id="WordcloudFormProgress"></div>`)}
             ${Templates.standardResults()}
@@ -4361,7 +4367,7 @@ This is the default plugin description. Set meta: {} values
             </button>
             <button class="cloud__action" aria-label="Download">
             <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="128px"
-                    height="128px" viewBox="1028.5 1212.5 128 128" xml:space="preserve">                    
+                    height="128px" viewBox="1028.5 1212.5 128 128" xml:space="preserve">
                     <path d="M1066.222,1283.45l23.792,23.762c1.328,1.33,3.645,1.33,4.973,0l23.839-23.839c-0.018-0.049-0.116-0.781-1.131-2.058 c-1.345-1.692-3.121-2.872-3.875-2.872l-17.801,17.788v-75.353c-0.15-0.188-1.402-0.727-3.519-0.727s-3.368,0.539-3.54,0.814 l0.021,75.265l-17.834-17.832c-0.722,0.044-2.498,1.224-3.842,2.916C1066.291,1282.592,1066.192,1283.323,1066.222,1283.45z"/>
                     <path d="M1040.056,1290.463c-2.116,0-3.367,0.538-3.539,0.813l0.021,40.054c0,0.383,0,1.126,0.062,1.456 c0.33,0.062,1.073,0.062,1.456,0.062h108.889c0.383,0,1.126,0,1.456-0.062c0.062-0.33,0.062-1.073,0.062-1.456v-40.142 c-0.15-0.188-1.401-0.726-3.518-0.726c-2.115,0-3.366,0.538-3.538,0.813l0.021,34.537h-97.855v-34.625 C1043.422,1291.001,1042.171,1290.463,1040.056,1290.463z"/>                </svg>
             </button>
@@ -4393,7 +4399,7 @@ This is the default plugin description. Set meta: {} values
                 stroke-width: 5px;
                 paint-order: stroke;
             }
-            .stacked .zsort {position: relative;}  
+            .stacked .zsort {position: relative;}
             .stacked .zsort5 {opacity: 10%;}
             .stacked .zsort6 {opacity: 10%;}
             .stacked .zsort7 {opacity: 11%;}
@@ -4446,7 +4452,7 @@ This is the default plugin description. Set meta: {} values
             .stacked .zsort54 {opacity: 87%;}
             .stacked .zsort55 {opacity: 92%;}`;
       resultsBits.push(`<svg class="cloud ${this.layout.spiral}" id="${Wordcloud.svgId}" width="${Wordcloud.svgWidth}" height="${Wordcloud.svgHeight}"
-            viewBox="0 0 ${Wordcloud.svgWidth} ${Wordcloud.svgHeight}" fill="${this.backgroundColor}" 
+            viewBox="0 0 ${Wordcloud.svgWidth} ${Wordcloud.svgHeight}" fill="${this.backgroundColor}"
             preserveAspectRatio="xMidYMid meet">
             <style>
             @font-face {
@@ -4700,19 +4706,19 @@ This is the default plugin description. Set meta: {} values
     "version": "1.0.0",
     "author": "InterroBot",
     "synopsis": `create a wordcloud from website content`,
-    "description": `Relive the Web 2.0 dream in all its grandeur! Website Word Cloud finds unique and 
-            interesting keywords in your web content and generates a word cloud, and the tools to tweak the 
+    "description": `Relive the Web 2.0 dream in all its grandeur! Website Word Cloud finds unique and
+            interesting keywords in your web content and generates a word cloud, and the tools to tweak the
             visualization.
 
 
-            Word selection is governed by strategy, extracting unique terms (jargon) or by frequency, which 
-            selects for any and all terms. The Layout option changes the aesthetic of the word cloud, while 
-            Min Word Length filters exactly that. For font options, you can enter any installed font on your device or 
+            Word selection is governed by strategy, extracting unique terms (jargon) or by frequency, which
+            selects for any and all terms. The Layout option changes the aesthetic of the word cloud, while
+            Min Word Length filters exactly that. For font options, you can enter any installed font on your device or
             select from a list of "web safe" fonts.
             
 
 
-            InterroBot Word Cloud utilizes the d3 and d3-cloud open-source visualization libraries to bring 
+            InterroBot Word Cloud utilizes the d3 and d3-cloud open-source visualization libraries to bring
             your word clouds to life.`
   };
   Wordcloud.layouts = [
