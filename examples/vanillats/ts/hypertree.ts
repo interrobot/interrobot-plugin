@@ -78,7 +78,7 @@ class Hypertree extends Plugin {
     public static override readonly meta: {} = {
         "title": "Website Hypertree",
         "category": "Visualization",
-        "version": "1.0.0",
+        "version": "1.0.1",
         "author": "InterroBot",
         "synopsis": `create a hypertree from website content`,
         "description": `Get a new, uniquely hyperbolic perspective on your website—your
@@ -98,7 +98,7 @@ class Hypertree extends Plugin {
 
     private static readonly resultDialogId: string = "ResultDialog";
     private static readonly panicDialogId: string = "PanicDialog";
-    private static readonly formDialogId: string = "SearchDialog";
+    private static readonly searchDialogId: string = "SearchDialog";
     private static readonly searchResultsDialogId: string = "SearchDialogResults";
 
     private nonResultId: number = 0;
@@ -118,6 +118,7 @@ class Hypertree extends Plugin {
     private currentDetailId: number = -1;
     private currentSearchIndex: number = -1;
     private isNavigating: boolean = false;
+    private searchNavigationQueue: Promise<void> = Promise.resolve();
 
     public constructor() {
         super();
@@ -125,9 +126,6 @@ class Hypertree extends Plugin {
     }
 
     protected override async index() {
-
-        this.resultsMap.clear();
-        this.resultUrlMap.clear();
 
         // this will effect the result of the 3 functions passed
         // to reflect dark mode correctly
@@ -166,8 +164,7 @@ class Hypertree extends Plugin {
                     captionHeight: .09,
                 }
             }
-        )
-
+        );
 
         await this.component.initPromise
             .then(()=> new Promise((ok, err)=> this.component.animateUp(ok, err)))
@@ -191,25 +188,27 @@ class Hypertree extends Plugin {
             } else {
                 const focusedButton: HTMLInputElement = document.querySelector("button:focus") as HTMLInputElement;
                 if (focusedButton !== null){
-                    this.closeDetail(false);
+                    await this.closeDetail(false);
                 }
             }
         });
 
-        document.addEventListener("hypertreePanic", (ev: any) => {
-            this.openDialog(this.panicDialog);
+        document.addEventListener("hypertreePanic", async(ev: any) => {
+            await this.openDialog(this.panicDialog);
         });
 
         // handle some UI via dialogs
         this.resultDialog = this.generateResultDialog();
         this.panicDialog = this.generatePanicDialog();
 
-        // clean up on resize or artifacts
         window.addEventListener("resize", (ev) => {
+            // clean up on resize or artifacts
             const dialogsHrs = document.querySelectorAll("dialog hr");
             dialogsHrs.forEach(element => {
                 element.parentNode?.removeChild(element);
             });
+            // 100% scale, width becomes max-height (1x1 aspect)
+            Plugin.postContentHeight(window.innerWidth);
         });
 
         document.addEventListener("keydown", async(ev) => {
@@ -217,7 +216,7 @@ class Hypertree extends Plugin {
             switch (ev.key) {
                 case "`":
                     ev.preventDefault();
-                    this.openDialog(this.searchDialog);
+                    await this.openDialog(this.searchDialog);
                     break;
                 case "ArrowLeft":
                 case "ArrowRight":
@@ -258,7 +257,14 @@ class Hypertree extends Plugin {
                     break;
             }
         });
-        Plugin.postContentHeight();
+        // 100% scale, width becomes max-height (1x1 aspect)
+        Plugin.postContentHeight(window.innerWidth);
+    }
+
+    private clearMaps(): void {
+        this.resultsMap.clear();
+        this.resultUrlMap.clear();
+        this.renderedIds = [];
     }
 
     private findNodeById(root:any, targetId: number){
@@ -292,104 +298,116 @@ class Hypertree extends Plugin {
         this.searchDialog.querySelector("input")?.blur();
         this.searchDialog.close();
 
-        // use this to tame events popping off over travel to node
-        this.isNavigating = true;
-        ev.preventDefault();
+        this.searchNavigationQueue = this.searchNavigationQueue.then(async () => {
+            this.isNavigating = true;
+            try {
 
-        // this bit was developed slowly, took time, be careful
-        // this takes a mouse event and hitId, and pans into the node
-        // used from search result click
 
-        // do whatever it takes to navigate to the node, this involves
-        // off script manipulations of d3 hypertree that I expect will be
-        // fragile
-        await this.component.initPromise
-        // .then(() => new Promise((ok, err) => this.component.animateUp(ok, err)))
-        .then(() => this.component.drawDetailFrame())
-        .then(() => this.component.unitdisk.update.transformation())
-        .then(() => new Promise((resolve, reject) => {
+                // use this to tame events popping off over travel to node
+                this.isNavigating = true;
+                ev.preventDefault();
 
-            let attempts = 0;
-            const maxAttempts = 120; // ~2 seconds at 60fps
-            const checkNode = () => {
-                attempts++;
+                // this bit was developed slowly, took time, be careful
+                // this takes a mouse event and hitId, and pans into the node
+                // used from search result click
+
+                // do whatever it takes to navigate to the node, this involves
+                // off script manipulations of d3 hypertree that I expect will be
+                // fragile
+                await this.component.initPromise
+                // .then(() => new Promise((ok, err) => this.component.animateUp(ok, err)))
+                .then(() => this.component.drawDetailFrame())
+                .then(() => this.component.unitdisk.update.transformation())
+                .then(() => new Promise((resolve, reject) => {
+
+                    let attempts = 0;
+                    const maxAttempts = 120; // ~2 seconds at 60fps
+                    const checkNode = () => {
+                        attempts++;
+                        const resultNode = this.findNodeById(this.component.data, hitId);
+                        // force an update, if necessary
+                        if (resultNode?.layout === null) {
+                            this.component.updateLayoutPath_(resultNode);
+                        }
+
+                        if (resultNode?.layout?.z) {
+                            resolve(resultNode);
+                        } else if (attempts > maxAttempts) {
+                            // reset transformation state and force update
+                            this.component.transition = null;
+                            this.component.unitdisk.update.transformation();
+                            return reject(new Error("failed checkNode after maximum attempts"));
+                        } else {
+                            requestAnimationFrame(checkNode);
+                        }
+                    };
+                    checkNode();
+                }))
+                .then(resultNode => new Promise((resolve, reject) => {
+
+                    // force an update, if necessary
+                    if (resultNode?.layout === null) {
+                        this.component.updateLayoutPath_(resultNode);
+                    }
+
+                    // gotoNode in promise to ensure completion
+                    this.component.api.gotoNode(resultNode);
+
+                    let attempts = 0;
+                    const maxAttempts = 120;
+                    const checkAnimation = () => {
+                        attempts++;
+                        if (attempts > maxAttempts) {
+                            // reset transformation state and force update
+                            this.component.transition = null;
+                            this.component.unitdisk.update.transformation();
+                            return reject(new Error("failed checkAnimation after maximum attempts"));
+                        }
+
+                        if (!this.component.transition) {
+                            resolve(resultNode);
+                        } else {
+                            requestAnimationFrame(checkAnimation);
+                        }
+                    };
+                    checkAnimation();
+                }))
+                .then(() => this.component.api.gotoλ(.25))
+                .catch(error => {
+                    console.error("navigation failed or interrupted:", error);
+                });
+
+                this.isNavigating = false;
+
+                // incentivize a necessary draw of icons
+                this.component.update.data();
+
                 const resultNode = this.findNodeById(this.component.data, hitId);
-                // force an update, if necessary
                 if (resultNode?.layout === null) {
+                    // force an update, if necessary
                     this.component.updateLayoutPath_(resultNode);
                 }
 
-                if (resultNode?.layout?.z) {
-                    resolve(resultNode);
-                } else if (attempts > maxAttempts) {
-                    // reset transformation state and force update
-                    this.component.transition = null;
-                    this.component.unitdisk.update.transformation();
-                    return reject(new Error("failed checkNode after maximum attempts"));
-                } else {
-                    requestAnimationFrame(checkNode);
-                }
-            };
-            checkNode();
-        }))
-        .then(resultNode => new Promise((resolve, reject) => {
+                // initiate dialog with event (bc shared with mod.js)
+                const detailEvent = new CustomEvent("hypertreeDetail", {
+                    detail: {
+                        id: resultNode.data.interrobotId,
+                        timestamp: Date.now()
+                    }
+                });
+                document.dispatchEvent(detailEvent);
 
-            // force an update, if necessary
-            if (resultNode?.layout === null) {
-                this.component.updateLayoutPath_(resultNode);
-            }
-
-            // gotoNode in promise to ensure completion
-            this.component.api.gotoNode(resultNode);
-
-            let attempts = 0;
-            const maxAttempts = 120;
-            const checkAnimation = () => {
-                attempts++;
-                if (attempts > maxAttempts) {
-                    // reset transformation state and force update
-                    this.component.transition = null;
-                    this.component.unitdisk.update.transformation();
-                    return reject(new Error("failed checkAnimation after maximum attempts"));
-                }
-
-                if (!this.component.transition) {
-                    resolve(resultNode);
-                } else {
-                    requestAnimationFrame(checkAnimation);
-                }
-            };
-            checkAnimation();
-        }))
-        .then(() => this.component.api.gotoλ(.25))
-        .catch(error => {
-            console.error("navigation failed:", error);
-        });
-
-        this.isNavigating = false;
-
-        // incentivize a necessary draw of icons
-        this.component.update.data();
-
-        const resultNode = this.findNodeById(this.component.data, hitId);
-        if (resultNode?.layout === null) {
-            // force an update, if necessary
-            this.component.updateLayoutPath_(resultNode);
-        }
-
-        // initiate dialog with event (bc shared with mod.js)
-        const detailEvent = new CustomEvent("hypertreeDetail", {
-            detail: {
-                id: resultNode.data.interrobotId,
-                timestamp: Date.now()
+            } finally {
+                this.isNavigating = false;
             }
         });
-        document.dispatchEvent(detailEvent);
+
+
     }
 
     private async generateSearchDialog(): Promise<HTMLDialogElement> {
         const dialog: HTMLDialogElement = document.createElement("dialog");
-        dialog.setAttribute("id", Hypertree.formDialogId);
+        dialog.setAttribute("id", Hypertree.searchDialogId);
         document.body.appendChild(dialog);
         dialog.innerHTML = `
         <div class="message fadeIn">
@@ -430,14 +448,14 @@ class Hypertree extends Plugin {
             ev.preventDefault();
             this.closeDialog(this.searchDialog);
         });
-        queryInput?.addEventListener("focus", (ev) => {
-            this.openDialog(this.searchDialog);
+        queryInput?.addEventListener("focus", async(ev) => {
+            await this.openDialog(this.searchDialog);
         });
-        queryInput?.addEventListener("click", (ev) => {
-            this.openDialog(this.searchDialog);
+        queryInput?.addEventListener("click", async(ev) => {
+            await this.openDialog(this.searchDialog);
         });
-        queryInput?.addEventListener("keyup", (ev) => {
-            this.openDialog(this.searchDialog);
+        queryInput?.addEventListener("keyup", async(ev) => {
+            await this.openDialog(this.searchDialog);
         });
 
         const searchInput: HTMLInputElement | null = dialog.querySelector("input[name=query]");
@@ -566,6 +584,61 @@ class Hypertree extends Plugin {
         return [this.panicDialog, this.resultDialog, this.searchDialog];
     }
 
+    private async openDialog(targetDialog: HTMLDialogElement): Promise<void> {
+
+        this.resultDialog.classList.remove("fadeOut");
+
+        const dialogClosePromises = this.getDialogs()
+        .filter(dialog => dialog !== targetDialog && dialog.hasAttribute("open"))
+        .map(async dialog => {
+            if (dialog.id === Hypertree.resultDialogId) {
+                await this.closeDetail(true);
+            } else {
+                dialog.close();
+            }
+        });
+
+        await Promise.all(dialogClosePromises);
+
+        // Open target dialog
+        if (!targetDialog.hasAttribute("open")) {
+            targetDialog.show();
+            if (targetDialog.id === Hypertree.searchDialogId) {
+                this.currentSearchIndex = -1;
+                const searchInput = targetDialog.querySelector<HTMLInputElement>("input[name=query]");
+                searchInput?.dispatchEvent(new Event("keyup", { bubbles: false }));
+            }
+        }
+        /*
+        // this.resultDialog.classList.remove("fadeOut");
+        this.getDialogs().forEach(async(dialog) => {
+            const dialogIsOpen: boolean = dialog.hasAttribute("open");
+            if (!dialogIsOpen && dialog !== targetDialog){
+                return;
+            }
+            if (dialog === targetDialog){
+                if (!dialog.hasAttribute("open")){
+                    dialog.show();
+                    if (targetDialog.id === Hypertree.searchDialogId){
+                        // get a search result from existing query primed on first contact
+                        this.currentSearchIndex = -1;
+                        const searchInput: HTMLInputElement | null = dialog.querySelector("input[name=query]");
+                        const event = new Event("keyup", { bubbles: false });
+                        searchInput?.dispatchEvent(event);
+                    }
+                }
+            } else {
+                if (dialog.id === Hypertree.resultDialogId){
+                    await this.closeDetail(true);
+                } else {
+                    dialog.close();
+                }
+
+            }
+        });
+        */
+    }
+
     private closeDialog(targetDialog: HTMLDialogElement): void {
         this.getDialogs().forEach(dialog => {
             if (dialog.hasAttribute("open")){
@@ -617,74 +690,6 @@ class Hypertree extends Plugin {
         this.focusSearchDialogResult(1);
     }
 
-    private openDialog(targetDialog: HTMLDialogElement): void {
-
-        // this.resultDialog.classList.remove("fadeOut");
-        this.getDialogs().forEach(async(dialog) => {
-            if (!dialog.hasAttribute("open") && dialog !== targetDialog){
-                return;
-            }
-            if (dialog === targetDialog){
-                dialog.show();
-                if (targetDialog.id === Hypertree.formDialogId){
-                    // get a search result from existing query primed on first contact
-                    this.currentSearchIndex = -1;
-                    const searchInput: HTMLInputElement | null = dialog.querySelector("input[name=query]");
-                    const event = new Event("keyup", { bubbles: true });
-                    searchInput?.dispatchEvent(event);
-                }
-            } else {
-                if (dialog.id === Hypertree.resultDialogId){
-                    await this.closeDetail(true);
-                } else {
-                    dialog.close();
-                }
-
-            }
-        });
-    }
-
-    private async closeDetail(cancelAddPath: boolean): Promise<void> {
-
-        // this gets called more often than you'd expect, because modifications to the
-        // underlying hypertree also call this (to close dialog and recover when user
-        // grabs the plane in background). anyways, be careful and maybe clean up at some point
-        if (this.isNavigating){
-            return;
-        }
-
-        // a cancel is a special case where an action (toggled selection on) is undone
-        // get the last added selection and remove it. yet to see this simple method fail
-        if (cancelAddPath === true){
-            const selections = this.component.args.objects.selections;
-            const node = selections.length > 0 ? selections[selections.length - 1] : null;
-            if (node){
-                this.component.api.toggleSelection(node);
-            }
-        }
-
-        await this.updateAutoformNodes();
-
-        // set up animations, this is noisy but the benefit is that you can see the
-        // crosshairs of the underlying icon under the dialog when closed, which solves
-        // a UI blind spot. the message fades faster than the hrs, for effect
-        const msg = this.resultDialog.querySelector(".message") as HTMLElement;
-        msg?.classList.remove("fadeIn");
-        msg?.classList.add("fadeOut");
-        const hrs = this.resultDialog.querySelectorAll("hr.line");
-        hrs.forEach(hr => {
-            hr.classList.add("fadeOut");
-        });
-
-         // this inevitably backfires (undesirable events), stick with above
-        // window.setTimeout(() => { }, 2000);
-
-        this.currentDetailId = -1; // reset detail dialog
-        this.closeDialog(this.resultDialog);
-        const query = this.searchDialog.querySelector("input[name=query]") as HTMLInputElement;
-        query?.blur();
-    }
-
     private async updateAutoformNodes(): Promise<void> {
 
         const activeIds: number[] = [];
@@ -705,6 +710,8 @@ class Hypertree extends Plugin {
         const nodesVal: string = activeIds.join(",");
         await this.data.setAutoformField("nodes", nodesVal);
     }
+
+
 
     private async openDetail(ev: any): Promise<void> {
 
@@ -799,7 +806,7 @@ class Hypertree extends Plugin {
                 Plugin.postOpenResourceLink(pageId, true);
             });
 
-            this.openDialog(this.resultDialog);
+            await this.openDialog(this.resultDialog);
             this.resultDialog.classList.remove("ok", "error", "warn", "disabled");
             this.resultDialog.classList.add(HypertreeUi.status2Class(result.status));
             this.currentDetailId = result.id;
@@ -809,6 +816,8 @@ class Hypertree extends Plugin {
                 const hitBounds = hit.getBoundingClientRect();
                 const hitBoundsX: number = hitBounds.left + hitBounds.width/2;
                 const hitBoundsY: number = hitBounds.top + hitBounds.height/2;
+
+
                 const getDistance = (p1x: number, p1y: number, p2x: number, p2y: number): number => {
                     return Math.sqrt(
                         Math.pow(p1x - p2x, 2) +
@@ -817,33 +826,80 @@ class Hypertree extends Plugin {
                 };
                 // draw dialog zoom lines
                 const corners: string[] = ["lt", "rt", "lb", "rb"];
-                corners.forEach((corner) => {
-                    const hr = document.createElement("hr");
-                    hr.setAttribute("class",`line ${corner}`);
-                    this.resultDialog.append(hr);
-                    const dialogPointX = corner[0] === "l" ? dialogBounds.x : dialogBounds.x + dialogBounds.width;
-                    const dialogPointY = corner[1] === "t" ? dialogBounds.y : dialogBounds.y + dialogBounds.height;
-                    const distance = getDistance(dialogPointX, dialogPointY, hitBoundsX, hitBoundsY);
-                    let angle: number = 0;
-                    if (corner[0] === "l"){
-                        angle = Math.atan2( // left side, left anchored
-                            hitBoundsY - dialogPointY,
-                            hitBoundsX - dialogPointX
-                        ) * (180 / Math.PI);
-                    } else {
-                        angle = Math.atan2( // right side, right anchored
-                            dialogPointY - hitBoundsY,
-                            (dialogPointX) - hitBoundsX
-                        ) * (180 / Math.PI);
-                    }
-                    hr.style.width = `${distance}px`;
-                    hr.style.transform = `rotate(${angle}deg)`;
-                });
+
+                // fix bug where they go to top left of screen (theory - intel gpus?)
+                // if it looks cooked, just don't draw the lines
+                if (!(hitBounds.left === 0 && hitBounds.top === 0)){
+                    corners.forEach((corner) => {
+                        const hr = document.createElement("hr");
+                        hr.setAttribute("class",`line ${corner}`);
+                        this.resultDialog.append(hr);
+                        const dialogPointX = corner[0] === "l" ? dialogBounds.x : dialogBounds.x + dialogBounds.width;
+                        const dialogPointY = corner[1] === "t" ? dialogBounds.y : dialogBounds.y + dialogBounds.height;
+                        const distance = getDistance(dialogPointX, dialogPointY, hitBoundsX, hitBoundsY);
+                        let angle: number = 0;
+                        if (corner[0] === "l"){
+                            angle = Math.atan2( // left side, left anchored
+                                hitBoundsY - dialogPointY,
+                                hitBoundsX - dialogPointX
+                            ) * (180 / Math.PI);
+                        } else {
+                            angle = Math.atan2( // right side, right anchored
+                                dialogPointY - hitBoundsY,
+                                (dialogPointX) - hitBoundsX
+                            ) * (180 / Math.PI);
+                        }
+                        hr.style.width = `${distance}px`;
+                        hr.style.transform = `rotate(${angle}deg)`;
+                    });
+                }
+
             }
         } else {
 
             await this.closeDetail(false);
         }
+    }
+
+    private async closeDetail(cancelAddPath: boolean): Promise<void> {
+
+        // this gets called more often than you'd expect, because modifications to the
+        // underlying hypertree also call this (to close dialog and recover when user
+        // grabs the plane in background). anyways, be careful and maybe clean up at some point
+        if (this.isNavigating){
+            return;
+        }
+
+        // a cancel is a special case where an action (toggled selection on) is undone
+        // get the last added selection and remove it. yet to see this simple method fail
+        if (cancelAddPath === true){
+            const selections = this.component.args.objects.selections;
+            const node = selections.length > 0 ? selections[selections.length - 1] : null;
+            if (node){
+                this.component.api.toggleSelection(node);
+            }
+        }
+
+        await this.updateAutoformNodes();
+
+        // set up animations, this is noisy but the benefit is that you can see the
+        // crosshairs of the underlying icon under the dialog when closed, which solves
+        // a UI blind spot. the message fades faster than the hrs, for effect
+        const msg = this.resultDialog.querySelector(".message") as HTMLElement;
+        msg?.classList.remove("fadeIn");
+        msg?.classList.add("fadeOut");
+        const hrs = this.resultDialog.querySelectorAll("hr.line");
+        hrs.forEach(hr => {
+            hr.classList.add("fadeOut");
+        });
+
+         // this inevitably backfires (undesirable events), stick with above
+        // window.setTimeout(() => { }, 2000);
+
+        this.currentDetailId = -1; // reset detail dialog
+        this.closeDialog(this.resultDialog);
+        const query = this.searchDialog.querySelector("input[name=query]") as HTMLInputElement;
+        query?.blur();
     }
 
     private fromUndefinedLangauge(): (callback: LangFileLoadCallback) => void {
@@ -942,6 +998,9 @@ class Hypertree extends Plugin {
     }
 
     private async gatherResults(query: SearchQuery): Promise<{}> {
+
+        this.clearMaps();
+
         const projectUrl = (await this.getProject()).url;
         const gatheredUrls: string[] = [];
 

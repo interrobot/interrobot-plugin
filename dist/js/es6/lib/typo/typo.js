@@ -522,9 +522,10 @@ class Typo {
         if ("ONLYINCOMPOUND" in this.flags) {
             this.compoundRuleCodes[this.flags.ONLYINCOMPOUND] = [];
         }
-        console.time("load dictionary");
+        const msg = `typo.ts loaded ${this.dictionary} dictionary`;
+        console.time(msg);
         this.parseDIC(this.wordsData);
-        console.timeEnd("load dictionary");
+        console.timeEnd(msg);
         // Get rid of any codes from the compound rule codes that are never used 
         // (or that were special regex characters).  Not especially necessary... 
         for (let k in this.compoundRuleCodes) {

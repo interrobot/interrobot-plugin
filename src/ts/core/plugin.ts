@@ -84,6 +84,7 @@ class PluginConnection {
  */
 class Plugin {
 
+    
     /**
      * Metadata for the plugin.
      */
@@ -108,8 +109,8 @@ class Plugin {
         const createAndConfigure = () => {
             let instance: any | null = new classtype();
             Plugin.postMeta(instance.constructor.meta);
-            window.addEventListener("load", Plugin.postContentHeight);
-            window.addEventListener("resize", Plugin.postContentHeight);
+            window.addEventListener("load", () => Plugin.postContentHeight());
+            window.addEventListener("resize", () => Plugin.postContentHeight());
             return instance;
         };
 
@@ -127,8 +128,9 @@ class Plugin {
     /**
      * Posts the current content height to the parent frame.
      */
-    public static postContentHeight(): void {
+    public static postContentHeight(constrainTo: number = null): void {
 
+        // Posts the current content height, or window height, whichever is lesser
         const mainResults: HTMLElement = document.querySelector(".main__results");
         let currentScrollHeight: number = document.body.scrollHeight;
         if (mainResults) {
@@ -137,10 +139,14 @@ class Plugin {
         }
 
         if (currentScrollHeight !== Plugin.contentScrollHeight) {
+            // useful in aspect ratio scaled situations, otherwise
+            // height will only ever increase
+            const constrainedHeight = constrainTo && constrainTo >= 1 ?
+                Math.min(constrainTo, currentScrollHeight) : currentScrollHeight;
             const msg = {
                 target: "interrobot",
                 data: {
-                    reportHeight: currentScrollHeight,
+                    reportHeight: constrainedHeight,
                 },
             };
             Plugin.routeMessage(msg);

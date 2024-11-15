@@ -57,7 +57,7 @@ declare class Plugin {
     /**
      * Posts the current content height to the parent frame.
      */
-    static postContentHeight(): void;
+    static postContentHeight(constrainTo?: number): void;
     /**
      * Posts a request to open a resource link.
      * @param resource - The resource identifier.

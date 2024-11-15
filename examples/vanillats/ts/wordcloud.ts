@@ -1,5 +1,5 @@
 // Wordcloud, EN only. Take web copy, pull out interesting words.
-// Present aforementioned words as "cloud."
+//  Present aforementioned words as "cloud."
 
 import { Plugin } from "../../../src/ts/core/plugin";
 import { SearchQueryType, SearchQuery, Search, SearchResult, Project, PluginData } from "../../../src/ts/core/api";
@@ -12,8 +12,8 @@ import { HtmlResultsTable, HTMLResultsTableSort, SortOrder } from "../../../src/
 
 // d3 is modular, and not friendly outside npm
 // don't bother, not worth the effort to reconcile types
-declare const d3: any;
-declare const d3cloud: any;
+declare var d3: any;
+declare var d3cloud: any;
 
 class WordcloudLayout {
 
@@ -70,7 +70,7 @@ class Wordcloud extends Plugin {
     public static override readonly meta: {} = {
         "title": "Website Word Cloud",
         "category": "Visualization",
-        "version": "1.0.0",
+        "version": "1.0.1",
         "author": "InterroBot",
         "synopsis": `create a wordcloud from website content`,
         "description": `Relive the Web 2.0 dream in all its grandeur! Website Word Cloud finds unique and
@@ -86,9 +86,8 @@ class Wordcloud extends Plugin {
     }
 
     public static layouts: WordcloudLayout[] = [
-        new WordcloudLayout(1, "Separated Quad", "rectangular", true),
-        new WordcloudLayout(2, "Separated Oval", "archimedean", true),
-        new WordcloudLayout(3, "Stacked", "rectangular", false),
+        new WordcloudLayout(1, "Rectangle", "rectangular", true),
+        new WordcloudLayout(2, "Elliptical", "archimedean", true),
     ];
 
     // this is a hassle due to svg/canvas rendering requirements, but least hassle right here
@@ -139,6 +138,7 @@ class Wordcloud extends Plugin {
     private static readonly wordAnyNumberRe: RegExp = /\d/;
     private static readonly wordAnyPunctuationRe: RegExp = /\p{P}/u;
 
+
     private static readonly svgWidth: number = 1920;
     private static readonly svgHeight: number = 1080;
     private static readonly svgId: string = "d3svg";
@@ -162,7 +162,7 @@ class Wordcloud extends Plugin {
     private resultsMap: Map<number, SearchResult> = new Map<number, SearchResult>();
     private deleteWordHandler: Function;
     private addWordHandler: Function;
-    // private fullscreenHandler: Function;
+
     private cloudExpandHandler: Function;
     private cloudRefreshHandler: Function;
     private cloudDownloadHandler: Function;
@@ -176,6 +176,7 @@ class Wordcloud extends Plugin {
         this.table = null;
         this.progress = null;
         this.stopwordsTruth = Stopwords.getStopwordsTruth("en");
+
         // <a> handler for delete links per word
         this.deleteWordHandler = async(ev: MouseEvent) => {
             // find in presentation list and remove
@@ -210,6 +211,7 @@ class Wordcloud extends Plugin {
                 return;
             }
 
+
             const newWord = new WordcloudWord(word, count);
             this.wordMapPresentation.push(newWord);
             this.wordMapPresentation = this.sortAndTruncatePresentation(this.wordMapPresentation);
@@ -224,8 +226,10 @@ class Wordcloud extends Plugin {
                 return;
             } else if (document.fullscreenElement){
                 document.exitFullscreen();
+                svgContainer.classList.remove("fullscreen");
             } else {
                 svgContainer?.requestFullscreen();
+                svgContainer.classList.add("fullscreen");
             }
         };
 
@@ -233,7 +237,7 @@ class Wordcloud extends Plugin {
             ev.preventDefault();
             this.displayResults();
         };
-
+        /*
         this.cloudDownloadHandler = async(ev: MouseEvent) => {
             ev.preventDefault();
             const svg = d3.select(`#${Wordcloud.svgId}`).node();
@@ -252,6 +256,76 @@ class Wordcloud extends Plugin {
                     msg.innerText = ``;
                 }, 5000);
             }
+        };
+        */
+        this.cloudDownloadHandler = async(ev: MouseEvent) => {
+
+            ev.preventDefault();
+            const svgElement = d3.select(`#${Wordcloud.svgId}`).node();
+            const svgData = new XMLSerializer().serializeToString(svgElement);
+            const canvas = document.createElement("canvas");
+            const img = document.createElement("img");
+            canvas.width = Wordcloud.svgWidth;
+            canvas.height = Wordcloud.svgHeight;
+            const svgBase64 = btoa(unescape(encodeURIComponent(svgData)));
+            const dataURL = 'data:image/svg+xml;base64,' + svgBase64;
+
+            img.onload = async(ev: Event) => {
+                const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+                ctx.fillStyle = this.backgroundColor;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx!.drawImage(img, 0, 0);
+                const pngDataURL = canvas.toDataURL("image/png");
+
+                // null if <=2.7
+                const versionString = await Plugin.postApiRequest("GetVersion", {});
+
+                // GetVersion introduced 2.8.0, returns null beforehand
+                // this is a workaround for older versions of InterroBot supporting sandbox downloads.
+                // the capability is removed, and all former "downloads" now route through
+                // InterroBot app (only png|webp|jpg are currently allowed using ExportDataUri)
+                if (!versionString){
+
+                    // 2.7- remove fallback logic after 8/1/2025
+                    const downloadLink = document.createElement("a");
+                        const dateString = new Date().toISOString().slice(0, 16).replace(/[\-\:T]/g, "");
+                        const filename: string = `wordcloud-${dateString}.png`;
+                        downloadLink.download = filename;
+                        downloadLink.href = pngDataURL;
+                        downloadLink.click();
+
+                        // message user that download completed
+                        const msg: HTMLElement | null = document.querySelector(".cloud__message");
+                        if (msg){
+                            msg.innerText = `Saved ${filename} to ./Downloads`;
+                            msg.classList.add("visible");
+                            window.setTimeout(() => {
+                                msg.classList.remove("visible");
+                                msg.innerText = ``;
+                            }, 5000);
+                        }
+                } else {
+
+                    // 2.8+
+                    // TODO postApiRequest needs refactor to support new, non-query API calls
+                    // for now, run manually
+                    // const kwargs = { format: "datauri", datauri: pngDataURL };
+                    // const result = await Plugin.postApiRequest("ExportDataUri", kwargs);
+                    const msg = {
+                        target: "interrobot",
+                        data: {
+                            reportExport: {
+                                format: "datauri",
+                                datauri: pngDataURL,
+                            }
+                        },
+                    };
+                    window.parent.postMessage(msg, "*");
+                }
+
+
+            }
+            img.src = dataURL;
         };
 
         this.index();
@@ -480,7 +554,7 @@ class Wordcloud extends Plugin {
             </button>
             </div>
             <div class="cloud__message">
-                Hello, how are you?
+
             </div>
         </form>`);
 
@@ -502,72 +576,8 @@ class Wordcloud extends Plugin {
             console.warn("default font not embedded in svg");
         }
 
-        // not going to fight this, this is a dupe of plugin css, but necessary
-        // along with fontdata to get canvas image rendering right, esp. with
-        // regard stacked display.
-        const stackedEmbedCss: string = `
-            text {
-                stroke: #cccccc44;
-                paint-order: stroke;
-            }
-            .stacked text {
-                stroke: #ffffffcc;
-                stroke-width: 5px;
-                paint-order: stroke;
-            }
-            .stacked .zsort {position: relative;}
-            .stacked .zsort5 {opacity: 10%;}
-            .stacked .zsort6 {opacity: 10%;}
-            .stacked .zsort7 {opacity: 11%;}
-            .stacked .zsort8 {opacity: 11%;}
-            .stacked .zsort9 {opacity: 12%;}
-            .stacked .zsort10 {opacity: 12%;}
-            .stacked .zsort11 {opacity: 13%;}
-            .stacked .zsort12 {opacity: 13%;}
-            .stacked .zsort13 {opacity: 14%;}
-            .stacked .zsort14 {opacity: 14%;}
-            .stacked .zsort15 {opacity: 15%;}
-            .stacked .zsort16 {opacity: 15%;}
-            .stacked .zsort17 {opacity: 16%;}
-            .stacked .zsort18 {opacity: 17%;}
-            .stacked .zsort19 {opacity: 17%;}
-            .stacked .zsort20 {opacity: 18%;}
-            .stacked .zsort21 {opacity: 19%;}
-            .stacked .zsort22 {opacity: 19%;}
-            .stacked .zsort23 {opacity: 20%;}
-            .stacked .zsort24 {opacity: 21%;}
-            .stacked .zsort25 {opacity: 22%;}
-            .stacked .zsort26 {opacity: 23%;}
-            .stacked .zsort27 {opacity: 24%;}
-            .stacked .zsort28 {opacity: 25%;}
-            .stacked .zsort29 {opacity: 26%;}
-            .stacked .zsort30 {opacity: 27%;}
-            .stacked .zsort31 {opacity: 28%;}
-            .stacked .zsort32 {opacity: 29%;}
-            .stacked .zsort33 {opacity: 31%;}
-            .stacked .zsort34 {opacity: 32%;}
-            .stacked .zsort35 {opacity: 34%;}
-            .stacked .zsort36 {opacity: 35%;}
-            .stacked .zsort37 {opacity: 37%;}
-            .stacked .zsort38 {opacity: 39%;}
-            .stacked .zsort39 {opacity: 41%;}
-            .stacked .zsort40 {opacity: 43%;}
-            .stacked .zsort41 {opacity: 45%;}
-            .stacked .zsort42 {opacity: 47%;}
-            .stacked .zsort43 {opacity: 49%;}
-            .stacked .zsort44 {opacity: 52%;}
-            .stacked .zsort45 {opacity: 54%;}
-            .stacked .zsort46 {opacity: 57%;}
-            .stacked .zsort47 {opacity: 60%;}
-            .stacked .zsort48 {opacity: 63%;}
-            .stacked .zsort49 {opacity: 67%;}
-            .stacked .zsort50 {opacity: 70%;}
-            .stacked .zsort51 {opacity: 74%;}
-            .stacked .zsort52 {opacity: 78%;}
-            .stacked .zsort53 {opacity: 82%;}
-            .stacked .zsort54 {opacity: 87%;}
-            .stacked .zsort55 {opacity: 92%;}`;
-
+        // fontdata to get canvas image rendering right. <style> triggers a sandbox
+        // warning (inline-styles), but crucial for canvas rendering and png export
         resultsBits.push(`<svg class="cloud ${this.layout.spiral}" id="${Wordcloud.svgId}" width="${Wordcloud.svgWidth}" height="${Wordcloud.svgHeight}"
             viewBox="0 0 ${Wordcloud.svgWidth} ${Wordcloud.svgHeight}" fill="${this.backgroundColor}"
             preserveAspectRatio="xMidYMid meet">
@@ -581,8 +591,12 @@ class Wordcloud extends Plugin {
             svg {
                 font-family: "Montserrat SemiBold";
             }
-            ${stackedEmbedCss}
+            text {
+                stroke: #cccccc44;
+                paint-order: stroke;
+            }
             </style>
+             </svg>
             </svg>`);
 
         resultsBits.push(`</div>`);
@@ -592,7 +606,7 @@ class Wordcloud extends Plugin {
         if (resultsElement !== null) {
             resultsElement.innerHTML = resultsBits.join("");
             const svg = resultsElement.querySelector("svg.cloud") as HTMLElement;
-            if (svg !== null) {
+            if (svg !== null && svg.style.backgroundColor) {
                 svg.style.backgroundColor = this.backgroundColor ?? "#ffffff";
             }
         }
@@ -610,6 +624,8 @@ class Wordcloud extends Plugin {
             </div>`;
         const headings: string[] = ["", "TERM", "COUNT",]; // "TYPE", "CAPTURE",
         const results: string[][] = [];
+        // const captureMap: Map<number, string> = new Map<number, string>();
+        // const typeMap: Map<number, string> = new Map<number, string>();
 
         for (let i=0; i< this.wordMapPresentation.length; i++){
             const cloudword: WordcloudWord = this.wordMapPresentation[i];
@@ -719,12 +735,6 @@ class Wordcloud extends Plugin {
             // x, y, and rotate will be set by the cloud layout
         }));
 
-        const svgEl: HTMLElement = document.getElementById(Wordcloud.svgId) as HTMLElement;
-        svgEl.classList.remove("stacked");
-        if (!this.layout.separated){
-            svgEl.classList.add("stacked");
-        }
-
         // keep an eye on .font(), it is not only applying font, but affecting separation
         this.cloudLayout = d3.layout.cloud()
             .size([Wordcloud.svgWidth, Wordcloud.svgHeight])
@@ -754,6 +764,7 @@ class Wordcloud extends Plugin {
     private applyHandlers(add: boolean): void {
 
         const navLinkMethod: string = add ? "addEventListener" : "removeEventListener";
+
         const actions: NodeListOf<HTMLElement> = document.querySelectorAll(".cloud__action");
         if (actions.length == 3){
             actions[0][navLinkMethod]("click", this.cloudExpandHandler);
@@ -775,8 +786,6 @@ class Wordcloud extends Plugin {
                 actions[2].classList.remove("light");
             }
 
-        } else {
-            console.warn("wordcloud actions not found");
         }
 
         const addWordForm: HTMLElement | null = document.getElementById("WordcloundManagerAdd");
@@ -890,7 +899,7 @@ class Wordcloud extends Plugin {
         const dataURL = 'data:image/svg+xml;base64,' + svgBase64;
 
         img.onload = function() {
-            const ctx = canvas.getContext("2d");
+            const ctx = canvas.getContext("2d", { willReadFrequently: true });
             ctx!.drawImage(img, 0, 0);
             const pngDataURL = canvas.toDataURL("image/png");
             const downloadLink = document.createElement("a");
