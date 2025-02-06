@@ -74,7 +74,7 @@
      * @returns True if the string is a valid URL, false otherwise.
      */
     static isUrl(str) {
-      return str.match(HtmlUtils.urlRegex) !== null;
+      return URL.canParse(str);
     }
     /**
      * Encodes HTML special characters in a string.
@@ -96,6 +96,18 @@
     SearchQueryType2[SearchQueryType2["Asset"] = 1] = "Asset";
     SearchQueryType2[SearchQueryType2["Any"] = 2] = "Any";
   })(SearchQueryType || (SearchQueryType = {}));
+  var SearchQuerySortField;
+  (function(SearchQuerySortField2) {
+    SearchQuerySortField2[SearchQuerySortField2["Id"] = 0] = "Id";
+    SearchQuerySortField2[SearchQuerySortField2["Time"] = 1] = "Time";
+    SearchQuerySortField2[SearchQuerySortField2["Status"] = 2] = "Status";
+    SearchQuerySortField2[SearchQuerySortField2["Url"] = 3] = "Url";
+  })(SearchQuerySortField || (SearchQuerySortField = {}));
+  var SearchQuerySortDirection;
+  (function(SearchQuerySortDirection2) {
+    SearchQuerySortDirection2[SearchQuerySortDirection2["Ascending"] = 0] = "Ascending";
+    SearchQuerySortDirection2[SearchQuerySortDirection2["Descending"] = 1] = "Descending";
+  })(SearchQuerySortDirection || (SearchQuerySortDirection = {}));
   var PluginData = class {
     /**
      * Creates an instance of PluginData.
@@ -119,8 +131,18 @@
       this.data.autoform[this.project] = {};
       if (autoformInputs.length > 0) {
         const changeHandler = async (el) => {
-          let name = el.getAttribute("name");
-          const value = el.checked === void 0 || el.checked === false ? el.value : el.checked;
+          const name = el.getAttribute("name");
+          let value;
+          if (el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement) {
+            value = el.value;
+          } else {
+            const hasValue = el.hasAttribute("value");
+            if (!hasValue) {
+              value = el.checked === void 0 || el.checked === false ? false : true;
+            } else {
+              value = el.value;
+            }
+          }
           await this.setAutoformField(name, value);
         };
         const radioHandler = async (el) => {
@@ -178,6 +200,9 @@
             case "textarea":
               const textarea = el;
               textarea.addEventListener("change", async (ev) => {
+                await changeHandler(textarea);
+              });
+              textarea.addEventListener("input", async (ev) => {
                 await changeHandler(textarea);
               });
               break;
@@ -285,6 +310,7 @@ ${JSON.stringify(kwargs)}`);
         let isMultiCheckbox = false;
         let isRadio = false;
         let isSelect = false;
+        let isTextarea = false;
         switch (lowerTag) {
           case "input":
             input = el;
@@ -299,6 +325,7 @@ ${JSON.stringify(kwargs)}`);
             break;
           case "textarea":
             input = el;
+            isTextarea = true;
             break;
           case "select":
             input = el;
@@ -320,6 +347,9 @@ ${JSON.stringify(kwargs)}`);
             break;
           case isMultiCheckbox:
             input.checked = val ? val.toString().indexOf(input.value) >= 0 : false;
+            break;
+          case isTextarea:
+            input.value = val || "";
             break;
           case isSelect:
           default:
@@ -388,27 +418,34 @@ ${JSON.stringify(kwargs)}`);
   var SearchQuery = class {
     /**
      * Creates an instance of SearchQuery.
-     * @param project - The project ID.
-     * @param query - The search query string.
-     * @param fields - The fields to search in.
-     * @param type - The type of search query.
-     * @param includeExternal - Whether to include external results.
+     * @param params - The search query parameters
      */
-    constructor(project, query, fields, type, includeExternal) {
+    constructor({ project, query, fields, type, includeExternal, includeNoRobots, sort, perPage }) {
+      this.includeExternal = true;
+      this.includeNoRobots = false;
       this.project = project;
       this.query = query;
       this.fields = fields;
       this.type = type;
-      this.includeExternal = includeExternal;
+      this.includeExternal = includeExternal !== null && includeExternal !== void 0 ? includeExternal : true;
+      this.includeNoRobots = includeNoRobots !== null && includeNoRobots !== void 0 ? includeNoRobots : false;
+      this.perPage = perPage !== null && perPage !== void 0 ? perPage : SearchQuery.maxPerPage;
+      if (SearchQuery.validSorts.indexOf(sort) >= 0) {
+        this.sort = sort;
+      } else {
+        this.sort = SearchQuery.validSorts[1];
+      }
     }
     /**
      * Gets the cache key for the haystack.
      * @returns A string representing the cache key.
      */
     getHaystackCacheKey() {
-      return `${this.project}~${this.fields}~${this.type}~${this.includeExternal}`;
+      return `${this.project}~${this.fields}~${this.type}~${this.includeExternal}~${this.includeNoRobots}`;
     }
   };
+  SearchQuery.maxPerPage = 100;
+  SearchQuery.validSorts = ["?", "id", "-id", "time", "-time", "status", "-status", "url", "-url"];
   var Search = class {
     /**
      * Executes a search query.
@@ -418,22 +455,25 @@ ${JSON.stringify(kwargs)}`);
      * @param resultHandler - Function to handle each search result.
      * @returns A promise that resolves to a boolean indicating if results were from cache.
      */
-    static async execute(query, existingResults, processingMessage, resultHandler) {
+    static async execute(query, existingResults, resultHandler, deep = false, quiet = true, processingMessage = "Processing...") {
       const timeStart = (/* @__PURE__ */ new Date()).getTime();
-      processingMessage = processingMessage !== null && processingMessage !== void 0 ? processingMessage : "Processing...";
       if (query.getHaystackCacheKey() === Search.resultsHaystackCacheKey && existingResults) {
         const resultTotal2 = existingResults.size;
-        const eventStart = new CustomEvent("ProcessingMessage", { detail: { action: "set", message: processingMessage } });
-        document.dispatchEvent(eventStart);
+        if (quiet === false) {
+          const eventStart = new CustomEvent("ProcessingMessage", { detail: { action: "set", message: processingMessage } });
+          document.dispatchEvent(eventStart);
+        }
         await Search.sleep(16);
         let i = 0;
         await existingResults.forEach(async (result, resultId) => {
           await resultHandler(result);
         });
         Plugin.logTiming(`Processed ${resultTotal2.toLocaleString()} search result(s)`, (/* @__PURE__ */ new Date()).getTime() - timeStart);
-        const msg = { detail: { action: "clear" } };
-        const eventFinished = new CustomEvent("ProcessingMessage", msg);
-        document.dispatchEvent(eventFinished);
+        if (quiet === false) {
+          const msg = { detail: { action: "clear" } };
+          const eventFinished = new CustomEvent("ProcessingMessage", msg);
+          document.dispatchEvent(eventFinished);
+        }
         return true;
       } else {
         Search.resultsHaystackCacheKey = query.getHaystackCacheKey();
@@ -445,7 +485,10 @@ ${JSON.stringify(kwargs)}`);
         "external": query.includeExternal,
         "type": SearchQueryType[query.type].toLowerCase(),
         "offset": 0,
-        "fields": query.fields.split("|")
+        "fields": query.fields.split("|"),
+        "norobots": query.includeNoRobots,
+        "sort": query.sort,
+        "perpage": query.perPage
       };
       let responseJson = await Plugin.postApiRequest("GetResources", kwargs);
       const resultTotal = responseJson["__meta__"]["results"]["total"];
@@ -455,7 +498,7 @@ ${JSON.stringify(kwargs)}`);
         const result = results[i];
         await Search.handleResult(result, resultTotal, resultHandler);
       }
-      while (responseJson["__meta__"]["results"]["pagination"]["nextOffset"] !== null) {
+      while (responseJson["__meta__"]["results"]["pagination"]["nextOffset"] !== null && deep === true) {
         const next = responseJson["__meta__"]["results"]["pagination"]["nextOffset"];
         kwargs["offset"] = next;
         responseJson = await Plugin.postApiRequest("GetResources", kwargs);
@@ -873,8 +916,8 @@ ${JSON.stringify(kwargs)}`);
       const createAndConfigure = () => {
         let instance = new classtype();
         Plugin.postMeta(instance.constructor.meta);
-        window.addEventListener("load", Plugin.postContentHeight);
-        window.addEventListener("resize", Plugin.postContentHeight);
+        window.addEventListener("load", () => Plugin.postContentHeight());
+        window.addEventListener("resize", () => Plugin.postContentHeight());
         return instance;
       };
       if (document.readyState === "complete" || document.readyState === "interactive") {
@@ -890,17 +933,18 @@ ${JSON.stringify(kwargs)}`);
     /**
      * Posts the current content height to the parent frame.
      */
-    static postContentHeight() {
+    static postContentHeight(constrainTo = null) {
       const mainResults = document.querySelector(".main__results");
       let currentScrollHeight = document.body.scrollHeight;
       if (mainResults) {
         currentScrollHeight = Number(mainResults.getBoundingClientRect().bottom);
       }
       if (currentScrollHeight !== Plugin.contentScrollHeight) {
+        const constrainedHeight = constrainTo && constrainTo >= 1 ? Math.min(constrainTo, currentScrollHeight) : currentScrollHeight;
         const msg = {
           target: "interrobot",
           data: {
-            reportHeight: currentScrollHeight
+            reportHeight: constrainedHeight
           }
         };
         Plugin.routeMessage(msg);
@@ -1156,10 +1200,17 @@ ${JSON.stringify(kwargs)}`);
       const projectId = this.getProjectId();
       const freeQueryString = "headers: text/html";
       const fields = "name";
-      const internalHtmlPagesQuery = new SearchQuery(projectId, freeQueryString, fields, SearchQueryType.Any, false);
-      await Search.execute(internalHtmlPagesQuery, resultsMap, "Processing\u2026", async (result) => {
-        await exampleResultHandler(result, titleWords);
+      const internalHtmlPagesQuery = new SearchQuery({
+        project: projectId,
+        query: freeQueryString,
+        fields,
+        type: SearchQueryType.Any,
+        includeExternal: false,
+        includeNoRobots: false
       });
+      await Search.execute(internalHtmlPagesQuery, resultsMap, async (result) => {
+        await exampleResultHandler(result, titleWords);
+      }, true, false, "Processing\u2026");
       await this.report(titleWords);
     }
     /**
@@ -1243,11 +1294,15 @@ This is the default plugin description. Set meta: {} values
       this.prefix = prefix;
       this.total = 0;
       this.loaded = 0;
+      this.active = true;
       this.baseElement = document.createElement("div");
       this.baseElement.id = "processingWidget";
       this.baseElement.classList.add("processing", "hidden");
       this.baseElement.innerHTML = ``;
       document.addEventListener("SearchResultHandled", async (ev) => {
+        if (this.active === false) {
+          return;
+        }
         const evdTotal = ev.detail.resultTotal;
         const evdLoaded = ev.detail.resultNum;
         const evdPercent = Math.ceil(evdLoaded / evdTotal * 100);
@@ -1280,6 +1335,9 @@ This is the default plugin description. Set meta: {} values
         }
       });
       document.addEventListener("ProcessingMessage", async (ev) => {
+        if (this.active === false) {
+          return;
+        }
         const action = ev.detail.action;
         switch (action) {
           case "set":
@@ -1325,6 +1383,9 @@ This is the default plugin description. Set meta: {} values
     setMessage(msg) {
       this.baseElement.innerHTML = `${msg}`;
       this.baseElement.classList.add("throbbing");
+    }
+    setActive(active) {
+      this.active = active;
     }
   };
 
@@ -3169,9 +3230,10 @@ This is the default plugin description. Set meta: {} values
       if ("ONLYINCOMPOUND" in this.flags) {
         this.compoundRuleCodes[this.flags.ONLYINCOMPOUND] = [];
       }
-      console.time("load dictionary");
+      const msg = `typo.ts loaded ${this.dictionary} dictionary`;
+      console.time(msg);
       this.parseDIC(this.wordsData);
-      console.timeEnd("load dictionary");
+      console.timeEnd(msg);
       for (let k in this.compoundRuleCodes) {
         if (this.compoundRuleCodes[k].length === 0) {
           delete this.compoundRuleCodes[k];
@@ -3846,7 +3908,7 @@ This is the default plugin description. Set meta: {} values
             <hgroup>
                 <div class="info">
                     <span class="info__dl export">
-                        <button class="icon">\u229E</button>
+                        <button class="icon">${exportIconChar}</button>
                         <ul class="export__ulink">
                             <li><a class="ulink" href="#" data-format="csv">Export CSV</a></li>
                             <li><a class="ulink" href="#" data-format="xlsx">Export Excel</a></li>
@@ -4143,8 +4205,10 @@ This is the default plugin description. Set meta: {} values
           return;
         } else if (document.fullscreenElement) {
           document.exitFullscreen();
+          svgContainer.classList.remove("fullscreen");
         } else {
           svgContainer === null || svgContainer === void 0 ? void 0 : svgContainer.requestFullscreen();
+          svgContainer.classList.add("fullscreen");
         }
       };
       this.cloudRefreshHandler = (ev) => {
@@ -4153,20 +4217,51 @@ This is the default plugin description. Set meta: {} values
       };
       this.cloudDownloadHandler = async (ev) => {
         ev.preventDefault();
-        const svg = d3.select(`#${Wordcloud.svgId}`).node();
-        const date = /* @__PURE__ */ new Date();
-        const dateString = date.toISOString().slice(0, 16).replace(/[\-\:T]/g, "");
-        const filename = `wordcloud-${dateString}.png`;
-        await this.saveSvgAsImage(svg, filename);
-        const msg = document.querySelector(".cloud__message");
-        if (msg) {
-          msg.innerText = `Saved ${filename} to ./Downloads`;
-          msg.classList.add("visible");
-          window.setTimeout(() => {
-            msg.classList.remove("visible");
-            msg.innerText = ``;
-          }, 5e3);
-        }
+        const svgElement = d3.select(`#${Wordcloud.svgId}`).node();
+        const svgData = new XMLSerializer().serializeToString(svgElement);
+        const canvas = document.createElement("canvas");
+        const img = document.createElement("img");
+        canvas.width = Wordcloud.svgWidth;
+        canvas.height = Wordcloud.svgHeight;
+        const svgBase64 = btoa(unescape(encodeURIComponent(svgData)));
+        const dataURL = "data:image/svg+xml;base64," + svgBase64;
+        img.onload = async (ev2) => {
+          const ctx = canvas.getContext("2d", { willReadFrequently: true });
+          ctx.fillStyle = this.backgroundColor;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+          const pngDataURL = canvas.toDataURL("image/png");
+          const versionString = await Plugin.postApiRequest("GetVersion", {});
+          if (!versionString) {
+            const downloadLink = document.createElement("a");
+            const dateString = (/* @__PURE__ */ new Date()).toISOString().slice(0, 16).replace(/[\-\:T]/g, "");
+            const filename = `wordcloud-${dateString}.png`;
+            downloadLink.download = filename;
+            downloadLink.href = pngDataURL;
+            downloadLink.click();
+            const msg = document.querySelector(".cloud__message");
+            if (msg) {
+              msg.innerText = `Saved ${filename} to ./Downloads`;
+              msg.classList.add("visible");
+              window.setTimeout(() => {
+                msg.classList.remove("visible");
+                msg.innerText = ``;
+              }, 5e3);
+            }
+          } else {
+            const msg = {
+              target: "interrobot",
+              data: {
+                reportExport: {
+                  format: "datauri",
+                  datauri: pngDataURL
+                }
+              }
+            };
+            window.parent.postMessage(msg, "*");
+          }
+        };
+        img.src = dataURL;
       };
       this.index();
     }
@@ -4323,10 +4418,17 @@ This is the default plugin description. Set meta: {} values
       this.wordMap.clear();
       const projectId = this.getProjectId();
       const internalQueryString = "headers: text/html";
-      const internalHtmlPagesQuery = new SearchQuery(projectId, internalQueryString, "content", SearchQueryType.Any, false);
-      await Search.execute(internalHtmlPagesQuery, this.resultsMap, "Finding jargon\u2026", async (result) => {
-        await this.wordcloudResultHandler(result);
+      let internalHtmlPagesQuery = new SearchQuery({
+        project: projectId,
+        query: internalQueryString,
+        fields: "content",
+        type: SearchQueryType.Any,
+        includeExternal: false,
+        includeNoRobots: false
       });
+      await Search.execute(internalHtmlPagesQuery, this.resultsMap, async (result) => {
+        await this.wordcloudResultHandler(result);
+      }, true, false, "Finding jargon\u2026");
       let wordcloudWordList = [...this.wordMap.values()];
       this.wordMapPresentation = this.sortAndTruncatePresentation(wordcloudWordList);
       await this.report();
@@ -4373,7 +4475,7 @@ This is the default plugin description. Set meta: {} values
             </button>
             </div>
             <div class="cloud__message">
-                Hello, how are you?
+
             </div>
         </form>`);
       let fontdata = "";
@@ -4389,68 +4491,6 @@ This is the default plugin description. Set meta: {} values
       } catch {
         console.warn("default font not embedded in svg");
       }
-      const stackedEmbedCss = `
-            text {
-                stroke: #cccccc44;
-                paint-order: stroke;
-            }
-            .stacked text {
-                stroke: #ffffffcc;
-                stroke-width: 5px;
-                paint-order: stroke;
-            }
-            .stacked .zsort {position: relative;}
-            .stacked .zsort5 {opacity: 10%;}
-            .stacked .zsort6 {opacity: 10%;}
-            .stacked .zsort7 {opacity: 11%;}
-            .stacked .zsort8 {opacity: 11%;}
-            .stacked .zsort9 {opacity: 12%;}
-            .stacked .zsort10 {opacity: 12%;}
-            .stacked .zsort11 {opacity: 13%;}
-            .stacked .zsort12 {opacity: 13%;}
-            .stacked .zsort13 {opacity: 14%;}
-            .stacked .zsort14 {opacity: 14%;}
-            .stacked .zsort15 {opacity: 15%;}
-            .stacked .zsort16 {opacity: 15%;}
-            .stacked .zsort17 {opacity: 16%;}
-            .stacked .zsort18 {opacity: 17%;}
-            .stacked .zsort19 {opacity: 17%;}
-            .stacked .zsort20 {opacity: 18%;}
-            .stacked .zsort21 {opacity: 19%;}
-            .stacked .zsort22 {opacity: 19%;}
-            .stacked .zsort23 {opacity: 20%;}
-            .stacked .zsort24 {opacity: 21%;}
-            .stacked .zsort25 {opacity: 22%;}
-            .stacked .zsort26 {opacity: 23%;}
-            .stacked .zsort27 {opacity: 24%;}
-            .stacked .zsort28 {opacity: 25%;}
-            .stacked .zsort29 {opacity: 26%;}
-            .stacked .zsort30 {opacity: 27%;}
-            .stacked .zsort31 {opacity: 28%;}
-            .stacked .zsort32 {opacity: 29%;}
-            .stacked .zsort33 {opacity: 31%;}
-            .stacked .zsort34 {opacity: 32%;}
-            .stacked .zsort35 {opacity: 34%;}
-            .stacked .zsort36 {opacity: 35%;}
-            .stacked .zsort37 {opacity: 37%;}
-            .stacked .zsort38 {opacity: 39%;}
-            .stacked .zsort39 {opacity: 41%;}
-            .stacked .zsort40 {opacity: 43%;}
-            .stacked .zsort41 {opacity: 45%;}
-            .stacked .zsort42 {opacity: 47%;}
-            .stacked .zsort43 {opacity: 49%;}
-            .stacked .zsort44 {opacity: 52%;}
-            .stacked .zsort45 {opacity: 54%;}
-            .stacked .zsort46 {opacity: 57%;}
-            .stacked .zsort47 {opacity: 60%;}
-            .stacked .zsort48 {opacity: 63%;}
-            .stacked .zsort49 {opacity: 67%;}
-            .stacked .zsort50 {opacity: 70%;}
-            .stacked .zsort51 {opacity: 74%;}
-            .stacked .zsort52 {opacity: 78%;}
-            .stacked .zsort53 {opacity: 82%;}
-            .stacked .zsort54 {opacity: 87%;}
-            .stacked .zsort55 {opacity: 92%;}`;
       resultsBits.push(`<svg class="cloud ${this.layout.spiral}" id="${Wordcloud.svgId}" width="${Wordcloud.svgWidth}" height="${Wordcloud.svgHeight}"
             viewBox="0 0 ${Wordcloud.svgWidth} ${Wordcloud.svgHeight}" fill="${this.backgroundColor}"
             preserveAspectRatio="xMidYMid meet">
@@ -4464,15 +4504,19 @@ This is the default plugin description. Set meta: {} values
             svg {
                 font-family: "Montserrat SemiBold";
             }
-            ${stackedEmbedCss}
+            text {
+                stroke: #cccccc44;
+                paint-order: stroke;
+            }
             </style>
+             </svg>
             </svg>`);
       resultsBits.push(`</div>`);
       const resultsElement = document.querySelector(".main__results");
       if (resultsElement !== null) {
         resultsElement.innerHTML = resultsBits.join("");
         const svg = resultsElement.querySelector("svg.cloud");
-        if (svg !== null) {
+        if (svg !== null && svg.style.backgroundColor) {
           svg.style.backgroundColor = (_a = this.backgroundColor) !== null && _a !== void 0 ? _a : "#ffffff";
         }
       }
@@ -4565,11 +4609,6 @@ This is the default plugin description. Set meta: {} values
         fontFamily: this.fontFamily
         // x, y, and rotate will be set by the cloud layout
       }));
-      const svgEl = document.getElementById(Wordcloud.svgId);
-      svgEl.classList.remove("stacked");
-      if (!this.layout.separated) {
-        svgEl.classList.add("stacked");
-      }
       this.cloudLayout = d3.layout.cloud().size([Wordcloud.svgWidth, Wordcloud.svgHeight]).words(words).font(this.layout.separated ? this.fontFamily : "").padding(4).rotate(() => ~~(Math.random() * 2) * 90).fontSize(function(d) {
         return Wordcloud.getWordLayoutFontSize(words, d.value);
       }).spiral(this.layout.spiral).on("end", this.draw);
@@ -4606,8 +4645,6 @@ This is the default plugin description. Set meta: {} values
           actions[1].classList.remove("light");
           actions[2].classList.remove("light");
         }
-      } else {
-        console.warn("wordcloud actions not found");
       }
       const addWordForm = document.getElementById("WordcloundManagerAdd");
       const addWordButton = addWordForm === null || addWordForm === void 0 ? void 0 : addWordForm.querySelector("button");
@@ -4689,7 +4726,7 @@ This is the default plugin description. Set meta: {} values
       const svgBase64 = btoa(unescape(encodeURIComponent(svgData)));
       const dataURL = "data:image/svg+xml;base64," + svgBase64;
       img.onload = function() {
-        const ctx = canvas.getContext("2d");
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
         ctx.drawImage(img, 0, 0);
         const pngDataURL = canvas.toDataURL("image/png");
         const downloadLink = document.createElement("a");
@@ -4703,7 +4740,7 @@ This is the default plugin description. Set meta: {} values
   Wordcloud.meta = {
     "title": "Website Word Cloud",
     "category": "Visualization",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "author": "InterroBot",
     "synopsis": `create a wordcloud from website content`,
     "description": `Relive the Web 2.0 dream in all its grandeur! Website Word Cloud finds unique and
@@ -4722,9 +4759,8 @@ This is the default plugin description. Set meta: {} values
             your word clouds to life.`
   };
   Wordcloud.layouts = [
-    new WordcloudLayout(1, "Separated Quad", "rectangular", true),
-    new WordcloudLayout(2, "Separated Oval", "archimedean", true),
-    new WordcloudLayout(3, "Stacked", "rectangular", false)
+    new WordcloudLayout(1, "Rectangle", "rectangular", true),
+    new WordcloudLayout(2, "Elliptical", "archimedean", true)
   ];
   Wordcloud.baseMediaPath = "";
   Wordcloud.embedFont = Wordcloud.baseMediaPath + "/fonts/Montserrat-SemiBold.woff2";

@@ -74,7 +74,7 @@
      * @returns True if the string is a valid URL, false otherwise.
      */
     static isUrl(str) {
-      return str.match(HtmlUtils.urlRegex) !== null;
+      return URL.canParse(str);
     }
     /**
      * Encodes HTML special characters in a string.
@@ -215,8 +215,8 @@
       const createAndConfigure = () => {
         let instance = new classtype();
         Plugin.postMeta(instance.constructor.meta);
-        window.addEventListener("load", Plugin.postContentHeight);
-        window.addEventListener("resize", Plugin.postContentHeight);
+        window.addEventListener("load", () => Plugin.postContentHeight());
+        window.addEventListener("resize", () => Plugin.postContentHeight());
         return instance;
       };
       if (document.readyState === "complete" || document.readyState === "interactive") {
@@ -232,17 +232,18 @@
     /**
      * Posts the current content height to the parent frame.
      */
-    static postContentHeight() {
+    static postContentHeight(constrainTo = null) {
       const mainResults = document.querySelector(".main__results");
       let currentScrollHeight = document.body.scrollHeight;
       if (mainResults) {
         currentScrollHeight = Number(mainResults.getBoundingClientRect().bottom);
       }
       if (currentScrollHeight !== Plugin.contentScrollHeight) {
+        const constrainedHeight = constrainTo && constrainTo >= 1 ? Math.min(constrainTo, currentScrollHeight) : currentScrollHeight;
         const msg = {
           target: "interrobot",
           data: {
-            reportHeight: currentScrollHeight
+            reportHeight: constrainedHeight
           }
         };
         Plugin.routeMessage(msg);
@@ -498,10 +499,17 @@
       const projectId = this.getProjectId();
       const freeQueryString = "headers: text/html";
       const fields = "name";
-      const internalHtmlPagesQuery = new SearchQuery(projectId, freeQueryString, fields, SearchQueryType.Any, false);
-      await Search.execute(internalHtmlPagesQuery, resultsMap, "Processing\u2026", async (result) => {
-        await exampleResultHandler(result, titleWords);
+      const internalHtmlPagesQuery = new SearchQuery({
+        project: projectId,
+        query: freeQueryString,
+        fields,
+        type: SearchQueryType.Any,
+        includeExternal: false,
+        includeNoRobots: false
       });
+      await Search.execute(internalHtmlPagesQuery, resultsMap, async (result) => {
+        await exampleResultHandler(result, titleWords);
+      }, true, false, "Processing\u2026");
       await this.report(titleWords);
     }
     /**
@@ -566,6 +574,18 @@ This is the default plugin description. Set meta: {} values
     SearchQueryType2[SearchQueryType2["Asset"] = 1] = "Asset";
     SearchQueryType2[SearchQueryType2["Any"] = 2] = "Any";
   })(SearchQueryType || (SearchQueryType = {}));
+  var SearchQuerySortField;
+  (function(SearchQuerySortField2) {
+    SearchQuerySortField2[SearchQuerySortField2["Id"] = 0] = "Id";
+    SearchQuerySortField2[SearchQuerySortField2["Time"] = 1] = "Time";
+    SearchQuerySortField2[SearchQuerySortField2["Status"] = 2] = "Status";
+    SearchQuerySortField2[SearchQuerySortField2["Url"] = 3] = "Url";
+  })(SearchQuerySortField || (SearchQuerySortField = {}));
+  var SearchQuerySortDirection;
+  (function(SearchQuerySortDirection2) {
+    SearchQuerySortDirection2[SearchQuerySortDirection2["Ascending"] = 0] = "Ascending";
+    SearchQuerySortDirection2[SearchQuerySortDirection2["Descending"] = 1] = "Descending";
+  })(SearchQuerySortDirection || (SearchQuerySortDirection = {}));
   var PluginData = class {
     /**
      * Creates an instance of PluginData.
@@ -589,8 +609,18 @@ This is the default plugin description. Set meta: {} values
       this.data.autoform[this.project] = {};
       if (autoformInputs.length > 0) {
         const changeHandler = async (el) => {
-          let name = el.getAttribute("name");
-          const value = el.checked === void 0 || el.checked === false ? el.value : el.checked;
+          const name = el.getAttribute("name");
+          let value;
+          if (el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement) {
+            value = el.value;
+          } else {
+            const hasValue = el.hasAttribute("value");
+            if (!hasValue) {
+              value = el.checked === void 0 || el.checked === false ? false : true;
+            } else {
+              value = el.value;
+            }
+          }
           await this.setAutoformField(name, value);
         };
         const radioHandler = async (el) => {
@@ -648,6 +678,9 @@ This is the default plugin description. Set meta: {} values
             case "textarea":
               const textarea = el;
               textarea.addEventListener("change", async (ev) => {
+                await changeHandler(textarea);
+              });
+              textarea.addEventListener("input", async (ev) => {
                 await changeHandler(textarea);
               });
               break;
@@ -755,6 +788,7 @@ ${JSON.stringify(kwargs)}`);
         let isMultiCheckbox = false;
         let isRadio = false;
         let isSelect = false;
+        let isTextarea = false;
         switch (lowerTag) {
           case "input":
             input = el;
@@ -769,6 +803,7 @@ ${JSON.stringify(kwargs)}`);
             break;
           case "textarea":
             input = el;
+            isTextarea = true;
             break;
           case "select":
             input = el;
@@ -790,6 +825,9 @@ ${JSON.stringify(kwargs)}`);
             break;
           case isMultiCheckbox:
             input.checked = val ? val.toString().indexOf(input.value) >= 0 : false;
+            break;
+          case isTextarea:
+            input.value = val || "";
             break;
           case isSelect:
           default:
@@ -863,22 +901,34 @@ ${JSON.stringify(kwargs)}`);
      * @param fields - The fields to search in.
      * @param type - The type of search query.
      * @param includeExternal - Whether to include external results.
+     * @param includeNoRobots - Whether to include norobots excluded results.
      */
-    constructor(project, query, fields, type, includeExternal) {
+    constructor({ project, query, fields, type, includeExternal, includeNoRobots, sort, perPage }) {
+      this.includeExternal = true;
+      this.includeNoRobots = false;
       this.project = project;
       this.query = query;
       this.fields = fields;
       this.type = type;
-      this.includeExternal = includeExternal;
+      this.includeExternal = includeExternal !== null && includeExternal !== void 0 ? includeExternal : true;
+      this.includeNoRobots = includeNoRobots !== null && includeNoRobots !== void 0 ? includeNoRobots : false;
+      this.perPage = perPage !== null && perPage !== void 0 ? perPage : SearchQuery.maxPerPage;
+      if (SearchQuery.validSorts.indexOf(sort) >= 0) {
+        this.sort = sort;
+      } else {
+        this.sort = SearchQuery.validSorts[1];
+      }
     }
     /**
      * Gets the cache key for the haystack.
      * @returns A string representing the cache key.
      */
     getHaystackCacheKey() {
-      return `${this.project}~${this.fields}~${this.type}~${this.includeExternal}`;
+      return `${this.project}~${this.fields}~${this.type}~${this.includeExternal}~${this.includeNoRobots}`;
     }
   };
+  SearchQuery.maxPerPage = 100;
+  SearchQuery.validSorts = ["?", "id", "-id", "time", "-time", "status", "-status", "url", "-url"];
   var Search = class {
     /**
      * Executes a search query.
@@ -888,22 +938,25 @@ ${JSON.stringify(kwargs)}`);
      * @param resultHandler - Function to handle each search result.
      * @returns A promise that resolves to a boolean indicating if results were from cache.
      */
-    static async execute(query, existingResults, processingMessage, resultHandler) {
+    static async execute(query, existingResults, resultHandler, deep = false, quiet = true, processingMessage = "Processing...") {
       const timeStart = (/* @__PURE__ */ new Date()).getTime();
-      processingMessage = processingMessage !== null && processingMessage !== void 0 ? processingMessage : "Processing...";
       if (query.getHaystackCacheKey() === Search.resultsHaystackCacheKey && existingResults) {
         const resultTotal2 = existingResults.size;
-        const eventStart = new CustomEvent("ProcessingMessage", { detail: { action: "set", message: processingMessage } });
-        document.dispatchEvent(eventStart);
+        if (quiet === false) {
+          const eventStart = new CustomEvent("ProcessingMessage", { detail: { action: "set", message: processingMessage } });
+          document.dispatchEvent(eventStart);
+        }
         await Search.sleep(16);
         let i = 0;
         await existingResults.forEach(async (result, resultId) => {
           await resultHandler(result);
         });
         Plugin.logTiming(`Processed ${resultTotal2.toLocaleString()} search result(s)`, (/* @__PURE__ */ new Date()).getTime() - timeStart);
-        const msg = { detail: { action: "clear" } };
-        const eventFinished = new CustomEvent("ProcessingMessage", msg);
-        document.dispatchEvent(eventFinished);
+        if (quiet === false) {
+          const msg = { detail: { action: "clear" } };
+          const eventFinished = new CustomEvent("ProcessingMessage", msg);
+          document.dispatchEvent(eventFinished);
+        }
         return true;
       } else {
         Search.resultsHaystackCacheKey = query.getHaystackCacheKey();
@@ -915,7 +968,10 @@ ${JSON.stringify(kwargs)}`);
         "external": query.includeExternal,
         "type": SearchQueryType[query.type].toLowerCase(),
         "offset": 0,
-        "fields": query.fields.split("|")
+        "fields": query.fields.split("|"),
+        "norobots": query.includeNoRobots,
+        "sort": query.sort,
+        "perpage": query.perPage
       };
       let responseJson = await Plugin.postApiRequest("GetResources", kwargs);
       const resultTotal = responseJson["__meta__"]["results"]["total"];
@@ -925,7 +981,7 @@ ${JSON.stringify(kwargs)}`);
         const result = results[i];
         await Search.handleResult(result, resultTotal, resultHandler);
       }
-      while (responseJson["__meta__"]["results"]["pagination"]["nextOffset"] !== null) {
+      while (responseJson["__meta__"]["results"]["pagination"]["nextOffset"] !== null && deep === true) {
         const next = responseJson["__meta__"]["results"]["pagination"]["nextOffset"];
         kwargs["offset"] = next;
         responseJson = await Plugin.postApiRequest("GetResources", kwargs);
@@ -1243,11 +1299,15 @@ ${JSON.stringify(kwargs)}`);
       this.prefix = prefix;
       this.total = 0;
       this.loaded = 0;
+      this.active = true;
       this.baseElement = document.createElement("div");
       this.baseElement.id = "processingWidget";
       this.baseElement.classList.add("processing", "hidden");
       this.baseElement.innerHTML = ``;
       document.addEventListener("SearchResultHandled", async (ev) => {
+        if (this.active === false) {
+          return;
+        }
         const evdTotal = ev.detail.resultTotal;
         const evdLoaded = ev.detail.resultNum;
         const evdPercent = Math.ceil(evdLoaded / evdTotal * 100);
@@ -1280,6 +1340,9 @@ ${JSON.stringify(kwargs)}`);
         }
       });
       document.addEventListener("ProcessingMessage", async (ev) => {
+        if (this.active === false) {
+          return;
+        }
         const action = ev.detail.action;
         switch (action) {
           case "set":
@@ -1325,6 +1388,9 @@ ${JSON.stringify(kwargs)}`);
     setMessage(msg) {
       this.baseElement.innerHTML = `${msg}`;
       this.baseElement.classList.add("throbbing");
+    }
+    setActive(active) {
+      this.active = active;
     }
   };
 
@@ -1748,7 +1814,7 @@ ${JSON.stringify(kwargs)}`);
             <hgroup>
                 <div class="info">
                     <span class="info__dl export">
-                        <button class="icon">\u229E</button>
+                        <button class="icon">${exportIconChar}</button>
                         <ul class="export__ulink">
                             <li><a class="ulink" href="#" data-format="csv">Export CSV</a></li>
                             <li><a class="ulink" href="#" data-format="xlsx">Export Excel</a></li>

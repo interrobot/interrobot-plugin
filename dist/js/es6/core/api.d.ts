@@ -84,12 +84,7 @@ declare class SearchQuery {
     readonly perPage: number;
     /**
      * Creates an instance of SearchQuery.
-     * @param project - The project ID.
-     * @param query - The search query string.
-     * @param fields - The fields to search in.
-     * @param type - The type of search query.
-     * @param includeExternal - Whether to include external results.
-     * @param includeNoRobots - Whether to include norobots excluded results.
+     * @param params - The search query parameters
      */
     constructor({ project, query, fields, type, includeExternal, includeNoRobots, sort, perPage }: SearchQueryParams);
     /**

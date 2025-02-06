@@ -74,7 +74,7 @@
      * @returns True if the string is a valid URL, false otherwise.
      */
     static isUrl(str) {
-      return str.match(HtmlUtils.urlRegex) !== null;
+      return URL.canParse(str);
     }
     /**
      * Encodes HTML special characters in a string.
@@ -96,6 +96,18 @@
     SearchQueryType2[SearchQueryType2["Asset"] = 1] = "Asset";
     SearchQueryType2[SearchQueryType2["Any"] = 2] = "Any";
   })(SearchQueryType || (SearchQueryType = {}));
+  var SearchQuerySortField;
+  (function(SearchQuerySortField2) {
+    SearchQuerySortField2[SearchQuerySortField2["Id"] = 0] = "Id";
+    SearchQuerySortField2[SearchQuerySortField2["Time"] = 1] = "Time";
+    SearchQuerySortField2[SearchQuerySortField2["Status"] = 2] = "Status";
+    SearchQuerySortField2[SearchQuerySortField2["Url"] = 3] = "Url";
+  })(SearchQuerySortField || (SearchQuerySortField = {}));
+  var SearchQuerySortDirection;
+  (function(SearchQuerySortDirection2) {
+    SearchQuerySortDirection2[SearchQuerySortDirection2["Ascending"] = 0] = "Ascending";
+    SearchQuerySortDirection2[SearchQuerySortDirection2["Descending"] = 1] = "Descending";
+  })(SearchQuerySortDirection || (SearchQuerySortDirection = {}));
   var PluginData = class {
     /**
      * Creates an instance of PluginData.
@@ -119,8 +131,18 @@
       this.data.autoform[this.project] = {};
       if (autoformInputs.length > 0) {
         const changeHandler = async (el) => {
-          let name = el.getAttribute("name");
-          const value = el.checked === void 0 || el.checked === false ? el.value : el.checked;
+          const name = el.getAttribute("name");
+          let value;
+          if (el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement) {
+            value = el.value;
+          } else {
+            const hasValue = el.hasAttribute("value");
+            if (!hasValue) {
+              value = el.checked === void 0 || el.checked === false ? false : true;
+            } else {
+              value = el.value;
+            }
+          }
           await this.setAutoformField(name, value);
         };
         const radioHandler = async (el) => {
@@ -178,6 +200,9 @@
             case "textarea":
               const textarea = el;
               textarea.addEventListener("change", async (ev) => {
+                await changeHandler(textarea);
+              });
+              textarea.addEventListener("input", async (ev) => {
                 await changeHandler(textarea);
               });
               break;
@@ -285,6 +310,7 @@ ${JSON.stringify(kwargs)}`);
         let isMultiCheckbox = false;
         let isRadio = false;
         let isSelect = false;
+        let isTextarea = false;
         switch (lowerTag) {
           case "input":
             input = el;
@@ -299,6 +325,7 @@ ${JSON.stringify(kwargs)}`);
             break;
           case "textarea":
             input = el;
+            isTextarea = true;
             break;
           case "select":
             input = el;
@@ -320,6 +347,9 @@ ${JSON.stringify(kwargs)}`);
             break;
           case isMultiCheckbox:
             input.checked = val ? val.toString().indexOf(input.value) >= 0 : false;
+            break;
+          case isTextarea:
+            input.value = val || "";
             break;
           case isSelect:
           default:
@@ -388,27 +418,34 @@ ${JSON.stringify(kwargs)}`);
   var SearchQuery = class {
     /**
      * Creates an instance of SearchQuery.
-     * @param project - The project ID.
-     * @param query - The search query string.
-     * @param fields - The fields to search in.
-     * @param type - The type of search query.
-     * @param includeExternal - Whether to include external results.
+     * @param params - The search query parameters
      */
-    constructor(project, query, fields, type, includeExternal) {
+    constructor({ project, query, fields, type, includeExternal, includeNoRobots, sort, perPage }) {
+      this.includeExternal = true;
+      this.includeNoRobots = false;
       this.project = project;
       this.query = query;
       this.fields = fields;
       this.type = type;
-      this.includeExternal = includeExternal;
+      this.includeExternal = includeExternal !== null && includeExternal !== void 0 ? includeExternal : true;
+      this.includeNoRobots = includeNoRobots !== null && includeNoRobots !== void 0 ? includeNoRobots : false;
+      this.perPage = perPage !== null && perPage !== void 0 ? perPage : SearchQuery.maxPerPage;
+      if (SearchQuery.validSorts.indexOf(sort) >= 0) {
+        this.sort = sort;
+      } else {
+        this.sort = SearchQuery.validSorts[1];
+      }
     }
     /**
      * Gets the cache key for the haystack.
      * @returns A string representing the cache key.
      */
     getHaystackCacheKey() {
-      return `${this.project}~${this.fields}~${this.type}~${this.includeExternal}`;
+      return `${this.project}~${this.fields}~${this.type}~${this.includeExternal}~${this.includeNoRobots}`;
     }
   };
+  SearchQuery.maxPerPage = 100;
+  SearchQuery.validSorts = ["?", "id", "-id", "time", "-time", "status", "-status", "url", "-url"];
   var Search = class {
     /**
      * Executes a search query.
@@ -418,22 +455,25 @@ ${JSON.stringify(kwargs)}`);
      * @param resultHandler - Function to handle each search result.
      * @returns A promise that resolves to a boolean indicating if results were from cache.
      */
-    static async execute(query, existingResults, processingMessage, resultHandler) {
+    static async execute(query, existingResults, resultHandler, deep = false, quiet = true, processingMessage = "Processing...") {
       const timeStart = (/* @__PURE__ */ new Date()).getTime();
-      processingMessage = processingMessage !== null && processingMessage !== void 0 ? processingMessage : "Processing...";
       if (query.getHaystackCacheKey() === Search.resultsHaystackCacheKey && existingResults) {
         const resultTotal2 = existingResults.size;
-        const eventStart = new CustomEvent("ProcessingMessage", { detail: { action: "set", message: processingMessage } });
-        document.dispatchEvent(eventStart);
+        if (quiet === false) {
+          const eventStart = new CustomEvent("ProcessingMessage", { detail: { action: "set", message: processingMessage } });
+          document.dispatchEvent(eventStart);
+        }
         await Search.sleep(16);
         let i = 0;
         await existingResults.forEach(async (result, resultId) => {
           await resultHandler(result);
         });
         Plugin.logTiming(`Processed ${resultTotal2.toLocaleString()} search result(s)`, (/* @__PURE__ */ new Date()).getTime() - timeStart);
-        const msg = { detail: { action: "clear" } };
-        const eventFinished = new CustomEvent("ProcessingMessage", msg);
-        document.dispatchEvent(eventFinished);
+        if (quiet === false) {
+          const msg = { detail: { action: "clear" } };
+          const eventFinished = new CustomEvent("ProcessingMessage", msg);
+          document.dispatchEvent(eventFinished);
+        }
         return true;
       } else {
         Search.resultsHaystackCacheKey = query.getHaystackCacheKey();
@@ -445,7 +485,10 @@ ${JSON.stringify(kwargs)}`);
         "external": query.includeExternal,
         "type": SearchQueryType[query.type].toLowerCase(),
         "offset": 0,
-        "fields": query.fields.split("|")
+        "fields": query.fields.split("|"),
+        "norobots": query.includeNoRobots,
+        "sort": query.sort,
+        "perpage": query.perPage
       };
       let responseJson = await Plugin.postApiRequest("GetResources", kwargs);
       const resultTotal = responseJson["__meta__"]["results"]["total"];
@@ -455,7 +498,7 @@ ${JSON.stringify(kwargs)}`);
         const result = results[i];
         await Search.handleResult(result, resultTotal, resultHandler);
       }
-      while (responseJson["__meta__"]["results"]["pagination"]["nextOffset"] !== null) {
+      while (responseJson["__meta__"]["results"]["pagination"]["nextOffset"] !== null && deep === true) {
         const next = responseJson["__meta__"]["results"]["pagination"]["nextOffset"];
         kwargs["offset"] = next;
         responseJson = await Plugin.postApiRequest("GetResources", kwargs);
@@ -873,8 +916,8 @@ ${JSON.stringify(kwargs)}`);
       const createAndConfigure = () => {
         let instance = new classtype();
         Plugin.postMeta(instance.constructor.meta);
-        window.addEventListener("load", Plugin.postContentHeight);
-        window.addEventListener("resize", Plugin.postContentHeight);
+        window.addEventListener("load", () => Plugin.postContentHeight());
+        window.addEventListener("resize", () => Plugin.postContentHeight());
         return instance;
       };
       if (document.readyState === "complete" || document.readyState === "interactive") {
@@ -890,17 +933,18 @@ ${JSON.stringify(kwargs)}`);
     /**
      * Posts the current content height to the parent frame.
      */
-    static postContentHeight() {
+    static postContentHeight(constrainTo = null) {
       const mainResults = document.querySelector(".main__results");
       let currentScrollHeight = document.body.scrollHeight;
       if (mainResults) {
         currentScrollHeight = Number(mainResults.getBoundingClientRect().bottom);
       }
       if (currentScrollHeight !== Plugin.contentScrollHeight) {
+        const constrainedHeight = constrainTo && constrainTo >= 1 ? Math.min(constrainTo, currentScrollHeight) : currentScrollHeight;
         const msg = {
           target: "interrobot",
           data: {
-            reportHeight: currentScrollHeight
+            reportHeight: constrainedHeight
           }
         };
         Plugin.routeMessage(msg);
@@ -1156,10 +1200,17 @@ ${JSON.stringify(kwargs)}`);
       const projectId = this.getProjectId();
       const freeQueryString = "headers: text/html";
       const fields = "name";
-      const internalHtmlPagesQuery = new SearchQuery(projectId, freeQueryString, fields, SearchQueryType.Any, false);
-      await Search.execute(internalHtmlPagesQuery, resultsMap, "Processing\u2026", async (result) => {
-        await exampleResultHandler(result, titleWords);
+      const internalHtmlPagesQuery = new SearchQuery({
+        project: projectId,
+        query: freeQueryString,
+        fields,
+        type: SearchQueryType.Any,
+        includeExternal: false,
+        includeNoRobots: false
       });
+      await Search.execute(internalHtmlPagesQuery, resultsMap, async (result) => {
+        await exampleResultHandler(result, titleWords);
+      }, true, false, "Processing\u2026");
       await this.report(titleWords);
     }
     /**
@@ -1290,18 +1341,24 @@ This is the default plugin description. Set meta: {} values
       this.currentDetailId = -1;
       this.currentSearchIndex = -1;
       this.isNavigating = false;
+      this.searchNavigationQueue = Promise.resolve();
       this.index();
     }
     async index() {
-      this.resultsMap.clear();
-      this.resultUrlMap.clear();
       HypertreeUi.setMode(this.getMode());
       hyt.status2Class = HypertreeUi.status2Class;
       hyt.status2Color = HypertreeUi.status2Color;
       hyt.type2Char = HypertreeUi.type2Char;
       const defaultData = {};
       const project = await Project.getApiProject(this.getProjectId());
-      const query = new SearchQuery(this.getProjectId(), "norobots: false AND redirect: false", "name|status|type", SearchQueryType.Any, false);
+      const query = new SearchQuery({
+        project: this.getProjectId(),
+        query: "norobots: false AND redirect: false",
+        fields: "name|status|type",
+        type: SearchQueryType.Any,
+        includeExternal: false,
+        includeNoRobots: true
+      });
       this.component = new hyt.Hypertree({ parent: document.body }, {
         dataloader: this.fromApi(query),
         langloader: this.fromUndefinedLangauge(),
@@ -1334,12 +1391,12 @@ This is the default plugin description. Set meta: {} values
         } else {
           const focusedButton = document.querySelector("button:focus");
           if (focusedButton !== null) {
-            this.closeDetail(false);
+            await this.closeDetail(false);
           }
         }
       });
-      document.addEventListener("hypertreePanic", (ev) => {
-        this.openDialog(this.panicDialog);
+      document.addEventListener("hypertreePanic", async (ev) => {
+        await this.openDialog(this.panicDialog);
       });
       this.resultDialog = this.generateResultDialog();
       this.panicDialog = this.generatePanicDialog();
@@ -1349,12 +1406,13 @@ This is the default plugin description. Set meta: {} values
           var _a;
           (_a = element.parentNode) === null || _a === void 0 ? void 0 : _a.removeChild(element);
         });
+        Plugin.postContentHeight(window.innerWidth);
       });
       document.addEventListener("keydown", async (ev) => {
         switch (ev.key) {
           case "`":
             ev.preventDefault();
-            this.openDialog(this.searchDialog);
+            await this.openDialog(this.searchDialog);
             break;
           case "ArrowLeft":
           case "ArrowRight":
@@ -1394,7 +1452,12 @@ This is the default plugin description. Set meta: {} values
             break;
         }
       });
-      Plugin.postContentHeight();
+      Plugin.postContentHeight(window.innerWidth);
+    }
+    clearMaps() {
+      this.resultsMap.clear();
+      this.resultUrlMap.clear();
+      this.renderedIds = [];
     }
     findNodeById(root, targetId) {
       if (!root) {
@@ -1423,70 +1486,77 @@ This is the default plugin description. Set meta: {} values
       var _a;
       (_a = this.searchDialog.querySelector("input")) === null || _a === void 0 ? void 0 : _a.blur();
       this.searchDialog.close();
-      this.isNavigating = true;
-      ev.preventDefault();
-      await this.component.initPromise.then(() => this.component.drawDetailFrame()).then(() => this.component.unitdisk.update.transformation()).then(() => new Promise((resolve, reject) => {
-        let attempts = 0;
-        const maxAttempts = 120;
-        const checkNode = () => {
-          var _a2;
-          attempts++;
-          const resultNode2 = this.findNodeById(this.component.data, hitId);
-          if ((resultNode2 === null || resultNode2 === void 0 ? void 0 : resultNode2.layout) === null) {
-            this.component.updateLayoutPath_(resultNode2);
+      this.searchNavigationQueue = this.searchNavigationQueue.then(async () => {
+        this.isNavigating = true;
+        try {
+          this.isNavigating = true;
+          ev.preventDefault();
+          await this.component.initPromise.then(() => this.component.drawDetailFrame()).then(() => this.component.unitdisk.update.transformation()).then(() => new Promise((resolve, reject) => {
+            let attempts = 0;
+            const maxAttempts = 120;
+            const checkNode = () => {
+              var _a2;
+              attempts++;
+              const resultNode2 = this.findNodeById(this.component.data, hitId);
+              if ((resultNode2 === null || resultNode2 === void 0 ? void 0 : resultNode2.layout) === null) {
+                this.component.updateLayoutPath_(resultNode2);
+              }
+              if ((_a2 = resultNode2 === null || resultNode2 === void 0 ? void 0 : resultNode2.layout) === null || _a2 === void 0 ? void 0 : _a2.z) {
+                resolve(resultNode2);
+              } else if (attempts > maxAttempts) {
+                this.component.transition = null;
+                this.component.unitdisk.update.transformation();
+                return reject(new Error("failed checkNode after maximum attempts"));
+              } else {
+                requestAnimationFrame(checkNode);
+              }
+            };
+            checkNode();
+          })).then((resultNode2) => new Promise((resolve, reject) => {
+            if ((resultNode2 === null || resultNode2 === void 0 ? void 0 : resultNode2.layout) === null) {
+              this.component.updateLayoutPath_(resultNode2);
+            }
+            this.component.api.gotoNode(resultNode2);
+            let attempts = 0;
+            const maxAttempts = 120;
+            const checkAnimation = () => {
+              attempts++;
+              if (attempts > maxAttempts) {
+                this.component.transition = null;
+                this.component.unitdisk.update.transformation();
+                return reject(new Error("failed checkAnimation after maximum attempts"));
+              }
+              if (!this.component.transition) {
+                resolve(resultNode2);
+              } else {
+                requestAnimationFrame(checkAnimation);
+              }
+            };
+            checkAnimation();
+          })).then(() => this.component.api.goto\u03BB(0.25)).catch((error) => {
+            console.error("navigation failed or interrupted:", error);
+          });
+          this.isNavigating = false;
+          this.component.update.data();
+          const resultNode = this.findNodeById(this.component.data, hitId);
+          if ((resultNode === null || resultNode === void 0 ? void 0 : resultNode.layout) === null) {
+            this.component.updateLayoutPath_(resultNode);
           }
-          if ((_a2 = resultNode2 === null || resultNode2 === void 0 ? void 0 : resultNode2.layout) === null || _a2 === void 0 ? void 0 : _a2.z) {
-            resolve(resultNode2);
-          } else if (attempts > maxAttempts) {
-            this.component.transition = null;
-            this.component.unitdisk.update.transformation();
-            return reject(new Error("failed checkNode after maximum attempts"));
-          } else {
-            requestAnimationFrame(checkNode);
-          }
-        };
-        checkNode();
-      })).then((resultNode2) => new Promise((resolve, reject) => {
-        if ((resultNode2 === null || resultNode2 === void 0 ? void 0 : resultNode2.layout) === null) {
-          this.component.updateLayoutPath_(resultNode2);
+          const detailEvent = new CustomEvent("hypertreeDetail", {
+            detail: {
+              id: resultNode.data.interrobotId,
+              timestamp: Date.now()
+            }
+          });
+          document.dispatchEvent(detailEvent);
+        } finally {
+          this.isNavigating = false;
         }
-        this.component.api.gotoNode(resultNode2);
-        let attempts = 0;
-        const maxAttempts = 120;
-        const checkAnimation = () => {
-          attempts++;
-          if (attempts > maxAttempts) {
-            this.component.transition = null;
-            this.component.unitdisk.update.transformation();
-            return reject(new Error("failed checkAnimation after maximum attempts"));
-          }
-          if (!this.component.transition) {
-            resolve(resultNode2);
-          } else {
-            requestAnimationFrame(checkAnimation);
-          }
-        };
-        checkAnimation();
-      })).then(() => this.component.api.goto\u03BB(0.25)).catch((error) => {
-        console.error("navigation failed:", error);
       });
-      this.isNavigating = false;
-      this.component.update.data();
-      const resultNode = this.findNodeById(this.component.data, hitId);
-      if ((resultNode === null || resultNode === void 0 ? void 0 : resultNode.layout) === null) {
-        this.component.updateLayoutPath_(resultNode);
-      }
-      const detailEvent = new CustomEvent("hypertreeDetail", {
-        detail: {
-          id: resultNode.data.interrobotId,
-          timestamp: Date.now()
-        }
-      });
-      document.dispatchEvent(detailEvent);
     }
     async generateSearchDialog() {
       const dialog = document.createElement("dialog");
-      dialog.setAttribute("id", Hypertree.formDialogId);
+      dialog.setAttribute("id", Hypertree.searchDialogId);
       document.body.appendChild(dialog);
       dialog.innerHTML = `
         <div class="message fadeIn">
@@ -1520,14 +1590,14 @@ This is the default plugin description. Set meta: {} values
         ev.preventDefault();
         this.closeDialog(this.searchDialog);
       });
-      queryInput === null || queryInput === void 0 ? void 0 : queryInput.addEventListener("focus", (ev) => {
-        this.openDialog(this.searchDialog);
+      queryInput === null || queryInput === void 0 ? void 0 : queryInput.addEventListener("focus", async (ev) => {
+        await this.openDialog(this.searchDialog);
       });
-      queryInput === null || queryInput === void 0 ? void 0 : queryInput.addEventListener("click", (ev) => {
-        this.openDialog(this.searchDialog);
+      queryInput === null || queryInput === void 0 ? void 0 : queryInput.addEventListener("click", async (ev) => {
+        await this.openDialog(this.searchDialog);
       });
-      queryInput === null || queryInput === void 0 ? void 0 : queryInput.addEventListener("keyup", (ev) => {
-        this.openDialog(this.searchDialog);
+      queryInput === null || queryInput === void 0 ? void 0 : queryInput.addEventListener("keyup", async (ev) => {
+        await this.openDialog(this.searchDialog);
       });
       const searchInput = dialog.querySelector("input[name=query]");
       if (searchInput !== null) {
@@ -1628,6 +1698,25 @@ This is the default plugin description. Set meta: {} values
     getDialogs() {
       return [this.panicDialog, this.resultDialog, this.searchDialog];
     }
+    async openDialog(targetDialog) {
+      this.resultDialog.classList.remove("fadeOut");
+      const dialogClosePromises = this.getDialogs().filter((dialog) => dialog !== targetDialog && dialog.hasAttribute("open")).map(async (dialog) => {
+        if (dialog.id === Hypertree.resultDialogId) {
+          await this.closeDetail(true);
+        } else {
+          dialog.close();
+        }
+      });
+      await Promise.all(dialogClosePromises);
+      if (!targetDialog.hasAttribute("open")) {
+        targetDialog.show();
+        if (targetDialog.id === Hypertree.searchDialogId) {
+          this.currentSearchIndex = -1;
+          const searchInput = targetDialog.querySelector("input[name=query]");
+          searchInput === null || searchInput === void 0 ? void 0 : searchInput.dispatchEvent(new Event("keyup", { bubbles: false }));
+        }
+      }
+    }
     closeDialog(targetDialog) {
       this.getDialogs().forEach((dialog) => {
         if (dialog.hasAttribute("open")) {
@@ -1666,52 +1755,6 @@ This is the default plugin description. Set meta: {} values
     }
     focusNextSearchDialogResult() {
       this.focusSearchDialogResult(1);
-    }
-    openDialog(targetDialog) {
-      this.getDialogs().forEach(async (dialog) => {
-        if (!dialog.hasAttribute("open") && dialog !== targetDialog) {
-          return;
-        }
-        if (dialog === targetDialog) {
-          dialog.show();
-          if (targetDialog.id === Hypertree.formDialogId) {
-            this.currentSearchIndex = -1;
-            const searchInput = dialog.querySelector("input[name=query]");
-            const event = new Event("keyup", { bubbles: true });
-            searchInput === null || searchInput === void 0 ? void 0 : searchInput.dispatchEvent(event);
-          }
-        } else {
-          if (dialog.id === Hypertree.resultDialogId) {
-            await this.closeDetail(true);
-          } else {
-            dialog.close();
-          }
-        }
-      });
-    }
-    async closeDetail(cancelAddPath) {
-      if (this.isNavigating) {
-        return;
-      }
-      if (cancelAddPath === true) {
-        const selections = this.component.args.objects.selections;
-        const node = selections.length > 0 ? selections[selections.length - 1] : null;
-        if (node) {
-          this.component.api.toggleSelection(node);
-        }
-      }
-      await this.updateAutoformNodes();
-      const msg = this.resultDialog.querySelector(".message");
-      msg === null || msg === void 0 ? void 0 : msg.classList.remove("fadeIn");
-      msg === null || msg === void 0 ? void 0 : msg.classList.add("fadeOut");
-      const hrs = this.resultDialog.querySelectorAll("hr.line");
-      hrs.forEach((hr) => {
-        hr.classList.add("fadeOut");
-      });
-      this.currentDetailId = -1;
-      this.closeDialog(this.resultDialog);
-      const query = this.searchDialog.querySelector("input[name=query]");
-      query === null || query === void 0 ? void 0 : query.blur();
     }
     async updateAutoformNodes() {
       const activeIds = [];
@@ -1795,7 +1838,7 @@ This is the default plugin description. Set meta: {} values
           const pageId = (_b = parseInt((_a2 = detailLink.dataset.id) !== null && _a2 !== void 0 ? _a2 : "0", 10)) !== null && _b !== void 0 ? _b : 0;
           Plugin.postOpenResourceLink(pageId, true);
         });
-        this.openDialog(this.resultDialog);
+        await this.openDialog(this.resultDialog);
         this.resultDialog.classList.remove("ok", "error", "warn", "disabled");
         this.resultDialog.classList.add(HypertreeUi.status2Class(result.status));
         this.currentDetailId = result.id;
@@ -1809,34 +1852,60 @@ This is the default plugin description. Set meta: {} values
             return Math.sqrt(Math.pow(p1x - p2x, 2) + Math.pow(p1y - p2y, 2));
           };
           const corners = ["lt", "rt", "lb", "rb"];
-          corners.forEach((corner) => {
-            const hr = document.createElement("hr");
-            hr.setAttribute("class", `line ${corner}`);
-            this.resultDialog.append(hr);
-            const dialogPointX = corner[0] === "l" ? dialogBounds.x : dialogBounds.x + dialogBounds.width;
-            const dialogPointY = corner[1] === "t" ? dialogBounds.y : dialogBounds.y + dialogBounds.height;
-            const distance = getDistance(dialogPointX, dialogPointY, hitBoundsX, hitBoundsY);
-            let angle = 0;
-            if (corner[0] === "l") {
-              angle = Math.atan2(
-                // left side, left anchored
-                hitBoundsY - dialogPointY,
-                hitBoundsX - dialogPointX
-              ) * (180 / Math.PI);
-            } else {
-              angle = Math.atan2(
-                // right side, right anchored
-                dialogPointY - hitBoundsY,
-                dialogPointX - hitBoundsX
-              ) * (180 / Math.PI);
-            }
-            hr.style.width = `${distance}px`;
-            hr.style.transform = `rotate(${angle}deg)`;
-          });
+          if (!(hitBounds.left === 0 && hitBounds.top === 0)) {
+            corners.forEach((corner) => {
+              const hr = document.createElement("hr");
+              hr.setAttribute("class", `line ${corner}`);
+              this.resultDialog.append(hr);
+              const dialogPointX = corner[0] === "l" ? dialogBounds.x : dialogBounds.x + dialogBounds.width;
+              const dialogPointY = corner[1] === "t" ? dialogBounds.y : dialogBounds.y + dialogBounds.height;
+              const distance = getDistance(dialogPointX, dialogPointY, hitBoundsX, hitBoundsY);
+              let angle = 0;
+              if (corner[0] === "l") {
+                angle = Math.atan2(
+                  // left side, left anchored
+                  hitBoundsY - dialogPointY,
+                  hitBoundsX - dialogPointX
+                ) * (180 / Math.PI);
+              } else {
+                angle = Math.atan2(
+                  // right side, right anchored
+                  dialogPointY - hitBoundsY,
+                  dialogPointX - hitBoundsX
+                ) * (180 / Math.PI);
+              }
+              hr.style.width = `${distance}px`;
+              hr.style.transform = `rotate(${angle}deg)`;
+            });
+          }
         }
       } else {
         await this.closeDetail(false);
       }
+    }
+    async closeDetail(cancelAddPath) {
+      if (this.isNavigating) {
+        return;
+      }
+      if (cancelAddPath === true) {
+        const selections = this.component.args.objects.selections;
+        const node = selections.length > 0 ? selections[selections.length - 1] : null;
+        if (node) {
+          this.component.api.toggleSelection(node);
+        }
+      }
+      await this.updateAutoformNodes();
+      const msg = this.resultDialog.querySelector(".message");
+      msg === null || msg === void 0 ? void 0 : msg.classList.remove("fadeIn");
+      msg === null || msg === void 0 ? void 0 : msg.classList.add("fadeOut");
+      const hrs = this.resultDialog.querySelectorAll("hr.line");
+      hrs.forEach((hr) => {
+        hr.classList.add("fadeOut");
+      });
+      this.currentDetailId = -1;
+      this.closeDialog(this.resultDialog);
+      const query = this.searchDialog.querySelector("input[name=query]");
+      query === null || query === void 0 ? void 0 : query.blur();
     }
     fromUndefinedLangauge() {
       return (callback) => {
@@ -1913,11 +1982,12 @@ This is the default plugin description. Set meta: {} values
       }
     }
     async gatherResults(query) {
+      this.clearMaps();
       const projectUrl = (await this.getProject()).url;
       const gatheredUrls = [];
       let projectHitId = -1;
       let seedObject = {};
-      await Search.execute(query, this.resultsMap, "Rendering\u2026", async (result) => {
+      await Search.execute(query, this.resultsMap, async (result) => {
         const rUrl = result.url;
         if (gatheredUrls.indexOf(rUrl) >= 0) {
           return;
@@ -1929,7 +1999,7 @@ This is the default plugin description. Set meta: {} values
         }
         this.resultsMap.set(rId, result);
         this.resultUrlMap.set(this.normalizeUrl(rUrl), result);
-      });
+      }, true, false, "Rendering\u2026");
       if (projectHitId === -1) {
         return {};
       }
@@ -1982,7 +2052,7 @@ This is the default plugin description. Set meta: {} values
   Hypertree.meta = {
     "title": "Website Hypertree",
     "category": "Visualization",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "author": "InterroBot",
     "synopsis": `create a hypertree from website content`,
     "description": `Get a new, uniquely hyperbolic perspective on your website\u2014your
@@ -2001,7 +2071,7 @@ This is the default plugin description. Set meta: {} values
   };
   Hypertree.resultDialogId = "ResultDialog";
   Hypertree.panicDialogId = "PanicDialog";
-  Hypertree.formDialogId = "SearchDialog";
+  Hypertree.searchDialogId = "SearchDialog";
   Hypertree.searchResultsDialogId = "SearchDialogResults";
   Plugin.initialize(Hypertree);
 })();

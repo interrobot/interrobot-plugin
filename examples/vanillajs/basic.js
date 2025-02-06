@@ -6,7 +6,7 @@ class BasicExamplePlugin extends InterroBot.Core.Plugin {
         "url": "https://interro.bot",
         "title": "Basic Plugin Example",
         "category": "Example",
-        "version": "1.0.1",
+        "version": "1.0.2",
         "author": "InterroBot",
         "synopsis": `a basic plugin example, using vanillajs`,
         "description": `This example is as simple as it gets.`,
@@ -51,6 +51,7 @@ class BasicExamplePlugin extends InterroBot.Core.Plugin {
     }
 
     async process() {
+        
         // as an example, collect page title word counts across all html pages
         // it's a contrived example, but let us keep things simple
         const titleWords = new Map();
@@ -69,6 +70,7 @@ class BasicExamplePlugin extends InterroBot.Core.Plugin {
                 }
             }
         };
+
         // projectId comes for free as a member of Plugin
         const projectId = this.getProjectId();
         // build a query, these are exactly as you'd type them into InterroBot search
@@ -76,11 +78,19 @@ class BasicExamplePlugin extends InterroBot.Core.Plugin {
         // pipe delimited fields you want retrieved
         // id and url come with the base model, everything else costs time
         const fields = "name";
-        const internalHtmlPagesQuery = new InterroBot.Core.SearchQuery(projectId, freeQueryString, fields, InterroBot.Core.SearchQueryType.Any, false);
-        // run each SearchResult through its handler, and we're done processing
-        await InterroBot.Core.Search.execute(internalHtmlPagesQuery, resultsMap, "Processing…", async (result) => {
-            await exampleResultHandler(result, titleWords);
+        let internalHtmlPagesQuery = new InterroBot.Core.SearchQuery({
+            project: projectId,
+            query: freeQueryString,
+            fields: fields,
+            type: InterroBot.Core.SearchQueryType.Any,
+            includeExternal: false,
+            includeNoRobots: false,
         });
+        
+        // run each SearchResult through its handler, and we're done processing
+        await InterroBot.Core.Search.execute(internalHtmlPagesQuery, this.resultsMap, async (result) => {
+            await exampleResultHandler(result, titleWords);
+        }, true, false, "Processing…");
         
         // call for html presentation
         await this.report(titleWords);

@@ -78,22 +78,27 @@ protected async process() {
         terms.forEach(term => titleWordsMap.set(term, 
             (titleWordsMap.get(term) ?? 0) + 1));
     }
+    
     // projectId comes for free as a member of Plugin
-    const projectId: number = this.getProjectId();
-    // anything you put into InterroBot search, field or fulltext works
-    // here we limit to HTML documents, which will have a <title> -> name
-    const freeQueryString: string = "headers: text/html";
-    // pipe delimited fields you want retrieved. id and url come with 
-    // the base model, everything else must be requested explicitly
-    const fields: string = "name";
-    const internalHtmlPagesQuery = new SearchQuery(projectId, 
-        freeQueryString, fields, SearchQueryType.Any, false);
+    const projectId = this.getProjectId();
+    // build a query, these are exactly as you'd type them into InterroBot search
+    const freeQueryString = "headers: text/html";
+    // pipe delimited fields you want retrieved
+    // id and url come with the base model, everything else costs time
+    const fields = "name";
+    let internalHtmlPagesQuery = new InterroBot.Core.SearchQuery({
+        project: projectId,
+        query: freeQueryString,
+        fields: fields,
+        type: InterroBot.Core.SearchQueryType.Any,
+        includeExternal: false,
+        includeNoRobots: false,
+    });
+    
     // run each SearchResult through its handler, and we're done processing
-    await Search.execute(internalHtmlPagesQuery, resultsMap, "Processing…", 
-        async (result: SearchResult) => {
-            await exampleResultHandler(result, titleWords);
-        }
-    );
+    await InterroBot.Core.Search.execute(internalHtmlPagesQuery, this.resultsMap, async (result) => {
+        await exampleResultHandler(result, titleWords);
+    }, true, false, "Processing…");
     // call for HTML presentation of titleWords with processing complete
     await this.report(titleWords);
 }
