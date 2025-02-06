@@ -386,6 +386,13 @@
       return new Promise((resolve) => setTimeout(resolve, ms));
     }
     /**
+     * Gets the current mode.
+     * @returns The mode (DarkMode.Light, DarkMode.Dark).
+     */
+    getMode() {
+      return this.mode;
+    }
+    /**
      * Gets the current project ID.
      * @returns The project ID.
      */

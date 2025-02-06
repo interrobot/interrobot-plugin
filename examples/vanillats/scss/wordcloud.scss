@@ -1,12 +1,7 @@
 ﻿@charset "UTF-8";
 @import "./interrobot-plugin.scss";
 
-a.delete {
-    color: white;
-    .light & {
-        color: #333;
-    }
-}
+
 
 .cloud {
     background-color: white;
@@ -101,32 +96,9 @@ a.delete {
     }
 }
 
-/*
-
-.main__form__wordcloud {
-    display: inline-grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-
-    input, select {
-        min-width: 140px;
-    }
-
-    @media only screen and (max-width: 600px) {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-    @media only screen and (max-width: 400px) {
-        grid-template-columns: repeat(1, 1fr);
-    }
-
-}
-    */
-
 .main__form__color {
     display: inline-block !important;
     margin-bottom: 0 !important;
-    // background-color: yellow;
     
 }
 
@@ -145,7 +117,6 @@ input[type="color"]::-webkit-color-swatch-wrapper {
 }
 
 input[type="color"]::-webkit-color-swatch {
-    // border: 1px solid #2d2d30;
     border: 0;
     border-radius: 2px;
 }
@@ -201,74 +172,20 @@ td.column__empty {
         }
         
     }
-}
 
-
-table button {
-    // remove from wordlist buttons
-    display: inline-block;
-    margin-top: 0 !important;
-    margin-left: 1rem !important;
-}
-
-// unsupported, drawn doc order
-
-.stacked {  
-    text {
-        stroke: #ffffffcc;       /* Color of the outline */
-        stroke-width: 5px;   /* Width of the outline */
-        paint-order: stroke; /* Ensures the stroke is drawn outside the fill */
+    table button {
+        // remove from wordlist buttons
+        display: inline-block;
+        margin-top: 0 !important;
+        margin-left: 1rem !important;
     }
-    .zsort {position: relative;}  
-    .zsort5 {opacity: 10%;}
-    .zsort6 {opacity: 10%;}
-    .zsort7 {opacity: 11%;}
-    .zsort8 {opacity: 11%;}
-    .zsort9 {opacity: 12%;}
-    .zsort10 {opacity: 12%;}
-    .zsort11 {opacity: 13%;}
-    .zsort12 {opacity: 13%;}
-    .zsort13 {opacity: 14%;}
-    .zsort14 {opacity: 14%;}
-    .zsort15 {opacity: 15%;}
-    .zsort16 {opacity: 15%;}
-    .zsort17 {opacity: 16%;}
-    .zsort18 {opacity: 17%;}
-    .zsort19 {opacity: 17%;}
-    .zsort20 {opacity: 18%;}
-    .zsort21 {opacity: 19%;}
-    .zsort22 {opacity: 19%;}
-    .zsort23 {opacity: 20%;}
-    .zsort24 {opacity: 21%;}
-    .zsort25 {opacity: 22%;}
-    .zsort26 {opacity: 23%;}
-    .zsort27 {opacity: 24%;}
-    .zsort28 {opacity: 25%;}
-    .zsort29 {opacity: 26%;}
-    .zsort30 {opacity: 27%;}
-    .zsort31 {opacity: 28%;}
-    .zsort32 {opacity: 29%;}
-    .zsort33 {opacity: 31%;}
-    .zsort34 {opacity: 32%;}
-    .zsort35 {opacity: 34%;}
-    .zsort36 {opacity: 35%;}
-    .zsort37 {opacity: 37%;}
-    .zsort38 {opacity: 39%;}
-    .zsort39 {opacity: 41%;}
-    .zsort40 {opacity: 43%;}
-    .zsort41 {opacity: 45%;}
-    .zsort42 {opacity: 47%;}
-    .zsort43 {opacity: 49%;}
-    .zsort44 {opacity: 52%;}
-    .zsort45 {opacity: 54%;}
-    .zsort46 {opacity: 57%;}
-    .zsort47 {opacity: 60%;}
-    .zsort48 {opacity: 63%;}
-    .zsort49 {opacity: 67%;}
-    .zsort50 {opacity: 70%;}
-    .zsort51 {opacity: 74%;}
-    .zsort52 {opacity: 78%;}
-    .zsort53 {opacity: 82%;}
-    .zsort54 {opacity: 87%;}
-    .zsort55 {opacity: 92%;}
+
+    a.delete {
+        color: white;
+        .light & {
+            color: #333;
+        }
+    }
 }
+
+

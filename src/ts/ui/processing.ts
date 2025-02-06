@@ -11,6 +11,8 @@ class HtmlProcessingWidget {
     private loaded: number;
     /** The prefix text to display before the progress information */
     private prefix: string;
+    /** Whether widget HTML is displayed */
+    private active: boolean;
 
     /**
      * Creates a new HtmlProcessingWidget and appends it to the specified parent element.
@@ -38,12 +40,16 @@ class HtmlProcessingWidget {
         this.prefix = prefix;
         this.total = 0;
         this.loaded = 0;
+        this.active = true;
         this.baseElement = document.createElement("div") as HTMLElement;
         this.baseElement.id = "processingWidget";
         this.baseElement.classList.add("processing", "hidden");
         this.baseElement.innerHTML = ``;
 
         document.addEventListener("SearchResultHandled", async (ev: CustomEvent) => {
+            if (this.active === false) {
+                return;
+            }
             const evdTotal = ev.detail.resultTotal;
             const evdLoaded = ev.detail.resultNum;
             const evdPercent = Math.ceil((evdLoaded / evdTotal) * 100);
@@ -82,6 +88,9 @@ class HtmlProcessingWidget {
         });
 
         document.addEventListener("ProcessingMessage", async (ev: CustomEvent) => {
+            if (this.active === false) {
+                return;
+            }
             const action: string = ev.detail.action;
             switch (action) {
                 case "set":
@@ -131,6 +140,10 @@ class HtmlProcessingWidget {
     public setMessage(msg: string): void {
         this.baseElement.innerHTML = `${msg}`;
         this.baseElement.classList.add("throbbing");
+    }
+
+    public setActive(active: boolean): void {
+        this.active = active;
     }
 }
 

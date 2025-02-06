@@ -139,9 +139,14 @@ class Hypertree extends Plugin {
         const defaultData: {} = {};
 
         const project: Project = await Project.getApiProject(this.getProjectId());
-        const query: SearchQuery = new SearchQuery(this.getProjectId(),
-            "norobots: false AND redirect: false", "name|status|type",
-            SearchQueryType.Any, false);
+        const query = new SearchQuery({
+            project: this.getProjectId(),
+            query: "norobots: false AND redirect: false",
+            fields: "name|status|type",
+            type: SearchQueryType.Any,
+            includeExternal: false,
+            includeNoRobots: true,
+        });
 
         // generate this first, dialogs depend on it
         this.component = new hyt.Hypertree(
@@ -1006,7 +1011,8 @@ class Hypertree extends Plugin {
 
         let projectHitId: number = -1;
         let seedObject: {} | null = {};
-        await Search.execute(query, this.resultsMap, "Rendering…", async (result: SearchResult) => {
+        
+        await Search.execute(query, this.resultsMap, async (result: SearchResult) => {
 
             const rUrl: string = result.url;
             if (gatheredUrls.indexOf(rUrl) >= 0){
@@ -1021,7 +1027,7 @@ class Hypertree extends Plugin {
 
             this.resultsMap.set(rId, result);
             this.resultUrlMap.set(this.normalizeUrl(rUrl), result);
-        });
+        }, true, false, "Rendering…");
 
         if (projectHitId === -1){
             return {};

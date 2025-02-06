@@ -6,6 +6,16 @@ declare enum SearchQueryType {
     Asset = 1,
     Any = 2
 }
+interface SearchQueryParams {
+    project: number;
+    query: string;
+    fields: string;
+    type: SearchQueryType;
+    includeExternal?: boolean;
+    includeNoRobots?: boolean;
+    sort?: string;
+    perPage?: number;
+}
 /**
  * Container for plugin settings
  */
@@ -62,11 +72,16 @@ declare class PluginData {
     private getPluginUrl;
 }
 declare class SearchQuery {
+    static readonly maxPerPage: number;
+    private static readonly validSorts;
     readonly project: number;
     readonly query: string;
     readonly fields: string;
     readonly type: SearchQueryType;
     readonly includeExternal: boolean;
+    readonly includeNoRobots: boolean;
+    readonly sort: string;
+    readonly perPage: number;
     /**
      * Creates an instance of SearchQuery.
      * @param project - The project ID.
@@ -74,8 +89,9 @@ declare class SearchQuery {
      * @param fields - The fields to search in.
      * @param type - The type of search query.
      * @param includeExternal - Whether to include external results.
+     * @param includeNoRobots - Whether to include norobots excluded results.
      */
-    constructor(project: number, query: string, fields: string, type: SearchQueryType, includeExternal: boolean);
+    constructor({ project, query, fields, type, includeExternal, includeNoRobots, sort, perPage }: SearchQueryParams);
     /**
      * Gets the cache key for the haystack.
      * @returns A string representing the cache key.
@@ -93,7 +109,7 @@ declare class Search {
      * @param resultHandler - Function to handle each search result.
      * @returns A promise that resolves to a boolean indicating if results were from cache.
      */
-    static execute(query: SearchQuery, existingResults: Map<number, SearchResult>, processingMessage: string, resultHandler: any): Promise<boolean>;
+    static execute(query: SearchQuery, existingResults: Map<number, SearchResult>, resultHandler: any, deep?: boolean, quiet?: boolean, processingMessage?: string): Promise<boolean>;
     /**
      * Sleeps for the specified number of milliseconds.
      * @param millis - The number of milliseconds to sleep.

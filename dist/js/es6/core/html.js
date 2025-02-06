@@ -84,8 +84,8 @@ class HtmlUtils {
      * @returns True if the string is a valid URL, false otherwise.
      */
     static isUrl(str) {
-        return str.match(HtmlUtils.urlRegex) !== null;
-        // return (URL as any).canParse();
+        return URL.canParse(str);
+        // return str.match(HtmlUtils.urlRegex) !== null;
     }
     /**
      * Encodes HTML special characters in a string.

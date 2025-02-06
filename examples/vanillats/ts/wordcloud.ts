@@ -500,10 +500,18 @@ class Wordcloud extends Plugin {
         this.wordMap.clear();
         const projectId: number = this.getProjectId();
         const internalQueryString: string = "headers: text/html";
-        const internalHtmlPagesQuery = new SearchQuery(projectId, internalQueryString, "content", SearchQueryType.Any, false);
-        await Search.execute(internalHtmlPagesQuery, this.resultsMap, "Finding jargon…", async (result: SearchResult) => {
-            await this.wordcloudResultHandler(result);
+        let internalHtmlPagesQuery = new SearchQuery({
+            project: projectId,
+            query: internalQueryString,
+            fields: "content",
+            type: SearchQueryType.Any,
+            includeExternal: false,
+            includeNoRobots: false,
         });
+
+        await Search.execute(internalHtmlPagesQuery, this.resultsMap, async (result: SearchResult) => {
+            await this.wordcloudResultHandler(result);
+        }, true, false, "Finding jargon…");
 
         let wordcloudWordList: WordcloudWord[] = [...this.wordMap.values()];
         this.wordMapPresentation = this.sortAndTruncatePresentation(wordcloudWordList);

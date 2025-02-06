@@ -104,8 +104,8 @@ class HtmlUtils {
      * @returns True if the string is a valid URL, false otherwise.
      */
     public static isUrl(str: string): boolean {
-        return str.match(HtmlUtils.urlRegex) !== null;
-        // return (URL as any).canParse();
+        return (URL as any).canParse(str);
+        // return str.match(HtmlUtils.urlRegex) !== null;
     }
 
     /**

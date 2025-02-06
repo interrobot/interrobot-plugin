@@ -634,7 +634,7 @@ class HtmlResultsTable {
             <hgroup>
                 <div class="info">
                     <span class="info__dl export">
-                        <button class="icon">⊞</button>
+                        <button class="icon">${exportIconChar}</button>
                         <ul class="export__ulink">
                             <li><a class="ulink" href="#" data-format="csv">Export CSV</a></li>
                             <li><a class="ulink" href="#" data-format="xlsx">Export Excel</a></li>

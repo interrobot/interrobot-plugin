@@ -31,11 +31,15 @@ class HtmlProcessingWidget {
         this.prefix = prefix;
         this.total = 0;
         this.loaded = 0;
+        this.active = true;
         this.baseElement = document.createElement("div");
         this.baseElement.id = "processingWidget";
         this.baseElement.classList.add("processing", "hidden");
         this.baseElement.innerHTML = ``;
         document.addEventListener("SearchResultHandled", async (ev) => {
+            if (this.active === false) {
+                return;
+            }
             const evdTotal = ev.detail.resultTotal;
             const evdLoaded = ev.detail.resultNum;
             const evdPercent = Math.ceil((evdLoaded / evdTotal) * 100);
@@ -70,6 +74,9 @@ class HtmlProcessingWidget {
             }
         });
         document.addEventListener("ProcessingMessage", async (ev) => {
+            if (this.active === false) {
+                return;
+            }
             const action = ev.detail.action;
             switch (action) {
                 case "set":
@@ -115,6 +122,9 @@ class HtmlProcessingWidget {
     setMessage(msg) {
         this.baseElement.innerHTML = `${msg}`;
         this.baseElement.classList.add("throbbing");
+    }
+    setActive(active) {
+        this.active = active;
     }
 }
 exports.HtmlProcessingWidget = HtmlProcessingWidget;

@@ -11,6 +11,8 @@ declare class HtmlProcessingWidget {
     private loaded;
     /** The prefix text to display before the progress information */
     private prefix;
+    /** Whether widget HTML is displayed */
+    private active;
     /**
      * Creates a new HtmlProcessingWidget and appends it to the specified parent element.
      * @param {HTMLElement} parentElement - The parent element to which the widget will be appended.
@@ -46,5 +48,6 @@ declare class HtmlProcessingWidget {
      * @param {string} msg - The message to display in the widget.
      */
     setMessage(msg: string): void;
+    setActive(active: boolean): void;
 }
 export { HtmlProcessingWidget };

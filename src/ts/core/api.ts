@@ -13,6 +13,29 @@ enum SearchQueryType {
     Any,
 }
 
+enum SearchQuerySortField {
+    Id,
+    Time,
+    Status,
+    Url,
+}
+
+enum SearchQuerySortDirection {
+    Ascending,
+    Descending,
+}
+
+interface SearchQueryParams {
+    project: number;
+    query: string;
+    fields: string;
+    type: SearchQueryType;
+    includeExternal?: boolean;
+    includeNoRobots?: boolean;
+    sort?: string;
+    perPage?: number;
+}
+
 /**
  * Container for plugin settings
  */
@@ -62,12 +85,23 @@ class PluginData {
             //     }
             // }
 
-            const changeHandler = async (el: any) => {                
-                let name: string = el.getAttribute("name");
-                // el.checked === undefined ? el.value : el.checked;
-                const value = el.checked === undefined || el.checked === false ? el.value : el.checked
+            const changeHandler = async (el: any) => {
+                const name = el.getAttribute("name");
+                let value;
+
+                if (el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement) {
+                    value = el.value;
+                } else {
+                    const hasValue = el.hasAttribute("value");
+                    if (!hasValue) {
+                        value = el.checked === undefined || el.checked === false ? false : true;
+                    } else {
+                        value = el.value;
+                    }
+                }
+
                 await this.setAutoformField(name, value);
-            }
+            };
 
             const radioHandler = async (el: any) => {
                 let name: string = el.getAttribute("name");
@@ -142,6 +176,9 @@ class PluginData {
                     case "textarea":
                         const textarea: HTMLTextAreaElement = el as HTMLTextAreaElement;
                         textarea.addEventListener("change", async (ev: InputEvent) => {
+                            await changeHandler(textarea);
+                        });
+                        textarea.addEventListener("input", async (ev: InputEvent) => {
                             await changeHandler(textarea);
                         });
                         break;
@@ -273,6 +310,7 @@ class PluginData {
             let isMultiCheckbox = false;
             let isRadio = false;
             let isSelect = false;
+            let isTextarea = false;
             switch (lowerTag) {
                 case "input":
                     input = el as HTMLInputElement;
@@ -287,6 +325,7 @@ class PluginData {
                     break;
                 case "textarea":
                     input = el as HTMLTextAreaElement;
+                    isTextarea = true;
                     break;
                 case "select":
                     input = el as HTMLSelectElement;
@@ -312,6 +351,9 @@ class PluginData {
                     break;
                 case isMultiCheckbox:
                     input.checked = val ? val.toString().indexOf(input.value) >= 0 : false;
+                    break;
+                case isTextarea:
+                    input.value = val || "";
                     break;
                 case isSelect:
                 default:
@@ -406,11 +448,17 @@ class PluginData {
 
 class SearchQuery {
 
+    
+    public static readonly maxPerPage: number = 100;
+    private static readonly validSorts: string[] = ["?", "id", "-id", "time", "-time", "status", "-status", "url", "-url",];
     public readonly project: number;
     public readonly query: string;
     public readonly fields: string;
     public readonly type: SearchQueryType;
-    public readonly includeExternal: boolean;
+    public readonly includeExternal: boolean = true;
+    public readonly includeNoRobots: boolean = false;
+    public readonly sort: string;
+    public readonly perPage: number;
 
     /**
      * Creates an instance of SearchQuery.
@@ -419,15 +467,31 @@ class SearchQuery {
      * @param fields - The fields to search in.
      * @param type - The type of search query.
      * @param includeExternal - Whether to include external results.
+     * @param includeNoRobots - Whether to include norobots excluded results.
      */
-    public constructor(project: number, query: string, fields: string, type: SearchQueryType,
-        includeExternal: boolean) {
+    public constructor({
+        project,
+        query,
+        fields,
+        type,
+        includeExternal,
+        includeNoRobots,
+        sort,
+        perPage
+    }: SearchQueryParams) {
 
         this.project = project;
         this.query = query;
         this.fields = fields;
         this.type = type;
-        this.includeExternal = includeExternal;
+        this.includeExternal = includeExternal ?? true;
+        this.includeNoRobots = includeNoRobots ?? false;        
+        this.perPage = perPage ?? SearchQuery.maxPerPage;
+        if (SearchQuery.validSorts.indexOf(sort) >= 0) {
+            this.sort = sort;
+        } else {
+            this.sort = SearchQuery.validSorts[1];
+        }        
     }
 
     /**
@@ -435,7 +499,7 @@ class SearchQuery {
      * @returns A string representing the cache key.
      */
     public getHaystackCacheKey(): string {
-        return `${this.project}~${this.fields}~${this.type}~${this.includeExternal}`;
+        return `${this.project}~${this.fields}~${this.type}~${this.includeExternal}~${this.includeNoRobots}`;
     }
 }
 
@@ -452,11 +516,13 @@ class Search {
      * @param resultHandler - Function to handle each search result.
      * @returns A promise that resolves to a boolean indicating if results were from cache.
      */
+
     public static async execute(query: SearchQuery, existingResults: Map<number, SearchResult>,
-        processingMessage: string, resultHandler: any): Promise<boolean> {
+        resultHandler: any, deep: boolean = false, quiet: boolean = true,
+        processingMessage: string = "Processing..."): Promise<boolean> {
 
         const timeStart = new Date().getTime();
-        processingMessage = processingMessage ?? "Processing...";
+
         // Promise<boolean> returned is a from-cache flag, true if cached
         if (query.getHaystackCacheKey() === Search.resultsHaystackCacheKey && existingResults) {
 
@@ -466,11 +532,14 @@ class Search {
             // print something to screen to inform user of operation
             // this is a blitz, doesn't get the http request breathing room of api http requests
             // anyways, paint first, then saturate cpu
-            const eventStart: CustomEvent = new CustomEvent("ProcessingMessage",
-                { detail: { action: "set", message: processingMessage } });
-            document.dispatchEvent(eventStart);
+            if (quiet === false) {
+                const eventStart: CustomEvent = new CustomEvent("ProcessingMessage",
+                    { detail: { action: "set", message: processingMessage } });
+                document.dispatchEvent(eventStart);
+            }
+            
 
-            // give main thread a short break to render
+            // give main thread a short break to render progress
             await Search.sleep(16);
 
             // note for of loop with sleep mod 100 works, looks smooth, but slows the operation by > 20%
@@ -481,9 +550,13 @@ class Search {
             });
             Plugin.logTiming(`Processed ${resultTotal.toLocaleString()} search result(s)`,
                 new Date().getTime() - timeStart);
-            const msg: {} = { detail: { action: "clear" }};
-            const eventFinished: CustomEvent = new CustomEvent("ProcessingMessage", msg);
-            document.dispatchEvent(eventFinished);
+
+            if (quiet === false) {
+                const msg: {} = { detail: { action: "clear" } };
+                const eventFinished: CustomEvent = new CustomEvent("ProcessingMessage", msg);
+                document.dispatchEvent(eventFinished);
+            }
+            
             return true;
         } else {
             Search.resultsHaystackCacheKey = query.getHaystackCacheKey();
@@ -518,6 +591,9 @@ class Search {
             "type": SearchQueryType[query.type].toLowerCase(),
             "offset": 0,
             "fields": query.fields.split("|"),
+            "norobots": query.includeNoRobots,
+            "sort": query.sort,
+            "perpage": query.perPage,
         };
 
         let responseJson: any = await Plugin.postApiRequest("GetResources", kwargs);
@@ -529,7 +605,7 @@ class Search {
             await Search.handleResult(result, resultTotal, resultHandler);
         }
         
-        while (responseJson["__meta__"]["results"]["pagination"]["nextOffset"] !== null) {
+        while (responseJson["__meta__"]["results"]["pagination"]["nextOffset"] !== null && deep === true) {
 
             const next = responseJson["__meta__"]["results"]["pagination"]["nextOffset"];
             kwargs["offset"] = next;

@@ -486,13 +486,22 @@ class Plugin {
         // pipe delimited fields you want retrieved
         // id and url come with the base model, everything else costs time
         const fields: string = "name";
-        const internalHtmlPagesQuery = new SearchQuery(projectId, freeQueryString, fields,
-            SearchQueryType.Any, false);
+        // const internalHtmlPagesQuery = new SearchQuery(projectId, freeQueryString, fields,
+        //     SearchQueryType.Any, false, false);
+        const internalHtmlPagesQuery = new SearchQuery({
+            project: projectId,
+            query: freeQueryString,
+            fields: fields,
+            type: SearchQueryType.Any,
+            includeExternal: false,
+            includeNoRobots: false,
+        });
+
 
         // run each SearchResult through its handler, and we're done processing
-        await Search.execute(internalHtmlPagesQuery, resultsMap, "Processing…", async (result: SearchResult) => {
+        await Search.execute(internalHtmlPagesQuery, resultsMap, async (result: SearchResult) => {
             await exampleResultHandler(result, titleWords);
-        });
+        }, true, false, "Processing…");
 
         // call for html presentation
         await this.report(titleWords);
