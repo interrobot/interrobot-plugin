@@ -3,10 +3,10 @@
 </p>
 
 <p align="center">
-   <a href="https://interrobot.github.io/interrobot-plugin/">API Docs</a> · 
-   <a href="https://github.com/interrobot/interrobot-plugin/">Repo</a> · 
-   <a href="https://www.npmjs.com/package/interrobot-plugin">NPM</a> · 
-   <a href="https://interro.bot/plugins/">Plugins</a> · 
+   <a href="https://interrobot.github.io/interrobot-plugin/">API Docs</a> ·
+   <a href="https://github.com/interrobot/interrobot-plugin/">Repo</a> ·
+   <a href="https://www.npmjs.com/package/interrobot-plugin">NPM</a> ·
+   <a href="https://interro.bot/plugins/">Plugins</a> ·
    <a href="https://interro.bot/">InterroBot</a>
 <p>
 
@@ -18,14 +18,14 @@ Our plugin ecosystem is designed for versatility. Whether you're building propri
 
 ## How Does it Work?
 
-InterroBot hosts an iframe of your webpage and exposes an API from which you can pull data down for analysis. 
+InterroBot hosts an iframe of your webpage and exposes an API from which you can pull data down for analysis.
 
 If you're familiar with vanilla TypeScript or JavaScript, creating a custom plugin script for InterroBot is remarkably straight forward. First you start with a [bare-bones HTML file](https://raw.githubusercontent.com/interrobot/interrobot-plugin/refs/heads/master/examples/vanillajs/basic.html) and a script extending the Plugin base class.
 
 ```javascript
 // TypeScript vs. JavaScript, both are fine. See examples.
 import { Plugin } from "./src/ts/core/plugin";
-class BasicExamplePlugin extends Plugin {    
+class BasicExamplePlugin extends Plugin {
     static meta = {
         "title": "Example Plugin",
         "category": "Example",
@@ -36,7 +36,7 @@ class BasicExamplePlugin extends Plugin {
     };
     constructor() {
         super();
-        // index() has nothing to do with the crawl index, btw. it is 
+        // index() has nothing to do with the crawl index, btw. it is
         // the plugin index (think index.html), a view that shows by
         // default, and would generally consist of a form or visualization.
         this.index();
@@ -54,16 +54,16 @@ protected async index() {
     // add your form and supporting HTML
     this.render(`<div>HTML</div>`);
     // initialize the plugin within InterroBot, from within iframe
-    await this.initData({}, []);    
+    await this.initData({}, []);
     // add handlers to the form
     const button = document.querySelector("button");
-    button.addEventListener("click", async (ev) => { 
+    button.addEventListener("click", async (ev) => {
         await this.process(); // where process() is a form handler
     });
 }
 ```
 
-The `process()` method called above would be where you process data. Here a query is executed on 
+The `process()` method called above would be where you process data. Here a query is executed on
 the crawl index, and each result run through the exampleResultsHandler.
 
 
@@ -72,13 +72,13 @@ protected async process() {
     // gather title words and running counts with a result handler
     const titleWords: Map<string, number> = new Map<string, number>();
     let resultsMap: Map<number, SearchResult>;
-    const exampleResultHandler = async (result: SearchResult, 
+    const exampleResultHandler = async (result: SearchResult,
         titleWordsMap: Map<string, number>) => {
         const terms: string[] = result.name.trim().split(/[\s\-—]+/g);
-        terms.forEach(term => titleWordsMap.set(term, 
+        terms.forEach(term => titleWordsMap.set(term,
             (titleWordsMap.get(term) ?? 0) + 1));
     }
-    
+
     // projectId comes for free as a member of Plugin
     const projectId = this.getProjectId();
     // build a query, these are exactly as you'd type them into InterroBot search
@@ -94,7 +94,7 @@ protected async process() {
         includeExternal: false,
         includeNoRobots: false,
     });
-    
+
     // run each SearchResult through its handler, and we're done processing
     await InterroBot.Core.Search.execute(internalHtmlPagesQuery, this.resultsMap, async (result) => {
         await exampleResultHandler(result, titleWords);
@@ -160,10 +160,7 @@ Retrieves a list of crawls using the Plugin API.
 
 ## Licensing
 
-MPL 2.0, with exceptions. This repo contains JavaScript to TypeScript ports and a Markdown library based on existing code, all contained within `./src/lib`. As they arrived under existing licenses, they will remain under those. 
+MPL 2.0, with exceptions. This repo contains JavaScript to TypeScript ports and a Markdown library based on existing code, all contained within `./src/lib`. As they arrived under existing licenses, they will remain under those.
 
 * *Typo.js*: TypeScript port continues under the original [Modified BSD License](https://raw.githubusercontent.com/cfinke/Typo.js/master/license.txt).
 * *Snowball.js*: TypeScript port continues under the original [MPL 1.1](https://raw.githubusercontent.com/fortnightlabs/snowball-js/master/LICENSE) license.
-* *HTML To Markdown Text*: The Markdown library contains a modified version of an HTML to Markdown XSLT transformer by Michael Eichelsdoerfer. [MIT](https://en.wikipedia.org/wiki/MIT_License) license.
-
-The InterroBot plugins and the Typo.js TypeScript port make use of a handful of unmodified Hunspell dictionaries, as found in [wooorm's UTF-8 collection](https://github.com/wooorm/dictionaries/): [`dictionary-en`](https://github.com/wooorm/dictionaries/en), [`dictionary-en-gb`](https://github.com/wooorm/dictionaries/en-GB), [`dictionary-es`](https://github.com/wooorm/dictionaries/es),  [`dictionary-es-mx`](https://github.com/wooorm/dictionaries/es-MX), [`dictionary-fr`](https://github.com/wooorm/dictionaries/fr), and [`dictionary-ru`](https://github.com/wooorm/dictionaries/ru).
