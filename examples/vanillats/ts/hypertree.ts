@@ -15,6 +15,11 @@ interface TreeData {
     [key: string]: any;
 }
 
+// Extended SearchResult with sort property
+interface SearchResultWithSort extends SearchResult {
+    sort?: number;
+}
+
 type LangFileLoadCallback = (data: LanguageData, startTime?: number, dataLength?: number) => void;
 type DataFileLoadCallback = (data: TreeData, startTime?: number, dataLength?: number) => void;
 
@@ -106,12 +111,12 @@ class Hypertree extends Plugin {
         return --this.nonResultId;
     }
 
-    private resultDialog: HTMLDialogElement;
-    private panicDialog: HTMLDialogElement;
-    private searchDialog: HTMLDialogElement;
+    private resultDialog!: HTMLDialogElement;
+    private panicDialog!: HTMLDialogElement;
+    private searchDialog!: HTMLDialogElement;
 
-    private resultsMap: Map<number, SearchResult> = new Map<number, SearchResult>();
-    private resultUrlMap: Map<string, SearchResult> = new Map<string, SearchResult>();
+    private resultsMap: Map<number, SearchResultWithSort> = new Map<number, SearchResultWithSort>();
+    private resultUrlMap: Map<string, SearchResultWithSort> = new Map<string, SearchResultWithSort>();
     private component: any;
 
     private renderedIds: number[] = [];
@@ -154,7 +159,7 @@ class Hypertree extends Plugin {
             {
                 dataloader: this.fromApi(query),
                 langloader: this.fromUndefinedLangauge(),
-                langInitBFS: (ht, n)=> {
+                langInitBFS: (ht: any, n: any)=> {
                     // popover labels don't work without this
                     const id = n.data.name;
                     n.precalc.label = id;
@@ -272,7 +277,7 @@ class Hypertree extends Plugin {
         this.renderedIds = [];
     }
 
-    private findNodeById(root:any, targetId: number){
+    private findNodeById(root: any, targetId: number): any | null {
 
         if (!root) {
             return null;
@@ -282,7 +287,7 @@ class Hypertree extends Plugin {
         }
         if (root["children"] && Array.isArray(root["children"])) {
             for (const child of root["children"]) {
-                const result = this.findNodeById(child, targetId);
+                const result: any | null = this.findNodeById(child, targetId);
                 if (result) {
                     return result;
                 }
@@ -329,7 +334,7 @@ class Hypertree extends Plugin {
                     const maxAttempts = 120; // ~2 seconds at 60fps
                     const checkNode = () => {
                         attempts++;
-                        const resultNode = this.findNodeById(this.component.data, hitId);
+                        const resultNode: any = this.findNodeById(this.component.data, hitId);
                         // force an update, if necessary
                         if (resultNode?.layout === null) {
                             this.component.updateLayoutPath_(resultNode);
@@ -348,7 +353,7 @@ class Hypertree extends Plugin {
                     };
                     checkNode();
                 }))
-                .then(resultNode => new Promise((resolve, reject) => {
+                .then((resultNode: any) => new Promise((resolve, reject) => {
 
                     // force an update, if necessary
                     if (resultNode?.layout === null) {
@@ -378,7 +383,7 @@ class Hypertree extends Plugin {
                     checkAnimation();
                 }))
                 .then(() => this.component.api.gotoλ(.25))
-                .catch(error => {
+                .catch((error: Error) => {
                     console.error("navigation failed or interrupted:", error);
                 });
 
@@ -469,38 +474,38 @@ class Hypertree extends Plugin {
 
                 ev.preventDefault();
                 const queryString: string = searchInput.value.toLocaleLowerCase();
-                let hits:SearchResult[] = [];
+                let hits: SearchResultWithSort[] = [];
                 const startsWithQuery: RegExp = new RegExp(`^${Hypertree.escapeRegExp(queryString)}`, "i");
                 const bordersQuery: RegExp = new RegExp(`\b${Hypertree.escapeRegExp(queryString)}`, "i");
                 const containsQuery: RegExp = new RegExp(`${Hypertree.escapeRegExp(queryString)}`, "i");
 
                 for (const [resultId, result] of this.resultsMap) {
-                    result["sort"] = -1;
+                    result.sort = -1;
                     if (result.status.toString() === queryString) {
-                        result["sort"] = 70;
+                        result.sort = 70;
                     } else if (startsWithQuery.test(result.name)) {
-                        result["sort"] = 60;
+                        result.sort = 60;
                     } else if (bordersQuery.test(result.name)) {
-                        result["sort"] = 50;
+                        result.sort = 50;
                     } else if (containsQuery.test(result.name)) {
-                        result["sort"] = 40;
+                        result.sort = 40;
                     } else if (startsWithQuery.test(result.url)) {
-                        result["sort"] = 30;
+                        result.sort = 30;
                     } else if (containsQuery.test(result.url)) {
-                        result["sort"] = 20;
+                        result.sort = 20;
                     }
 
                     // this.renderedIds handles corner cases like trailing and non-trailing
                     // slash identicals this arrangement strains the basic nested model
                     // since there is no node to navigate to, there should be no result.
                     // problem solved?
-                    if (result["sort"] >= 20 && this.renderedIds.indexOf(result.id) >= 0){
+                    if (result.sort >= 20 && this.renderedIds.indexOf(result.id) >= 0){
                         hits.push(result);
                     }
                 }
 
-                hits.sort((a: SearchResult, b: SearchResult) => {
-                    const sortDiff = b["sort"] - a["sort"];
+                hits.sort((a: SearchResultWithSort, b: SearchResultWithSort) => {
+                    const sortDiff = (b.sort ?? 0) - (a.sort ?? 0);
                     if (sortDiff !== 0) {
                         return sortDiff;
                     }
@@ -532,7 +537,7 @@ class Hypertree extends Plugin {
                 }
 
                 const highlights = new RegExp(`${Hypertree.escapeRegExp(queryString)}`, "gi");
-                const highlight = (text) => {
+                const highlight = (text: string) => {
                     return text.replace(highlights, "<mark>$&</mark>");
                 }
 
@@ -698,14 +703,14 @@ class Hypertree extends Plugin {
     private async updateAutoformNodes(): Promise<void> {
 
         const activeIds: number[] = [];
-        const selections = [...this.component.args.objects.selections];
+        const selections: any[] = [...this.component.args.objects.selections];
         selections.sort((a, b) => {
             // sort so errors draw over ok paths
             return a.data["interrobotStatus"] - b.data["interrobotStatus"];
 
         });
 
-        selections.forEach(selection => {
+        selections.forEach((selection: any) => {
             const result: number = selection.data["interrobotId"];
             if (result >= 0){
                 activeIds.push(result);
@@ -720,7 +725,7 @@ class Hypertree extends Plugin {
 
     private async openDetail(ev: any): Promise<void> {
 
-        const result: SearchResult | null = this.resultsMap.get(ev.detail.id) ?? null;
+        const result: SearchResultWithSort | null = this.resultsMap.get(ev.detail.id) ?? null;
 
         // non result node, no detail
         if (result === null){
@@ -762,7 +767,7 @@ class Hypertree extends Plugin {
         if (result && detailHtml){
             const activeIds: number[] = [];
             const selections = this.component.args.objects.selections;
-            selections.forEach(selection => {
+            selections.forEach((selection: any) => {
                 activeIds.push(selection.data["interrobotId"]);
             });
             if (activeIds.indexOf(result.id) >= 0){
@@ -937,7 +942,7 @@ class Hypertree extends Plugin {
         return result + "…";
     }
 
-    private getResultStem(id: number, name: string, slug: string, status: number, type: string, children: {}[]): {} {
+    private getResultStem(id: number, name: string, slug: string, status: number, type: string, children: Record<string, any>[]): Record<string, any> {
         return {
             "name": `${this.truncateTitle(name ? name : slug)}`,
             "numLeafs": children.length,
@@ -948,9 +953,9 @@ class Hypertree extends Plugin {
         };
     }
 
-    private gatherResultsBranches(root: {}, baseUrl:string, renderedIds: number[]): {}[] {
+    private gatherResultsBranches(root: Record<string, any>, baseUrl: string, renderedIds: number[]): Record<string, any>[] {
 
-        const seedObjects: {}[] = [];
+        const seedObjects: Record<string, any>[] = [];
         const rootKeys = Object.keys(root);
         for (let i=0; i< rootKeys.length; i++){
             const rootKey: string = rootKeys[i];
@@ -961,7 +966,7 @@ class Hypertree extends Plugin {
             const rootChild = root[rootKey];
             // const resultUrl: string = rootChild["__meta__"]["url"];
             const resultUrl: string = rootChild?.__meta__?.url;
-            let result: SearchResult | undefined = this.resultUrlMap.get(this.normalizeUrl(resultUrl));
+            let result: SearchResultWithSort | undefined = this.resultUrlMap.get(this.normalizeUrl(resultUrl));
             const resultHit: boolean = result !== undefined;
             if (result !== undefined){
                 const children = this.gatherResultsBranches(rootChild, result.url, renderedIds);
@@ -1002,7 +1007,7 @@ class Hypertree extends Plugin {
         }
     }
 
-    private async gatherResults(query: SearchQuery): Promise<{}> {
+    private async gatherResults(query: SearchQuery): Promise<Record<string, any>> {
 
         this.clearMaps();
 
@@ -1010,8 +1015,8 @@ class Hypertree extends Plugin {
         const gatheredUrls: string[] = [];
 
         let projectHitId: number = -1;
-        let seedObject: {} | null = {};
-        
+        let seedObject: Record<string, any> | null = {};
+
         await Search.execute(query, this.resultsMap, async (result: SearchResult) => {
 
             const rUrl: string = result.url;
@@ -1033,7 +1038,7 @@ class Hypertree extends Plugin {
             return {};
         }
 
-        const firstHit: SearchResult | undefined = this.resultsMap.get(projectHitId);
+        const firstHit: SearchResultWithSort | undefined = this.resultsMap.get(projectHitId);
         if (firstHit === undefined){
             return {};
         }
@@ -1041,7 +1046,7 @@ class Hypertree extends Plugin {
         // regroup into tree, grab all URLs from search results, loop and extract hierarchy
         const resultUrlMapKeys: string[] = [...this.resultUrlMap.keys()];
         resultUrlMapKeys.sort();
-        const root: { [key: string]: {} } = { __meta__ : {url: this.normalizeUrl(firstHit.url)} };
+        const root: Record<string, any> = { __meta__ : {url: this.normalizeUrl(firstHit.url)} };
 
         for (const url of resultUrlMapKeys) {
 

@@ -16,6 +16,48 @@ interface SearchQueryParams {
     sort?: string;
     perPage?: number;
 }
+interface SearchResultJson {
+    result: number;
+    id: number;
+    url: string;
+    created?: string;
+    modified?: string;
+    size?: number;
+    status?: number;
+    time?: number;
+    norobots?: boolean;
+    name?: string;
+    type?: string;
+    content?: string;
+    headers?: string;
+    links?: string[];
+    assets?: string[];
+    origin?: string;
+}
+interface CrawlParams {
+    id: number;
+    project: number;
+    created: Date;
+    modified: Date;
+    complete?: boolean;
+    time?: number;
+    report?: any;
+}
+interface ProjectParams {
+    id: number;
+    created: Date;
+    modified: Date;
+    name?: string;
+    url?: string;
+    urls?: string[];
+    imageDataUri?: string;
+}
+interface PluginDataParams {
+    projectId: number;
+    meta: {};
+    defaultData: {};
+    autoformInputs: HTMLElement[];
+}
 /**
  * Container for plugin settings
  */
@@ -28,12 +70,9 @@ declare class PluginData {
     private project;
     /**
      * Creates an instance of PluginData.
-     * @param projectId - The ID of the project.
-     * @param meta - Metadata for the plugin.
-     * @param defaultData - Default data for the plugin.
-     * @param autoformInputs - Array of HTML elements for autoform inputs.
+     * @param params - PluginDataParams, collection of arguments.
      */
-    constructor(projectId: number, meta: {}, defaultData: {}, autoformInputs: HTMLElement[]);
+    constructor(params: PluginDataParams);
     /**
      * Sets a data field and optionally updates the data.
      * @param key - The key of the data field to set.
@@ -84,9 +123,9 @@ declare class SearchQuery {
     readonly perPage: number;
     /**
      * Creates an instance of SearchQuery.
-     * @param params - The search query parameters
+     * @param params - SearchQueryParams, collection of arguments.
      */
-    constructor({ project, query, fields, type, includeExternal, includeNoRobots, sort, perPage }: SearchQueryParams);
+    constructor(params: SearchQueryParams);
     /**
      * Gets the cache key for the haystack.
      * @returns A string representing the cache key.
@@ -147,7 +186,7 @@ declare class SearchResult {
      * Creates an instance of SearchResult.
      * @param jsonResult - The JSON representation of the search result.
      */
-    constructor(jsonResult: any);
+    constructor(jsonResult: SearchResultJson);
     /**
      * Checks if the result has processed content.
      * @returns True if processed content exists, false otherwise.
@@ -201,15 +240,9 @@ declare class Crawl {
     report: any;
     /**
      * Creates an instance of Crawl.
-     * @param id - The crawl ID.
-     * @param project - The project ID.
-     * @param created - The creation date.
-     * @param modified - The last modified date.
-     * @param complete - Whether the crawl is complete.
-     * @param time - The time taken for the crawl.
-     * @param report - The crawl report.
+     * @param params - CrawlParams, collection of arguments.
      */
-    constructor(id: number, project: number, created: Date, modified: Date, complete: boolean, time: number, report: any);
+    constructor(params: CrawlParams);
     /**
      * Gets the timings from the crawl report.
      * @returns The timings object.
@@ -234,17 +267,16 @@ declare class Project {
     id: number;
     created: Date;
     modified: Date;
-    url: string;
-    imageDataUri: string;
+    name?: string;
+    url?: string;
+    urls?: string[];
+    imageDataUri?: string;
+    static readonly urlDeprectionWarning: string;
     /**
      * Creates an instance of Project.
-     * @param id - The project ID.
-     * @param created - The creation date.
-     * @param modified - The last modified date.
-     * @param url - The project URL.
-     * @param imageDataUri - The data URI of the project image.
+     * @param params - ProjectParams, collection of arguments.
      */
-    constructor(id: number, created: Date, modified: Date, url: string, imageDataUri: string);
+    constructor(params: ProjectParams);
     /**
      * Gets the data URI of the project image.
      * @returns The image data URI.
@@ -255,6 +287,7 @@ declare class Project {
      * @returns The display title (hostname of the project URL).
      */
     getDisplayTitle(): string;
+    getDisplayUrl(): string;
     /**
      * Gets a project by its ID from the API.
      * @param id - The project ID.

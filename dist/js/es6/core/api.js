@@ -29,16 +29,14 @@ var SearchQuerySortDirection;
 class PluginData {
     /**
      * Creates an instance of PluginData.
-     * @param projectId - The ID of the project.
-     * @param meta - Metadata for the plugin.
-     * @param defaultData - Default data for the plugin.
-     * @param autoformInputs - Array of HTML elements for autoform inputs.
+     * @param params - PluginDataParams, collection of arguments.
      */
-    constructor(projectId, meta, defaultData, autoformInputs) {
-        this.meta = meta;
-        this.defaultData = defaultData;
-        this.autoformInputs = autoformInputs;
-        this.project = projectId;
+    constructor(params) {
+        var _a;
+        this.meta = params.meta;
+        this.defaultData = params.defaultData;
+        this.autoformInputs = (_a = params.autoformInputs) !== null && _a !== void 0 ? _a : [];
+        this.project = params.projectId;
         // init and copy in default data
         // autoform { [projectId: number]: {[inputName: string]: any } }
         this.data = {
@@ -49,16 +47,7 @@ class PluginData {
             this.data.autoform = [];
         }
         this.data.autoform[this.project] = {};
-        if (autoformInputs.length > 0) {
-            // const setValue = async (name: string, value: string) => {
-            //     const data: {} = await this.getData();
-            //     const autoformData: {} = data["autoform"] ?? {};
-            //     const projectAutoformData: {} = autoformData[this.project] ?? {};
-            //     if (projectAutoformData[name] !== value) {
-            //         projectAutoformData[name] = value;
-            //         await this.setDataField("autoform", autoformData, true);
-            //     }
-            // }
+        if (this.autoformInputs.length > 0) {
             const changeHandler = async (el) => {
                 const name = el.getAttribute("name");
                 let value;
@@ -111,7 +100,7 @@ class PluginData {
                         // looks more complicated than it is
                         if (input.type == "checkbox") {
                             // this can go a couple ways
-                            // either it is a single true/false or a multiple, 
+                            // either it is a single true/false or a multiple,
                             // in which it is piped|values|like|this, dig it?
                             const elInput = el;
                             const allCheckboxes = document.querySelectorAll(`input[type=checkbox][name=${elInput.name}]`);
@@ -194,7 +183,7 @@ class PluginData {
      * Loads the plugin data from the server.
      */
     async loadData() {
-        var _a;
+        var _a, _b, _c;
         let pluginUrl = window.location.href;
         // adjust for core reports, 3rd party will not hit this
         if (pluginUrl === "about:srcdoc") {
@@ -234,12 +223,11 @@ class PluginData {
         }
         if (this.autoformInputs.length > 0) {
             // init autoform if necessary
-            const defaultProjectData = {};
             if (!("autoform" in this.data)) {
                 this.data["autoform"] = {};
             }
             else {
-                // legacy PluginData stored form data, handle/remove
+                // PluginData 1.0 stored legacy form data, remove
                 for (let key in this.data["autoform"]) {
                     if (isNaN(parseInt(key, 10))) {
                         delete this.data["autoform"][key];
@@ -250,6 +238,7 @@ class PluginData {
             }
             // init project level autoform, this is where input values stored
             if (!(this.project in this.data["autoform"])) {
+                const defaultProjectData = (_b = (_a = this.defaultData["autoform"]) === null || _a === void 0 ? void 0 : _a[this.project]) !== null && _b !== void 0 ? _b : {};
                 this.data["autoform"][this.project] = defaultProjectData;
             }
         }
@@ -261,7 +250,7 @@ class PluginData {
                 continue;
             }
             const name = el.name;
-            const val = (_a = this.data["autoform"][this.project][name]) !== null && _a !== void 0 ? _a : null;
+            const val = (_c = this.data["autoform"][this.project][name]) !== null && _c !== void 0 ? _c : null;
             const lowerTag = el.tagName.toLowerCase();
             let input;
             let isBooleanCheckbox = false;
@@ -319,7 +308,7 @@ class PluginData {
                     if (val) {
                         input.value = val;
                     }
-                    // else input to self assign (default)             
+                    // else input to self assign (default)
                     break;
             }
         }
@@ -354,7 +343,7 @@ class PluginData {
      * Updates the plugin data on the server.
      */
     async updateData() {
-        // const updateEndpoint = this.getDataEndpoint();        
+        // const updateEndpoint = this.getDataEndpoint();
         const data = await this.getData();
         data["meta"] = this.meta;
         const kwargs = {
@@ -363,22 +352,6 @@ class PluginData {
         };
         const result = await Plugin.postApiRequest("SetPluginData", kwargs);
         return;
-        /*
-        // preserved for historical reference
-        const response = await fetch(`${Plugin.getHostOrigin()}/api/v2/projects/?fields=image&ids=${id}`);
-        const projects = await response.json();
-        const dataUpload: string = JSON.stringify(data);
-        const result = await fetch(updateEndpoint, {
-            method: "post",
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-            },
-            body: dataUpload
-        });
-        const json: JSON = await result.json();
-        return;
-        */
     }
     /**
      * Gets the data slug for the plugin.
@@ -400,20 +373,21 @@ class PluginData {
 class SearchQuery {
     /**
      * Creates an instance of SearchQuery.
-     * @param params - The search query parameters
+     * @param params - SearchQueryParams, collection of arguments.
      */
-    constructor({ project, query, fields, type, includeExternal, includeNoRobots, sort, perPage }) {
+    constructor(params) {
+        var _a, _b, _c;
         this.includeExternal = true;
         this.includeNoRobots = false;
-        this.project = project;
-        this.query = query;
-        this.fields = fields;
-        this.type = type;
-        this.includeExternal = includeExternal !== null && includeExternal !== void 0 ? includeExternal : true;
-        this.includeNoRobots = includeNoRobots !== null && includeNoRobots !== void 0 ? includeNoRobots : false;
-        this.perPage = perPage !== null && perPage !== void 0 ? perPage : SearchQuery.maxPerPage;
-        if (SearchQuery.validSorts.indexOf(sort) >= 0) {
-            this.sort = sort;
+        this.project = params.project;
+        this.query = params.query;
+        this.fields = params.fields;
+        this.type = params.type;
+        this.includeExternal = (_a = params.includeExternal) !== null && _a !== void 0 ? _a : true;
+        this.includeNoRobots = (_b = params.includeNoRobots) !== null && _b !== void 0 ? _b : false;
+        this.perPage = (_c = params.perPage) !== null && _c !== void 0 ? _c : SearchQuery.maxPerPage;
+        if (SearchQuery.validSorts.indexOf(params.sort) >= 0) {
+            this.sort = params.sort;
         }
         else {
             this.sort = SearchQuery.validSorts[1];
@@ -471,26 +445,6 @@ class Search {
             Search.resultsHaystackCacheKey = query.getHaystackCacheKey();
             Search.resultsCacheTotal = 0;
         }
-        /*
-        HTTP/old
-        const resultsPageBase = `${Plugin.getHostOrigin()}/api/v2/projects/${query.projectId}/resources/`;
-        const resultsPageQuery = `query=${encodeURIComponent(query.query)}`
-            + `&type=${SearchQueryType[query.type].toLowerCase()}&external=${Number(query.includeExternal)}`
-            + `&fields=${encodeURIComponent(query.fields)}&offset=0`;
-        const resultsPageUrl = `${resultsPageBase}?${resultsPageQuery}`;
-        let response = await fetch(resultsPageUrl);
-        let responseJson = await response.json();
-        while (responseJson["__meta__"]["results"]["pagination"]["next"] !== null) {
-            const next = responseJson["__meta__"]["results"]["pagination"]["next"];
-            response = await fetch(next);
-            responseJson = await response.json();
-            results = responseJson.results;
-            for (let i = 0; i < results.length; i++) {
-                const result = results[i];
-                await Search.handleResult(result, resultTotal, resultHandler);
-            }
-        }
-        */
         const kwargs = {
             "project": query.project,
             "query": query.query,
@@ -564,11 +518,13 @@ class SearchResult {
      * @param jsonResult - The JSON representation of the search result.
      */
     constructor(jsonResult) {
+        var _a;
         this.optionalFields = ["created", "modified", "size", "status",
             "time", "norobots", "name", "type", "content", "headers", "links", "assets", "origin"];
-        this.result = jsonResult["result"];
-        this.id = jsonResult["id"];
-        this.url = jsonResult["url"];
+        this.result = jsonResult.result;
+        this.id = jsonResult.id;
+        this.url = (_a = jsonResult.url) !== null && _a !== void 0 ? _a : null; // deprecated
+        this.name = jsonResult.name;
         this.processedContent = "";
         for (let field of this.optionalFields) {
             if (field in jsonResult) {
@@ -669,28 +625,22 @@ SearchResult.wordWhitespaceRe = /\s+/g;
 class Crawl {
     /**
      * Creates an instance of Crawl.
-     * @param id - The crawl ID.
-     * @param project - The project ID.
-     * @param created - The creation date.
-     * @param modified - The last modified date.
-     * @param complete - Whether the crawl is complete.
-     * @param time - The time taken for the crawl.
-     * @param report - The crawl report.
+     * @param params - CrawlParams, collection of arguments.
      */
-    constructor(id, project, created, modified, complete, time, report) {
+    constructor(params) {
         this.id = -1;
         this.created = null;
         this.modified = null;
         this.project = -1;
         this.time = -1;
         this.report = null;
-        this.id = id;
-        this.created = created;
-        this.modified = modified;
-        this.complete = complete;
-        this.project = project;
-        this.time = time;
-        this.report = report;
+        this.id = params.id;
+        this.project = params.project;
+        this.created = params.created;
+        this.modified = params.modified;
+        this.complete = params.complete;
+        this.time = params.time;
+        this.report = params.report;
     }
     /**
      * Gets the timings from the crawl report.
@@ -715,7 +665,7 @@ class Crawl {
     }
     getReportDetailByKey(key) {
         // returns a dictionary of key/values for the corresponding key
-        // InterroBot pre-2.6 will not contain a detail object        
+        // InterroBot pre-2.6 will not contain a detail object
         if (this.report && this.report.hasOwnProperty("detail") &&
             this.report.detail.hasOwnProperty(key)) {
             return this.report.detail[key];
@@ -731,21 +681,22 @@ class Crawl {
 class Project {
     /**
      * Creates an instance of Project.
-     * @param id - The project ID.
-     * @param created - The creation date.
-     * @param modified - The last modified date.
-     * @param url - The project URL.
-     * @param imageDataUri - The data URI of the project image.
+     * @param params - ProjectParams, collection of arguments.
      */
-    constructor(id, created, modified, url, imageDataUri) {
+    constructor(params) {
         this.id = -1;
         this.created = null;
         this.modified = null;
-        this.id = id;
-        this.created = created;
-        this.modified = modified;
-        this.url = url;
-        this.imageDataUri = imageDataUri;
+        this.name = null; // name to required when url shut down
+        this.url = null; // deprecated
+        this.urls = [];
+        this.imageDataUri = null;
+        this.id = params.id;
+        this.created = params.created;
+        this.modified = params.modified;
+        this.url = params.url;
+        this.name = params.name;
+        this.imageDataUri = params.imageDataUri;
     }
     /**
      * Gets the data URI of the project image.
@@ -759,7 +710,31 @@ class Project {
      * @returns The display title (hostname of the project URL).
      */
     getDisplayTitle() {
-        return new URL(this.url).hostname;
+        if (this.name) {
+            return this.name;
+        }
+        else if (this.url) {
+            Plugin.logWarning(Project.urlDeprectionWarning);
+            return new URL(this.url).hostname;
+        }
+        else {
+            return "[error]";
+        }
+    }
+    getDisplayUrl() {
+        if (this.urls) {
+            const firstUrl = this.urls[0];
+            const urlCount = this.urls.length;
+            const more = urlCount > 1 ? ` + ${urlCount - 1} more` : "";
+            return `${firstUrl}${more}`;
+        }
+        else if (this.url) {
+            Plugin.logWarning(Project.urlDeprectionWarning);
+            return new URL(this.url).hostname;
+        }
+        else {
+            return "[error]";
+        }
     }
     /**
      * Gets a project by its ID from the API.
@@ -779,9 +754,16 @@ class Project {
                 // hit, return as instance
                 const created = new Date(project.created);
                 const modified = new Date(project.modified);
-                const url = project.url;
+                const name = project.name || project.url; // url is deprecated
                 const imageDataUri = project.image;
-                return new Project(id, created, modified, url, imageDataUri);
+                // return new Project(id, created, modified, url, imageDataUri);
+                return new Project({
+                    id: id,
+                    created: created,
+                    modified: modified,
+                    name: name,
+                    imageDataUri: imageDataUri
+                });
             }
         }
         // not found
@@ -803,12 +785,18 @@ class Project {
         const crawlResults = response.results;
         for (let i = 0; i < crawlResults.length; i++) {
             const crawlResult = crawlResults[i];
-            // console.log(crawlResult.created);
-            // console.log(new Date(crawlResult.created));
-            const crawl = new Crawl(crawlResult.id, project, new Date(crawlResult.created), new Date(crawlResult.modified), crawlResult.complete, crawlResult.time, crawlResult.report);
-            crawls.push(crawl);
+            crawls.push(new Crawl({
+                id: crawlResult.id,
+                project: project,
+                created: new Date(crawlResult.created),
+                modified: new Date(crawlResult.modified),
+                complete: crawlResult.complete,
+                time: crawlResult.time,
+                report: crawlResult.report
+            }));
         }
         return crawls;
     }
 }
+Project.urlDeprectionWarning = `"url" field is deprecated, use "name" or "urls" instead.`;
 export { Project, Crawl, SearchQueryType, SearchQuery, Search, SearchResult, PluginData };

@@ -83,10 +83,16 @@ declare class Plugin {
      */
     static logTiming(msg: string, millis: number): void;
     /**
+     * Logs warning information to the console.
+     * @param msg - The message to log.
+     */
+    static logWarning(msg: string): void;
+    /**
      * Routes a message to the parent frame.
      * @param msg - The message to route.
      */
     private static routeMessage;
+    static GetStaticBasePath(): string;
     private static contentScrollHeight;
     private static connection;
     data: PluginData;

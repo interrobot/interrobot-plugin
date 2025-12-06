@@ -111,16 +111,14 @@
   var PluginData = class {
     /**
      * Creates an instance of PluginData.
-     * @param projectId - The ID of the project.
-     * @param meta - Metadata for the plugin.
-     * @param defaultData - Default data for the plugin.
-     * @param autoformInputs - Array of HTML elements for autoform inputs.
+     * @param params - PluginDataParams, collection of arguments.
      */
-    constructor(projectId, meta, defaultData, autoformInputs) {
-      this.meta = meta;
-      this.defaultData = defaultData;
-      this.autoformInputs = autoformInputs;
-      this.project = projectId;
+    constructor(params) {
+      var _a;
+      this.meta = params.meta;
+      this.defaultData = params.defaultData;
+      this.autoformInputs = (_a = params.autoformInputs) !== null && _a !== void 0 ? _a : [];
+      this.project = params.projectId;
       this.data = {
         apiVersion: "1.1",
         autoform: {}
@@ -129,7 +127,7 @@
         this.data.autoform = [];
       }
       this.data.autoform[this.project] = {};
-      if (autoformInputs.length > 0) {
+      if (this.autoformInputs.length > 0) {
         const changeHandler = async (el) => {
           const name = el.getAttribute("name");
           let value;
@@ -248,7 +246,7 @@
      * Loads the plugin data from the server.
      */
     async loadData() {
-      var _a;
+      var _a, _b, _c;
       let pluginUrl = window.location.href;
       if (pluginUrl === "about:srcdoc") {
         pluginUrl = `/reports/${window.parent.document.getElementById("report").dataset.report}/`;
@@ -283,7 +281,6 @@
 ${JSON.stringify(kwargs)}`);
       }
       if (this.autoformInputs.length > 0) {
-        const defaultProjectData = {};
         if (!("autoform" in this.data)) {
           this.data["autoform"] = {};
         } else {
@@ -294,6 +291,7 @@ ${JSON.stringify(kwargs)}`);
           }
         }
         if (!(this.project in this.data["autoform"])) {
+          const defaultProjectData = (_b = (_a = this.defaultData["autoform"]) === null || _a === void 0 ? void 0 : _a[this.project]) !== null && _b !== void 0 ? _b : {};
           this.data["autoform"][this.project] = defaultProjectData;
         }
       }
@@ -303,7 +301,7 @@ ${JSON.stringify(kwargs)}`);
           continue;
         }
         const name = el.name;
-        const val = (_a = this.data["autoform"][this.project][name]) !== null && _a !== void 0 ? _a : null;
+        const val = (_c = this.data["autoform"][this.project][name]) !== null && _c !== void 0 ? _c : null;
         const lowerTag = el.tagName.toLowerCase();
         let input;
         let isBooleanCheckbox = false;
@@ -418,20 +416,21 @@ ${JSON.stringify(kwargs)}`);
   var SearchQuery = class {
     /**
      * Creates an instance of SearchQuery.
-     * @param params - The search query parameters
+     * @param params - SearchQueryParams, collection of arguments.
      */
-    constructor({ project, query, fields, type, includeExternal, includeNoRobots, sort, perPage }) {
+    constructor(params) {
+      var _a, _b, _c;
       this.includeExternal = true;
       this.includeNoRobots = false;
-      this.project = project;
-      this.query = query;
-      this.fields = fields;
-      this.type = type;
-      this.includeExternal = includeExternal !== null && includeExternal !== void 0 ? includeExternal : true;
-      this.includeNoRobots = includeNoRobots !== null && includeNoRobots !== void 0 ? includeNoRobots : false;
-      this.perPage = perPage !== null && perPage !== void 0 ? perPage : SearchQuery.maxPerPage;
-      if (SearchQuery.validSorts.indexOf(sort) >= 0) {
-        this.sort = sort;
+      this.project = params.project;
+      this.query = params.query;
+      this.fields = params.fields;
+      this.type = params.type;
+      this.includeExternal = (_a = params.includeExternal) !== null && _a !== void 0 ? _a : true;
+      this.includeNoRobots = (_b = params.includeNoRobots) !== null && _b !== void 0 ? _b : false;
+      this.perPage = (_c = params.perPage) !== null && _c !== void 0 ? _c : SearchQuery.maxPerPage;
+      if (SearchQuery.validSorts.indexOf(params.sort) >= 0) {
+        this.sort = params.sort;
       } else {
         this.sort = SearchQuery.validSorts[1];
       }
@@ -549,6 +548,7 @@ ${JSON.stringify(kwargs)}`);
      * @param jsonResult - The JSON representation of the search result.
      */
     constructor(jsonResult) {
+      var _a;
       this.optionalFields = [
         "created",
         "modified",
@@ -564,9 +564,10 @@ ${JSON.stringify(kwargs)}`);
         "assets",
         "origin"
       ];
-      this.result = jsonResult["result"];
-      this.id = jsonResult["id"];
-      this.url = jsonResult["url"];
+      this.result = jsonResult.result;
+      this.id = jsonResult.id;
+      this.url = (_a = jsonResult.url) !== null && _a !== void 0 ? _a : null;
+      this.name = jsonResult.name;
       this.processedContent = "";
       for (let field of this.optionalFields) {
         if (field in jsonResult) {
@@ -658,28 +659,22 @@ ${JSON.stringify(kwargs)}`);
   var Crawl = class {
     /**
      * Creates an instance of Crawl.
-     * @param id - The crawl ID.
-     * @param project - The project ID.
-     * @param created - The creation date.
-     * @param modified - The last modified date.
-     * @param complete - Whether the crawl is complete.
-     * @param time - The time taken for the crawl.
-     * @param report - The crawl report.
+     * @param params - CrawlParams, collection of arguments.
      */
-    constructor(id, project, created, modified, complete, time, report) {
+    constructor(params) {
       this.id = -1;
       this.created = null;
       this.modified = null;
       this.project = -1;
       this.time = -1;
       this.report = null;
-      this.id = id;
-      this.created = created;
-      this.modified = modified;
-      this.complete = complete;
-      this.project = project;
-      this.time = time;
-      this.report = report;
+      this.id = params.id;
+      this.project = params.project;
+      this.created = params.created;
+      this.modified = params.modified;
+      this.complete = params.complete;
+      this.time = params.time;
+      this.report = params.report;
     }
     /**
      * Gets the timings from the crawl report.
@@ -713,21 +708,22 @@ ${JSON.stringify(kwargs)}`);
   var Project = class {
     /**
      * Creates an instance of Project.
-     * @param id - The project ID.
-     * @param created - The creation date.
-     * @param modified - The last modified date.
-     * @param url - The project URL.
-     * @param imageDataUri - The data URI of the project image.
+     * @param params - ProjectParams, collection of arguments.
      */
-    constructor(id, created, modified, url, imageDataUri) {
+    constructor(params) {
       this.id = -1;
       this.created = null;
       this.modified = null;
-      this.id = id;
-      this.created = created;
-      this.modified = modified;
-      this.url = url;
-      this.imageDataUri = imageDataUri;
+      this.name = null;
+      this.url = null;
+      this.urls = [];
+      this.imageDataUri = null;
+      this.id = params.id;
+      this.created = params.created;
+      this.modified = params.modified;
+      this.url = params.url;
+      this.name = params.name;
+      this.imageDataUri = params.imageDataUri;
     }
     /**
      * Gets the data URI of the project image.
@@ -741,7 +737,27 @@ ${JSON.stringify(kwargs)}`);
      * @returns The display title (hostname of the project URL).
      */
     getDisplayTitle() {
-      return new URL(this.url).hostname;
+      if (this.name) {
+        return this.name;
+      } else if (this.url) {
+        Plugin.logWarning(Project.urlDeprectionWarning);
+        return new URL(this.url).hostname;
+      } else {
+        return "[error]";
+      }
+    }
+    getDisplayUrl() {
+      if (this.urls) {
+        const firstUrl = this.urls[0];
+        const urlCount = this.urls.length;
+        const more = urlCount > 1 ? ` + ${urlCount - 1} more` : "";
+        return `${firstUrl}${more}`;
+      } else if (this.url) {
+        Plugin.logWarning(Project.urlDeprectionWarning);
+        return new URL(this.url).hostname;
+      } else {
+        return "[error]";
+      }
     }
     /**
      * Gets a project by its ID from the API.
@@ -760,9 +776,15 @@ ${JSON.stringify(kwargs)}`);
         if (project.id === id) {
           const created = new Date(project.created);
           const modified = new Date(project.modified);
-          const url = project.url;
+          const name = project.name || project.url;
           const imageDataUri = project.image;
-          return new Project(id, created, modified, url, imageDataUri);
+          return new Project({
+            id,
+            created,
+            modified,
+            name,
+            imageDataUri
+          });
         }
       }
       return null;
@@ -783,12 +805,20 @@ ${JSON.stringify(kwargs)}`);
       const crawlResults = response.results;
       for (let i = 0; i < crawlResults.length; i++) {
         const crawlResult = crawlResults[i];
-        const crawl = new Crawl(crawlResult.id, project, new Date(crawlResult.created), new Date(crawlResult.modified), crawlResult.complete, crawlResult.time, crawlResult.report);
-        crawls.push(crawl);
+        crawls.push(new Crawl({
+          id: crawlResult.id,
+          project,
+          created: new Date(crawlResult.created),
+          modified: new Date(crawlResult.modified),
+          complete: crawlResult.complete,
+          time: crawlResult.time,
+          report: crawlResult.report
+        }));
       }
       return crawls;
     }
   };
+  Project.urlDeprectionWarning = `"url" field is deprecated, use "name" or "urls" instead.`;
 
   // examples/vanillats/js/build/src/ts/core/touch.js
   var TouchProxy = class {
@@ -1033,6 +1063,13 @@ ${JSON.stringify(kwargs)}`);
       console.log(`\u{1F916} [${seconds}s] ${msg}`);
     }
     /**
+     * Logs warning information to the console.
+     * @param msg - The message to log.
+     */
+    static logWarning(msg) {
+      console.warn(`\u{1F916} ${msg}`);
+    }
+    /**
      * Routes a message to the parent frame.
      * @param msg - The message to route.
      */
@@ -1044,6 +1081,22 @@ ${JSON.stringify(kwargs)}`);
       } else {
         window.parent.postMessage(msg);
       }
+    }
+    static GetStaticBasePath() {
+      function isLinux() {
+        if ("userAgentData" in navigator && navigator.userAgentData) {
+          const platform = navigator.userAgentData.platform.toLowerCase();
+          return platform === "linux";
+        } else {
+          const ua = navigator.userAgent.toLowerCase();
+          if (ua.includes("android"))
+            return false;
+          if (ua.includes("cros"))
+            return false;
+          return ua.includes("linux");
+        }
+      }
+      return isLinux() ? "" : "/_content/Interrobot.Common";
     }
     /**
      * Creates a new Plugin instance.
@@ -1114,7 +1167,12 @@ ${JSON.stringify(kwargs)}`);
      * @param autoform - An array of HTML elements for the autoform.
      */
     async initData(defaultData, autoform) {
-      this.data = new PluginData(this.getProjectId(), this.getInstanceMeta(), defaultData, autoform);
+      this.data = new PluginData({
+        projectId: this.getProjectId(),
+        meta: this.getInstanceMeta(),
+        defaultData,
+        autoformInputs: autoform
+      });
       await this.data.loadData();
     }
     /**
@@ -1609,26 +1667,27 @@ This is the default plugin description. Set meta: {} values
           const bordersQuery = new RegExp(`\b${Hypertree.escapeRegExp(queryString)}`, "i");
           const containsQuery = new RegExp(`${Hypertree.escapeRegExp(queryString)}`, "i");
           for (const [resultId, result] of this.resultsMap) {
-            result["sort"] = -1;
+            result.sort = -1;
             if (result.status.toString() === queryString) {
-              result["sort"] = 70;
+              result.sort = 70;
             } else if (startsWithQuery.test(result.name)) {
-              result["sort"] = 60;
+              result.sort = 60;
             } else if (bordersQuery.test(result.name)) {
-              result["sort"] = 50;
+              result.sort = 50;
             } else if (containsQuery.test(result.name)) {
-              result["sort"] = 40;
+              result.sort = 40;
             } else if (startsWithQuery.test(result.url)) {
-              result["sort"] = 30;
+              result.sort = 30;
             } else if (containsQuery.test(result.url)) {
-              result["sort"] = 20;
+              result.sort = 20;
             }
-            if (result["sort"] >= 20 && this.renderedIds.indexOf(result.id) >= 0) {
+            if (result.sort >= 20 && this.renderedIds.indexOf(result.id) >= 0) {
               hits.push(result);
             }
           }
           hits.sort((a, b) => {
-            const sortDiff = b["sort"] - a["sort"];
+            var _a, _b;
+            const sortDiff = ((_a = b.sort) !== null && _a !== void 0 ? _a : 0) - ((_b = a.sort) !== null && _b !== void 0 ? _b : 0);
             if (sortDiff !== 0) {
               return sortDiff;
             }

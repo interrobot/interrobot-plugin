@@ -15,6 +15,32 @@ import { HtmlResultsTable, HTMLResultsTableSort, SortOrder } from "../../../src/
 declare var d3: any;
 declare var d3cloud: any;
 
+interface WordData {
+    text: string;
+    value: number;
+    fontFamily: string;
+    x?: number;
+    y?: number;
+    rotate?: number;
+}
+
+interface CloudWordLayoutMemo {
+    count: number;
+    min: number;
+    max: number;
+    minLog: number;
+    maxLog: number;
+}
+
+interface PluginMeta {
+    title: string;
+    category: string;
+    version: string;
+    author: string;
+    synopsis: string;
+    description: string;
+}
+
 class WordcloudLayout {
 
     public readonly id: number;
@@ -67,7 +93,7 @@ class WordcloudWord {
 
 class Wordcloud extends Plugin {
 
-    public static override readonly meta: {} = {
+    public static override readonly meta: PluginMeta = {
         "title": "Website Word Cloud",
         "category": "Visualization",
         "version": "1.0.1",
@@ -95,16 +121,16 @@ class Wordcloud extends Plugin {
     private static readonly embedFont: string = Wordcloud.baseMediaPath + "/fonts/Montserrat-SemiBold.woff2";
 
     // this memo needs to be cleared manually prior to a process
-    private static cloudWordLayoutMemo: {} | undefined = undefined;
-    public static getWordLayoutFontSize(words:{}[], value: number): number {
+    private static cloudWordLayoutMemo: CloudWordLayoutMemo | undefined = undefined;
+    public static getWordLayoutFontSize(words:WordData[], value: number): number {
 
         if (Wordcloud.cloudWordLayoutMemo === undefined){
             // log scale range of counts so size is more predictable
             let wordsMaxVal:number = 0;
             let wordsMinVal:number = 10000000;
-            words.forEach(word => {
-                wordsMaxVal = Math.max(wordsMaxVal, word["value"])
-                wordsMinVal = Math.min(wordsMinVal, word["value"])
+            words.forEach((word: WordData) => {
+                wordsMaxVal = Math.max(wordsMaxVal, word.value)
+                wordsMinVal = Math.min(wordsMinVal, word.value)
             });
 
             const wordsMinValLog: number = Math.log1p(wordsMinVal);
@@ -119,8 +145,8 @@ class Wordcloud extends Plugin {
             // console.log(Wordcloud.cloudWordLayoutMemo);
         }
 
-        const wordsMinValLog: number = Wordcloud.cloudWordLayoutMemo["minLog"];
-        const wordsMaxValLog: number = Wordcloud.cloudWordLayoutMemo["maxLog"];
+        const wordsMinValLog: number = Wordcloud.cloudWordLayoutMemo.minLog;
+        const wordsMaxValLog: number = Wordcloud.cloudWordLayoutMemo.maxLog;
         const normalizedValue = (Math.log1p(value) - wordsMaxValLog) / (wordsMinValLog - wordsMaxValLog);
         const scaledValue = Wordcloud.wordsMaxOutput - (Wordcloud.wordsMaxOutput - Wordcloud.wordsMinOutput) * Math.pow(normalizedValue, 2);
 
@@ -133,7 +159,7 @@ class Wordcloud extends Plugin {
     private static readonly wordSplitRe: RegExp = /[ —\-\/\|]/g;
     private static readonly wordNumericRe: RegExp = /^[v]?[\d\.\-–—:,<>=×xX\(\)]+[MKBmkbgs]*$/g;
     private static readonly wordHexRe: RegExp = /^[\da-f]{6,}$/gi;
-    private static readonly emailRegex: RegExp = /^[a-zA-Z0-9.!#$%&’*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/;
+    private static readonly emailRegex: RegExp = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/;
     private static readonly wordTrimRe: RegExp = /^[^\da-zA-ZÀ-ɏ]+|[^\da-zA-ZÀ-ɏ]+$/g;
     private static readonly wordAnyNumberRe: RegExp = /\d/;
     private static readonly wordAnyPunctuationRe: RegExp = /\p{P}/u;
@@ -150,11 +176,11 @@ class Wordcloud extends Plugin {
     private progress: HtmlProcessingWidget | null;
     private table: HtmlResultsTable | null;
 
-    private strategy: number;
-    private layout: WordcloudLayout;
-    private minWordLength: number;
-    private backgroundColor: string;
-    private fontFamily: string;
+    private strategy: number = 1;
+    private layout: WordcloudLayout = Wordcloud.layouts[0];
+    private minWordLength: number = 3;
+    private backgroundColor: string = "#ffffff";
+    private fontFamily: string = "Montserrat SemiBold";
 
     private stopwordsTruth: { [id: string]: boolean };
     private wordMap = new Map<string, WordcloudWord>();
@@ -336,7 +362,7 @@ class Wordcloud extends Plugin {
         const project: Project = await Project.getApiProject(this.getProjectId());
 
         this.render(`
-            ${Templates.standardHeading(project, Wordcloud.meta["title"])}
+            ${Templates.standardHeading(project, Wordcloud.meta.title)}
             ${Templates.standardForm(`
             <form class="main__form__standard main__form__ltr main__form__wordcloud" id="WordcloudForm" spellcheck="false">
                 <label>
@@ -433,7 +459,7 @@ class Wordcloud extends Plugin {
                 container.style.width = `${fontFamilyInput.offsetWidth}px`;
             }
             fontFamilyInput.addEventListener("blur", () => {
-                container.style.display = "none";
+                container!.style.display = "none";
             });
         });
 
@@ -680,7 +706,7 @@ class Wordcloud extends Plugin {
     }
 
 
-    private draw(words) {
+    private draw(words: WordData[]) {
 
         if (this.cloudLayout === null){
             console.error("layout unavailable (not ready)");
@@ -706,12 +732,12 @@ class Wordcloud extends Plugin {
         g.selectAll("text")
             .data(words)
             .enter().append("text")
-            .style("font-size", d => `${Wordcloud.getWordLayoutFontSize(words, d.value)}px`)
-            .style("font-family", d => `${d.fontFamily}`)
-            .style("fill", (d, i) => color(i))
+            .style("font-size", (d: WordData) => `${Wordcloud.getWordLayoutFontSize(words, d.value)}px`)
+            .style("font-family", (d: WordData) => `${d.fontFamily}`)
+            .style("fill", (d: WordData, i: number) => color(i))
             .attr("text-anchor", "middle")
-            .attr("transform", d => `translate(${d.x},${d.y})rotate(${d.rotate})`)
-            .text(d => d.text);
+            .attr("transform", (d: WordData) => `translate(${d.x},${d.y})rotate(${d.rotate})`)
+            .text((d: WordData) => d.text);
 
         // add zsort, zIndex is unsupported, but other props work
         const svgEl: HTMLElement = document.getElementById(Wordcloud.svgId) as HTMLElement;
@@ -736,7 +762,7 @@ class Wordcloud extends Plugin {
             data.push(cloudword);
         }
 
-        const words = data.map(d => ({
+        const words: WordData[] = data.map(d => ({
             text: d.getWord(),
             value: d.getCount(),
             fontFamily: this.fontFamily,
@@ -750,9 +776,9 @@ class Wordcloud extends Plugin {
             .font(this.layout.separated ? this.fontFamily : "")
             .padding(4)
             .rotate(() => ~~(Math.random() * 2) * 90)
-            .fontSize(function(d) { return Wordcloud.getWordLayoutFontSize(words, d.value)})  // Adjust font size scaling
+            .fontSize(function(d: WordData) { return Wordcloud.getWordLayoutFontSize(words, d.value)})  // Adjust font size scaling
             .spiral(this.layout.spiral)
-            .on("end", this.draw);
+            .on("end", this.draw.bind(this));
         this.cloudLayout.start();
     }
 
@@ -771,13 +797,13 @@ class Wordcloud extends Plugin {
 
     private applyHandlers(add: boolean): void {
 
-        const navLinkMethod: string = add ? "addEventListener" : "removeEventListener";
+        const navLinkMethod: "addEventListener" | "removeEventListener" = add ? "addEventListener" : "removeEventListener";
 
         const actions: NodeListOf<HTMLElement> = document.querySelectorAll(".cloud__action");
         if (actions.length == 3){
-            actions[0][navLinkMethod]("click", this.cloudExpandHandler);
-            actions[1][navLinkMethod]("click", this.cloudRefreshHandler);
-            actions[2][navLinkMethod]("click", this.cloudDownloadHandler);
+            (actions[0] as any)[navLinkMethod]("click", this.cloudExpandHandler);
+            (actions[1] as any)[navLinkMethod]("click", this.cloudRefreshHandler);
+            (actions[2] as any)[navLinkMethod]("click", this.cloudDownloadHandler);
             // button color
             const rgb = parseInt(this.backgroundColor.slice(1), 16);
             const r = (rgb >> 16) & 255, g = (rgb >> 8) & 255, b = rgb & 255;
@@ -799,7 +825,7 @@ class Wordcloud extends Plugin {
         const addWordForm: HTMLElement | null = document.getElementById("WordcloundManagerAdd");
         const addWordButton: HTMLElement | null | undefined = addWordForm?.querySelector("button");
         if (addWordButton){
-            addWordButton[navLinkMethod]("click", this.addWordHandler);
+            (addWordButton as any)[navLinkMethod]("click", this.addWordHandler);
         }
     }
 
@@ -821,7 +847,7 @@ class Wordcloud extends Plugin {
 
             // common processing
             let cleanedWord = documentTextWord.replace(Wordcloud.wordTrimRe, "");
-            cleanedWord = cleanedWord.replace(/[‘’]/, "'");
+            cleanedWord = cleanedWord.replace(/['']/, "'");
 
             if (this.stopwordsTruth[cleanedWord.toLowerCase()] !== undefined) {
                 continue;
@@ -863,7 +889,7 @@ class Wordcloud extends Plugin {
         }
     }
 
-    private isMisspelling(cleanedWord: string, ignoredMap: {}): boolean {
+    private isMisspelling(cleanedWord: string, ignoredMap: { [key: string]: boolean }): boolean {
 
         // ignore words with numbers
         if (cleanedWord.match(Wordcloud.wordAnyNumberRe) !== null) {
@@ -893,7 +919,7 @@ class Wordcloud extends Plugin {
         return ignorable || numericLeniency || hexLeniency || emailLeniency || dateLeniency || urlLeniency;
     }
 
-    private async saveSvgAsImage(svgElement, fileName): Promise<void> {
+    private async saveSvgAsImage(svgElement: SVGElement, fileName: string): Promise<void> {
 
         // Get the SVG data
         const svgData = new XMLSerializer().serializeToString(svgElement);

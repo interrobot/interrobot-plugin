@@ -121,6 +121,7 @@ Retrieves a list of projects using the Plugin API.
 | created | ISO 8601 date/time, project created |
 | image | datauri of project icon |
 | modified | ISO 8601 date/time, project modified |
+| urls | Array of URLs configured for project |
 
 ### GetResources
 

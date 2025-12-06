@@ -213,6 +213,13 @@ class Plugin {
         console.log(`🤖 [${seconds}s] ${msg}`);
     }
     /**
+     * Logs warning information to the console.
+     * @param msg - The message to log.
+     */
+    static logWarning(msg) {
+        console.warn(`🤖 ${msg}`);
+    }
+    /**
      * Routes a message to the parent frame.
      * @param msg - The message to route.
      */
@@ -232,6 +239,28 @@ class Plugin {
             // this happens on export dl ands external urls btw
             window.parent.postMessage(msg);
         }
+    }
+    static GetStaticBasePath() {
+        function isLinux() {
+            if ("userAgentData" in navigator && navigator.userAgentData) {
+                const platform = navigator.userAgentData.platform.toLowerCase();
+                return platform === "linux";
+            }
+            else {
+                const ua = navigator.userAgent.toLowerCase();
+                if (ua.includes("android"))
+                    return false;
+                if (ua.includes("cros"))
+                    return false;
+                return ua.includes("linux");
+            }
+        }
+        // different browsers, different runtime hosts
+        // linux RCL paths don't work, so this is the workaround
+        // see also css fonts, etc.
+        // /_content/Interrobot.Common/ is an RCL path, autoestablished in MAUI
+        // but inoperable in GTK Linux, even when present in wwwroot
+        return isLinux() ? "" : "/_content/Interrobot.Common";
     }
     /**
      * Creates a new Plugin instance.
@@ -310,7 +339,12 @@ class Plugin {
      * @param autoform - An array of HTML elements for the autoform.
      */
     async initData(defaultData, autoform) {
-        this.data = new PluginData(this.getProjectId(), this.getInstanceMeta(), defaultData, autoform);
+        this.data = new PluginData({
+            projectId: this.getProjectId(),
+            meta: this.getInstanceMeta(),
+            defaultData: defaultData,
+            autoformInputs: autoform
+        });
         await this.data.loadData();
     }
     /**
@@ -391,7 +425,7 @@ class Plugin {
         // it's a contrived example, but let us keep things simple
         const titleWords = new Map();
         // resultsMap is probably a property on your plugin IRL, but I don't want to pollute
-        // to pollute the Plugin namespace any more than necessary for the sake of example 
+        // to pollute the Plugin namespace any more than necessary for the sake of example
         // plugin screens
         let resultsMap;
         // the function to handle individual SearchResults

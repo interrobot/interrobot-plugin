@@ -2,14 +2,13 @@
     "compileOnSave": true,
     "compilerOptions": {
         "allowJs": true,
-        // "checkJs": true,
         "module": "ES6",
         "target": "ES2019",
         "lib": ["ES2019", "DOM", "DOM.Iterable"],
         "declaration": true,
         "outDir": "./examples/vanillats/js/build/",
     },
-    "include": ["src/**/*", "examples/vanillats/ts/*.ts"],  
+    "include": ["src/**/*", "examples/vanillats/ts/*.ts"],
     "exclude": ["node_modules", "examples/vanillats/js/lib" ],
 }
 

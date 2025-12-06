@@ -84,7 +84,6 @@ class PluginConnection {
  */
 class Plugin {
 
-    
     /**
      * Metadata for the plugin.
      */
@@ -105,7 +104,7 @@ class Plugin {
      * @returns An instance of the initialized class.
      */
     public static async initialize(classtype: any): Promise<any> {
-        
+
         const createAndConfigure = () => {
             let instance: any | null = new classtype();
             Plugin.postMeta(instance.constructor.meta);
@@ -253,6 +252,14 @@ class Plugin {
     }
 
     /**
+     * Logs warning information to the console.
+     * @param msg - The message to log.
+     */
+    public static logWarning(msg: string): void {
+        console.warn(`🤖 ${msg}`);
+    }
+
+    /**
      * Routes a message to the parent frame.
      * @param msg - The message to route.
      */
@@ -271,6 +278,28 @@ class Plugin {
             // this happens on export dl ands external urls btw
             window.parent.postMessage(msg);
         }
+    }
+
+    public static GetStaticBasePath(): string {
+
+        function isLinux(): boolean {
+            if ("userAgentData" in navigator && navigator.userAgentData) {
+                const platform = (navigator.userAgentData as any).platform.toLowerCase();
+                return platform === "linux";
+            } else {
+                const ua = navigator.userAgent.toLowerCase();
+                if (ua.includes("android")) return false;
+                if (ua.includes("cros")) return false;
+                return ua.includes("linux");
+            }
+        }
+
+        // different browsers, different runtime hosts
+        // linux RCL paths don't work, so this is the workaround
+        // see also css fonts, etc.
+        // /_content/Interrobot.Common/ is an RCL path, autoestablished in MAUI
+        // but inoperable in GTK Linux, even when present in wwwroot
+        return isLinux() ? "" : "/_content/Interrobot.Common";
     }
 
     private static contentScrollHeight: number;
@@ -325,7 +354,6 @@ class Plugin {
         document.body.classList.add(modeClass);
 
         const tp = new TouchProxy();
-
     }
 
     /**
@@ -368,7 +396,12 @@ class Plugin {
      * @param autoform - An array of HTML elements for the autoform.
      */
     public async initData(defaultData: {}, autoform: HTMLElement[]): Promise<void> {
-        this.data = new PluginData(this.getProjectId(), this.getInstanceMeta(), defaultData, autoform);
+        this.data = new PluginData({
+            projectId: this.getProjectId(),
+            meta: this.getInstanceMeta(),
+            defaultData: defaultData,
+            autoformInputs: autoform
+        });
         await this.data.loadData();
     }
 
@@ -459,7 +492,7 @@ class Plugin {
         const titleWords: Map<string, number> = new Map<string, number>();
 
         // resultsMap is probably a property on your plugin IRL, but I don't want to pollute
-        // to pollute the Plugin namespace any more than necessary for the sake of example 
+        // to pollute the Plugin namespace any more than necessary for the sake of example
         // plugin screens
         let resultsMap: Map<number, SearchResult>;
 
@@ -496,7 +529,6 @@ class Plugin {
             includeExternal: false,
             includeNoRobots: false,
         });
-
 
         // run each SearchResult through its handler, and we're done processing
         await Search.execute(internalHtmlPagesQuery, resultsMap, async (result: SearchResult) => {

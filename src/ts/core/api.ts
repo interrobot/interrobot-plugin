@@ -36,6 +36,52 @@ interface SearchQueryParams {
     perPage?: number;
 }
 
+interface SearchResultJson {
+    result: number;
+    id: number;
+    url: string;
+    created?: string;
+    modified?: string;
+    size?: number;
+    status?: number;
+    time?: number;
+    norobots?: boolean;
+    name?: string;
+    type?: string;
+    content?: string;
+    headers?: string;
+    links?: string[];
+    assets?: string[];
+    origin?: string;
+}
+
+interface CrawlParams {
+    id: number;
+    project: number;
+    created: Date;
+    modified: Date;
+    complete?: boolean;
+    time?: number;
+    report?: any;
+}
+
+interface ProjectParams {
+    id: number;
+    created: Date;
+    modified: Date;
+    name?: string;
+    url?: string;
+    urls?: string[];
+    imageDataUri?: string;
+}
+
+interface PluginDataParams {
+    projectId: number;
+    meta: {};
+    defaultData: {};
+    autoformInputs: HTMLElement[];
+}
+
 /**
  * Container for plugin settings
  */
@@ -50,17 +96,13 @@ class PluginData {
 
     /**
      * Creates an instance of PluginData.
-     * @param projectId - The ID of the project.
-     * @param meta - Metadata for the plugin.
-     * @param defaultData - Default data for the plugin.
-     * @param autoformInputs - Array of HTML elements for autoform inputs.
+     * @param params - PluginDataParams, collection of arguments.
      */
-    public constructor(projectId: number, meta: {}, defaultData: {}, autoformInputs: HTMLElement[]) {
-
-        this.meta = meta;
-        this.defaultData = defaultData;
-        this.autoformInputs = autoformInputs;
-        this.project = projectId;
+    public constructor(params: PluginDataParams) {
+        this.meta = params.meta;
+        this.defaultData = params.defaultData;
+        this.autoformInputs = params.autoformInputs ?? [];
+        this.project = params.projectId;
 
         // init and copy in default data
         // autoform { [projectId: number]: {[inputName: string]: any } }
@@ -73,17 +115,7 @@ class PluginData {
         }
         this.data.autoform[this.project] = {};
 
-        if (autoformInputs.length > 0) {
-
-            // const setValue = async (name: string, value: string) => {
-            //     const data: {} = await this.getData();
-            //     const autoformData: {} = data["autoform"] ?? {};
-            //     const projectAutoformData: {} = autoformData[this.project] ?? {};
-            //     if (projectAutoformData[name] !== value) {
-            //         projectAutoformData[name] = value;
-            //         await this.setDataField("autoform", autoformData, true);
-            //     }
-            // }
+        if (this.autoformInputs.length > 0) {
 
             const changeHandler = async (el: any) => {
                 const name = el.getAttribute("name");
@@ -124,26 +156,26 @@ class PluginData {
                 for (let i = 0; i < checkedCheckboxes.length; i++) {
                     piperList.push((checkedCheckboxes[i] as HTMLInputElement).value);
                 }
-                
+
                 const value = piperList.join("|");
                 await this.setAutoformField(name, value);
             }
-            
+
             for (let el of this.autoformInputs) {
                 // happens with 0 inputs
                 if (el === null) {
                     continue;
                 }
 
-                const tag: string = el.tagName.toLowerCase();                
+                const tag: string = el.tagName.toLowerCase();
                 switch (tag) {
                     case "input":
-                        const input: HTMLInputElement = el as HTMLInputElement;                        
+                        const input: HTMLInputElement = el as HTMLInputElement;
                         // handle reasonable accomodations/variations in checkbox intent
                         // looks more complicated than it is
                         if (input.type == "checkbox") {
                             // this can go a couple ways
-                            // either it is a single true/false or a multiple, 
+                            // either it is a single true/false or a multiple,
                             // in which it is piped|values|like|this, dig it?
                             const elInput = el as HTMLInputElement;
                             const allCheckboxes = document.querySelectorAll(`input[type=checkbox][name=${elInput.name}]`);
@@ -171,7 +203,7 @@ class PluginData {
                             });
                         }
 
-                        
+
                         break;
                     case "textarea":
                         const textarea: HTMLTextAreaElement = el as HTMLTextAreaElement;
@@ -202,7 +234,7 @@ class PluginData {
      * @param push - Whether to update the data after setting the field.
      */
     public async setDataField(key: string, value: any, push: boolean): Promise<void> {
-        
+
         if (this.data[key] !== value) {
             this.data[key] = value;
         }
@@ -229,7 +261,7 @@ class PluginData {
      * Loads the plugin data from the server.
      */
     public async loadData(): Promise<void> {
-        
+
         let pluginUrl = window.location.href;
 
         // adjust for core reports, 3rd party will not hit this
@@ -241,16 +273,16 @@ class PluginData {
         const kwargs = {
             "pluginUrl": pluginUrl,
         };
-        
+
         const startTime = new Date().getTime();
         const result = await Plugin.postApiRequest("GetPluginData", kwargs);
         const endTime = new Date().getTime();
         try {
             Plugin.logTiming(`Loaded options: ${JSON.stringify(kwargs)}`, endTime - startTime);
             const jsonResponseData: JSON = result["data"];
-            const jsonResponseDataEmpty: boolean = Object.keys(jsonResponseData).length === 0;            
+            const jsonResponseDataEmpty: boolean = Object.keys(jsonResponseData).length === 0;
             const merged: {} = {};
-            for (let k in this.defaultData) {                
+            for (let k in this.defaultData) {
                 const val: any = this.defaultData[k];
                 merged[k] = this.defaultData[k];
             }
@@ -274,12 +306,12 @@ class PluginData {
         }
 
         if (this.autoformInputs.length > 0) {
+
             // init autoform if necessary
-            const defaultProjectData: {} = {};
             if (!("autoform" in this.data)) {
                 this.data["autoform"] = {};
             } else {
-                // legacy PluginData stored form data, handle/remove
+                // PluginData 1.0 stored legacy form data, remove
                 for (let key in this.data["autoform"]) {
                     if (isNaN(parseInt(key, 10))) {
                         delete this.data["autoform"][key];
@@ -290,6 +322,7 @@ class PluginData {
             }
             // init project level autoform, this is where input values stored
             if (!(this.project in this.data["autoform"])) {
+                const defaultProjectData: {} = this.defaultData["autoform"]?.[this.project] ?? {};
                 this.data["autoform"][this.project] = defaultProjectData;
             }
         }
@@ -301,7 +334,7 @@ class PluginData {
                 continue;
             }
 
-            const name = (el as HTMLInputElement).name;            
+            const name = (el as HTMLInputElement).name;
             const val = this.data["autoform"][this.project][name] ?? null;
             const lowerTag = el.tagName.toLowerCase();
 
@@ -347,7 +380,7 @@ class PluginData {
                     input.checked = val === input.value;
                     break;
                 case isBooleanCheckbox:
-                    input.checked = val ? val : false;                    
+                    input.checked = val ? val : false;
                     break;
                 case isMultiCheckbox:
                     input.checked = val ? val.toString().indexOf(input.value) >= 0 : false;
@@ -361,9 +394,9 @@ class PluginData {
                     if (val) {
                         input.value = val;
                     }
-                    // else input to self assign (default)             
+                    // else input to self assign (default)
                     break;
-            }            
+            }
         }
 
         // clean up unchecked radios
@@ -398,33 +431,16 @@ class PluginData {
      * Updates the plugin data on the server.
      */
     public async updateData(): Promise<void> {
-        // const updateEndpoint = this.getDataEndpoint();        
+        // const updateEndpoint = this.getDataEndpoint();
         const data: {} = await this.getData();
         data["meta"] = this.meta;
         const kwargs = {
             pluginUrl: window.location.href,
             pluginData: data,
         };
-        
+
         const result = await Plugin.postApiRequest("SetPluginData", kwargs);
         return;
-        
-        /*
-        // preserved for historical reference
-        const response = await fetch(`${Plugin.getHostOrigin()}/api/v2/projects/?fields=image&ids=${id}`);
-        const projects = await response.json();
-        const dataUpload: string = JSON.stringify(data);
-        const result = await fetch(updateEndpoint, {
-            method: "post",
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-            },
-            body: dataUpload
-        });
-        const json: JSON = await result.json();
-        return;
-        */
     }
 
     /**
@@ -448,7 +464,6 @@ class PluginData {
 
 class SearchQuery {
 
-    
     public static readonly maxPerPage: number = 100;
     private static readonly validSorts: string[] = ["?", "id", "-id", "time", "-time", "status", "-status", "url", "-url",];
     public readonly project: number;
@@ -462,31 +477,22 @@ class SearchQuery {
 
     /**
      * Creates an instance of SearchQuery.
-     * @param params - The search query parameters
+     * @param params - SearchQueryParams, collection of arguments.
      */
-    public constructor({
-        project,
-        query,
-        fields,
-        type,
-        includeExternal,
-        includeNoRobots,
-        sort,
-        perPage
-    }: SearchQueryParams) {
+    public constructor(params: SearchQueryParams) {
+        this.project = params.project;
+        this.query = params.query;
+        this.fields = params.fields;
+        this.type = params.type;
+        this.includeExternal = params.includeExternal ?? true;
+        this.includeNoRobots = params.includeNoRobots ?? false;
+        this.perPage = params.perPage ?? SearchQuery.maxPerPage;
 
-        this.project = project;
-        this.query = query;
-        this.fields = fields;
-        this.type = type;
-        this.includeExternal = includeExternal ?? true;
-        this.includeNoRobots = includeNoRobots ?? false;        
-        this.perPage = perPage ?? SearchQuery.maxPerPage;
-        if (SearchQuery.validSorts.indexOf(sort) >= 0) {
-            this.sort = sort;
+        if (SearchQuery.validSorts.indexOf(params.sort) >= 0) {
+            this.sort = params.sort;
         } else {
             this.sort = SearchQuery.validSorts[1];
-        }        
+        }
     }
 
     /**
@@ -532,7 +538,7 @@ class Search {
                     { detail: { action: "set", message: processingMessage } });
                 document.dispatchEvent(eventStart);
             }
-            
+
 
             // give main thread a short break to render progress
             await Search.sleep(16);
@@ -541,7 +547,7 @@ class Search {
             // this is faster, but it can't paint progress well as it can saturate the main thread
             let i = 0;
             await existingResults.forEach(async (result: SearchResult, resultId: number) => {
-                await resultHandler(result);                
+                await resultHandler(result);
             });
             Plugin.logTiming(`Processed ${resultTotal.toLocaleString()} search result(s)`,
                 new Date().getTime() - timeStart);
@@ -551,33 +557,12 @@ class Search {
                 const eventFinished: CustomEvent = new CustomEvent("ProcessingMessage", msg);
                 document.dispatchEvent(eventFinished);
             }
-            
+
             return true;
         } else {
             Search.resultsHaystackCacheKey = query.getHaystackCacheKey();
             Search.resultsCacheTotal = 0;
         }
-
-        /*
-        HTTP/old
-        const resultsPageBase = `${Plugin.getHostOrigin()}/api/v2/projects/${query.projectId}/resources/`;
-        const resultsPageQuery = `query=${encodeURIComponent(query.query)}` 
-            + `&type=${SearchQueryType[query.type].toLowerCase()}&external=${Number(query.includeExternal)}`
-            + `&fields=${encodeURIComponent(query.fields)}&offset=0`;
-        const resultsPageUrl = `${resultsPageBase}?${resultsPageQuery}`;
-        let response = await fetch(resultsPageUrl);
-        let responseJson = await response.json();        
-        while (responseJson["__meta__"]["results"]["pagination"]["next"] !== null) {
-            const next = responseJson["__meta__"]["results"]["pagination"]["next"];
-            response = await fetch(next);
-            responseJson = await response.json();
-            results = responseJson.results;
-            for (let i = 0; i < results.length; i++) {
-                const result = results[i];
-                await Search.handleResult(result, resultTotal, resultHandler);
-            }
-        }
-        */
 
         const kwargs = {
             "project": query.project,
@@ -599,13 +584,13 @@ class Search {
             const result = results[i];
             await Search.handleResult(result, resultTotal, resultHandler);
         }
-        
+
         while (responseJson["__meta__"]["results"]["pagination"]["nextOffset"] !== null && deep === true) {
 
             const next = responseJson["__meta__"]["results"]["pagination"]["nextOffset"];
             kwargs["offset"] = next;
             responseJson = await Plugin.postApiRequest("GetResources", kwargs);
-            
+
             results = responseJson.results;
             for (let i = 0; i < results.length; i++) {
                 const result = results[i];
@@ -639,7 +624,7 @@ class Search {
         const event: CustomEvent = new CustomEvent("SearchResultHandled",
             { detail: { resultNum: resultNum, resultTotal: resultTotal } });
         document.dispatchEvent(event);
-    }   
+    }
 }
 
 /**
@@ -671,8 +656,8 @@ class SearchResult {
     protected headers: string;
 
     private processedContent: string;
-    private optionalFields: string[] = ["created", "modified", "size", "status", 
-        "time", "norobots", "name", "type", "content", "headers", "links", "assets", "origin"]; 
+    private optionalFields: string[] = ["created", "modified", "size", "status",
+        "time", "norobots", "name", "type", "content", "headers", "links", "assets", "origin"];
 
     private static normalizeContentWords(input: string): string[] {
         const out: string[] = [];
@@ -691,18 +676,20 @@ class SearchResult {
      * Creates an instance of SearchResult.
      * @param jsonResult - The JSON representation of the search result.
      */
-    public constructor(jsonResult: any) {
-        this.result = jsonResult["result"];
-        this.id = jsonResult["id"];
-        this.url = jsonResult["url"];
+    public constructor(jsonResult: SearchResultJson) {
+        this.result = jsonResult.result;
+        this.id = jsonResult.id;
+        this.url = jsonResult.url ?? null; // deprecated
+        this.name = jsonResult.name;
         this.processedContent = "";
+
         for (let field of this.optionalFields) {
             if (field in jsonResult) {
                 if (field === "created" || field === "modified") {
                     this[field] = new Date(jsonResult[field]);
                 } else {
                     this[field] = jsonResult[field];
-                }                
+                }
             }
         }
     }
@@ -749,7 +736,7 @@ class SearchResult {
         const out: string[] = [];
         let element: Node = null;
         const texts: XPathResult = HtmlUtils.getDocumentCleanTextIterator(this.getContent());
-        
+
         element = texts.iterateNext();
         while (element !== null) {
             let elementValue: string = SearchResult.normalizeContentString(element.nodeValue);
@@ -814,22 +801,16 @@ class Crawl {
 
     /**
      * Creates an instance of Crawl.
-     * @param id - The crawl ID.
-     * @param project - The project ID.
-     * @param created - The creation date.
-     * @param modified - The last modified date.
-     * @param complete - Whether the crawl is complete.
-     * @param time - The time taken for the crawl.
-     * @param report - The crawl report.
+     * @param params - CrawlParams, collection of arguments.
      */
-    public constructor(id: number, project: number, created: Date, modified: Date, complete: boolean, time: number, report: any) {
-        this.id = id;
-        this.created = created;
-        this.modified = modified;
-        this.complete = complete;
-        this.project = project;
-        this.time = time;
-        this.report = report;
+    public constructor(params: CrawlParams) {
+        this.id = params.id;
+        this.project = params.project;
+        this.created = params.created;
+        this.modified = params.modified;
+        this.complete = params.complete;
+        this.time = params.time;
+        this.report = params.report;
     }
 
     /**
@@ -859,7 +840,7 @@ class Crawl {
 
     private getReportDetailByKey(key: string): boolean {
         // returns a dictionary of key/values for the corresponding key
-        // InterroBot pre-2.6 will not contain a detail object        
+        // InterroBot pre-2.6 will not contain a detail object
         if (this.report && this.report.hasOwnProperty("detail") &&
             this.report.detail.hasOwnProperty(key)) {
             return this.report.detail[key]
@@ -878,23 +859,25 @@ class Project {
     id: number = -1;
     created: Date = null;
     modified: Date = null;
-    url: string;
-    imageDataUri: string;
+    name?: string = null;   // name to required when url shut down
+    url?: string = null;    // deprecated
+    urls?: string[] = [];
+    imageDataUri?: string = null;
+
+    static readonly urlDeprectionWarning: string  =
+        `"url" field is deprecated, use "name" or "urls" instead.`;
 
     /**
      * Creates an instance of Project.
-     * @param id - The project ID.
-     * @param created - The creation date.
-     * @param modified - The last modified date.
-     * @param url - The project URL.
-     * @param imageDataUri - The data URI of the project image.
+     * @param params - ProjectParams, collection of arguments.
      */
-    public constructor(id: number, created: Date, modified: Date, url: string, imageDataUri: string) {
-        this.id = id;
-        this.created = created;
-        this.modified = modified;
-        this.url = url;
-        this.imageDataUri = imageDataUri;
+    public constructor(params: ProjectParams) {
+        this.id = params.id;
+        this.created = params.created;
+        this.modified = params.modified;
+        this.url = params.url;
+        this.name = params.name;
+        this.imageDataUri = params.imageDataUri;
     }
 
     /**
@@ -910,7 +893,28 @@ class Project {
      * @returns The display title (hostname of the project URL).
      */
     public getDisplayTitle(): string {
-        return new URL(this.url).hostname;
+        if (this.name){
+            return this.name;
+        } else if (this.url) {
+            Plugin.logWarning(Project.urlDeprectionWarning);
+            return new URL(this.url).hostname;
+        } else {
+            return "[error]";
+        }
+    }
+
+    public getDisplayUrl(): string {
+        if (this.urls){
+            const firstUrl: string = this.urls[0];
+            const urlCount: number = this.urls.length;
+            const more: string = urlCount > 1 ? ` + ${urlCount - 1} more` : "";
+            return `${firstUrl}${more}`
+        } else if (this.url) {
+            Plugin.logWarning(Project.urlDeprectionWarning);
+            return new URL(this.url).hostname;
+        } else {
+            return "[error]";
+        }
     }
 
     /**
@@ -923,7 +927,7 @@ class Project {
             "projects": [id],
             "fields": ["image", "created", "modified"],
         };
-        
+
         const projects = await Plugin.postApiRequest("GetProjects", kwargs);
         const results = projects.results;
         for (let i = 0; i < results.length; i++) {
@@ -932,9 +936,16 @@ class Project {
                 // hit, return as instance
                 const created: Date = new Date(project.created);
                 const modified: Date = new Date(project.modified);
-                const url: string = project.url;
+                const name: string = project.name || project.url; // url is deprecated
                 const imageDataUri: string = project.image;
-                return new Project(id, created, modified, url, imageDataUri);
+                // return new Project(id, created, modified, url, imageDataUri);
+                return new Project({
+                    id: id,
+                    created: created,
+                    modified: modified,
+                    name: name,
+                    imageDataUri: imageDataUri
+                });
             }
         }
         // not found
@@ -947,24 +958,28 @@ class Project {
      * @returns A promise that resolves to an array of Crawl instances.
      */
     public static async getApiCrawls(project: number): Promise<Crawl[]> {
-        
+
         const kwargs = {
             complete: "complete",
             project: project,
             fields: ["created", "modified", "report", "time"],
         };
-        
+
         const response = await Plugin.postApiRequest("GetCrawls", kwargs);
         const crawls: Crawl[] = [];
         const crawlResults = response.results;
 
         for (let i = 0; i < crawlResults.length; i++) {
             const crawlResult = crawlResults[i];
-            // console.log(crawlResult.created);
-            // console.log(new Date(crawlResult.created));
-            const crawl = new Crawl(crawlResult.id, project, new Date(crawlResult.created), new Date(crawlResult.modified), crawlResult.complete,
-                crawlResult.time, crawlResult.report);
-            crawls.push(crawl);
+            crawls.push(new Crawl({
+                id: crawlResult.id,
+                project: project,
+                created: new Date(crawlResult.created),
+                modified: new Date(crawlResult.modified),
+                complete: crawlResult.complete,
+                time: crawlResult.time,
+                report: crawlResult.report
+            }));
         }
         return crawls;
     }
