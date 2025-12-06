@@ -1,6 +1,6 @@
 {
     "name": "interrobot-plugin",
-    "version": "0.16.0",
+    "version": "0.17.0",
     "description": "Used in the creation of plugins (aka reports) that present data or visualizations for a website in aggregate, across site content. For use with InterroBot application.",
     "main": "js/commonjs/interrobot-plugin.js",
     "module": "js/es6/interrobot-plugin.js",

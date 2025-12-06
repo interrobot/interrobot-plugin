@@ -10,11 +10,11 @@
    <a href="https://interro.bot/">InterroBot</a>
 <p>
 
-Your web crawler just got superpowers. InterroBot plugins transform your web crawler into a customizable data powerhouse, unleashing unlimited potential for data extraction and analysis.
+InterroBot plugins transform your web crawler into, well... anything you want. With unrestricted API crawl data access, Interrobot plugins can bring your website analysis concepts to life.
 
-InterroBot plugins are simple HTML/JS/CSS pages that transform raw web crawl data into profound insights, stunning visualizations, and interactive dashboards. With our flexible API, you can create custom plugins that analyze website content across entire domains, connecting with analytics, LLMs, or your favorite SaaS for deeper insights.
+InterroBot plugins are simple HTML/JS/CSS pages that turn crawl data into insights, stunning visualizations, and interactive dashboards. With our flexible API, you can create custom plugins that analyze website content across entire domains, connecting with analytics, LLMs, or your favorite SaaS for deeper insights.
 
-Our plugin ecosystem is designed for versatility. Whether you're building proprietary tools, developing plugins for clients, or contributing to the open-source community, InterroBot plugins adapt to your needs. Available for Windows 10/11, macOS, and Android, our platform ensures your data analysis can happen wherever you work.
+The InterroBot plugin ecosystem is designed for power users. Whether you're building proprietary tools, developing plugins for clients, or contributing to the open-source community, InterroBot plugins adapt to your needs. Available for Windows 10/11, macOS, Linux, and Android, InterroBot plugins are everywhere you need them.
 
 ## How Does it Work?
 
@@ -108,7 +108,7 @@ The above snippets are pulled (and gently modified) from a plugin in the reposit
 
 ## What data is available via API?
 
-InterroBot's robust API provides plugin developers with access to crawled data, enabling deep analysis and useful customizations. This data forms the foundation of your plugin, allowing you to create insightful visualizations, perform complex analysis, or build interactive tools. Whether you're tracking SEO metrics, analyzing content structures, or developing custom reporting tools, our API offers the flexibility and depth you need. Below is an overview of the key data points available, organized by API endpoint:
+InterroBot's API provides developers with access to crawled data, enabling analysis and useful customizations. This data allows you to create insightful visualizations, perform complex analysis, or build interactive tools. Whether you're tracking SEO metrics, analyzing content structures, or developing custom reporting tools, our API offers the flexibility and depth you need. Below is an overview of the key data points available, organized by API endpoint:
 
 ### GetProjects
 

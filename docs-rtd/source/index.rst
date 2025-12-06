@@ -20,21 +20,21 @@
 interrobot-plugin
 =============================================
 
-Your web crawler just got superpowers. InterroBot plugins transform your
-web crawler into a customizable data powerhouse, unleashing unlimited
-potential for data extraction and analysis.
+InterroBot plugins transform your web crawler into a customizable data
+powerhouse, with the capability to bring your concepts for website analysis
+to life.
 
-InterroBot plugins are simple HTML/JS/CSS pages that transform raw web
-crawl data into profound insights, stunning visualizations, and
-interactive dashboards. With our flexible API, you can create custom
-plugins that analyze website content across entire domains, connecting
-with analytics, LLMs, or your favorite SaaS for deeper insights.
+InterroBot plugins are simple HTML/JS/CSS pages that turn crawl data into
+insights, stunning visualizations, and interactive dashboards. With our
+flexible API, you can create custom plugins that analyze website content
+across entire domains, connecting with analytics, LLMs, or your favorite
+SaaS for deeper insights.
 
-Our plugin ecosystem is designed for versatility. Whether you’re
-building proprietary tools, developing plugins for clients, or
-contributing to the open-source community, InterroBot plugins adapt to
-your needs. Available for Windows 10/11, macOS, and Android, our
-platform ensures your data analysis can happen wherever you work.
+The InterroBot plugin ecosystem is designed for power users. Whether you're
+building proprietary tools, developing plugins for clients, or contributing
+to the open-source community, InterroBot plugins adapt to your needs.
+Available for Windows 10/11, macOS, Linux, and Android, InterroBot plugins
+are everywhere you need them.
 
 How Does it Work?
 -----------------
@@ -52,7 +52,7 @@ and a script extending the Plugin base class.
 
    // TypeScript vs. JavaScript, both are fine. See examples.
    import { Plugin } from "./src/ts/core/plugin";
-   class BasicExamplePlugin extends Plugin {    
+   class BasicExamplePlugin extends Plugin {
        static meta = {
            "title": "Example Plugin",
            "category": "Example",
@@ -63,7 +63,7 @@ and a script extending the Plugin base class.
        };
        constructor() {
            super();
-           // index() has nothing to do with the crawl index, btw. it is 
+           // index() has nothing to do with the crawl index, btw. it is
            // the plugin index (think index.html), a view that shows by
            // default, and would generally consist of a form or visualization.
            this.index();
@@ -82,10 +82,10 @@ default ``index()`` behavior, rendering your page however you wish.
        // add your form and supporting HTML
        this.render(`<div>HTML</div>`);
        // initialize the plugin within InterroBot, from within iframe
-       await this.initData({}, []);    
+       await this.initData({}, []);
        // add handlers to the form
        const button = document.querySelector("button");
-       button.addEventListener("click", async (ev) => { 
+       button.addEventListener("click", async (ev) => {
            await this.process(); // where process() is a form handler
        });
    }
@@ -100,10 +100,10 @@ the exampleResultsHandler.
        // gather title words and running counts with a result handler
        const titleWords: Map<string, number> = new Map<string, number>();
        let resultsMap: Map<number, SearchResult>;
-       const exampleResultHandler = async (result: SearchResult, 
+       const exampleResultHandler = async (result: SearchResult,
            titleWordsMap: Map<string, number>) => {
            const terms: string[] = result.name.trim().split(/[\s\-—]+/g);
-           terms.forEach(term => titleWordsMap.set(term, 
+           terms.forEach(term => titleWordsMap.set(term,
                (titleWordsMap.get(term) ?? 0) + 1));
        }
        // projectId comes for free as a member of Plugin
@@ -111,13 +111,13 @@ the exampleResultsHandler.
        // anything you put into InterroBot search, field or fulltext works
        // here we limit to HTML documents, which will have a <title> -> name
        const freeQueryString: string = "headers: text/html";
-       // pipe delimited fields you want retrieved. id and url come with 
+       // pipe delimited fields you want retrieved. id and url come with
        // the base model, everything else must be requested explicitly
        const fields: string = "name";
-       const internalHtmlPagesQuery = new SearchQuery(projectId, 
+       const internalHtmlPagesQuery = new SearchQuery(projectId,
            freeQueryString, fields, SearchQueryType.Any, false);
        // run each SearchResult through its handler, and we're done processing
-       await Search.execute(internalHtmlPagesQuery, resultsMap, "Processing…", 
+       await Search.execute(internalHtmlPagesQuery, resultsMap, "Processing…",
            async (result: SearchResult) => {
                await exampleResultHandler(result, titleWords);
            }

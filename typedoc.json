@@ -3,9 +3,9 @@
     "navigationLinks": {
         "GitHub": "https://github.com/interrobot/interrobot-plugin",
         "InterroBot": "https://interro.bot"
-        
     },
     "titleLink": "https://interrobot.github.io/interrobot-plugin/",
-    "entryPoints": ["./src/ts"],
+    "entryPointStrategy": "expand",
+    "entryPoints": ["src/**/*.ts"],
     "out": "docs"
 }
