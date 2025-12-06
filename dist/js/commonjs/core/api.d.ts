@@ -37,17 +37,18 @@ interface SearchResultJson {
 interface CrawlParams {
     id: number;
     project: number;
-    created: Date;
-    modified: Date;
+    created?: Date;
+    modified?: Date;
     complete?: boolean;
     time?: number;
     report?: any;
 }
 interface ProjectParams {
     id: number;
-    created: Date;
-    modified: Date;
     name?: string;
+    type?: string;
+    created?: Date;
+    modified?: Date;
     url?: string;
     urls?: string[];
     imageDataUri?: string;
@@ -70,7 +71,7 @@ declare class PluginData {
     private project;
     /**
      * Creates an instance of PluginData.
-     * @param params - PluginDataParams, collection of arguments.
+     * @param params - The plugin data parameters.
      */
     constructor(params: PluginDataParams);
     /**
@@ -123,7 +124,7 @@ declare class SearchQuery {
     readonly perPage: number;
     /**
      * Creates an instance of SearchQuery.
-     * @param params - SearchQueryParams, collection of arguments.
+     * @param params - The search query parameters.
      */
     constructor(params: SearchQueryParams);
     /**
@@ -232,15 +233,15 @@ declare class SearchResult {
  */
 declare class Crawl {
     id: number;
-    created: Date;
-    modified: Date;
     project: number;
     complete: boolean;
-    time: number;
-    report: any;
+    created?: Date;
+    modified?: Date;
+    time?: number;
+    report?: any;
     /**
      * Creates an instance of Crawl.
-     * @param params - CrawlParams, collection of arguments.
+     * @param params - The crawl parameters.
      */
     constructor(params: CrawlParams);
     /**
@@ -265,16 +266,17 @@ declare class Crawl {
  */
 declare class Project {
     id: number;
-    created: Date;
-    modified: Date;
+    created?: Date;
+    modified?: Date;
     name?: string;
+    type?: string;
     url?: string;
     urls?: string[];
     imageDataUri?: string;
     static readonly urlDeprectionWarning: string;
     /**
      * Creates an instance of Project.
-     * @param params - ProjectParams, collection of arguments.
+     * @param params - The project parameters.
      */
     constructor(params: ProjectParams);
     /**
@@ -301,4 +303,4 @@ declare class Project {
      */
     static getApiCrawls(project: number): Promise<Crawl[]>;
 }
-export { Project, Crawl, SearchQueryType, SearchQuery, Search, SearchResult, PluginData };
+export { Project, Crawl, SearchQueryType, SearchQuery, Search, SearchResult, SearchResultJson, PluginData };

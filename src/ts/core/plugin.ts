@@ -84,6 +84,7 @@ class PluginConnection {
  */
 class Plugin {
 
+
     /**
      * Metadata for the plugin.
      */
@@ -255,8 +256,9 @@ class Plugin {
      * Logs warning information to the console.
      * @param msg - The message to log.
      */
-    public static logWarning(msg: string): void {
-        console.warn(`🤖 ${msg}`);
+    public static logWarning(msg: string, ex: Error = null): void {
+        const newlinedError: string = ex ? `\n${ex}` : "";
+        console.warn(`🤖 ${msg}${newlinedError}`);
     }
 
     /**
@@ -354,6 +356,7 @@ class Plugin {
         document.body.classList.add(modeClass);
 
         const tp = new TouchProxy();
+
     }
 
     /**
@@ -529,6 +532,7 @@ class Plugin {
             includeExternal: false,
             includeNoRobots: false,
         });
+
 
         // run each SearchResult through its handler, and we're done processing
         await Search.execute(internalHtmlPagesQuery, resultsMap, async (result: SearchResult) => {

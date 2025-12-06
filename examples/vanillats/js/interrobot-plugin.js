@@ -335,8 +335,10 @@
      * Logs warning information to the console.
      * @param msg - The message to log.
      */
-    static logWarning(msg) {
-      console.warn(`\u{1F916} ${msg}`);
+    static logWarning(msg, ex = null) {
+      const newlinedError = ex ? `
+${ex}` : "";
+      console.warn(`\u{1F916} ${msg}${newlinedError}`);
     }
     /**
      * Routes a message to the parent frame.
@@ -617,7 +619,7 @@ This is the default plugin description. Set meta: {} values
   var PluginData = class {
     /**
      * Creates an instance of PluginData.
-     * @param params - PluginDataParams, collection of arguments.
+     * @param params - The plugin data parameters.
      */
     constructor(params) {
       var _a;
@@ -922,7 +924,7 @@ ${JSON.stringify(kwargs)}`);
   var SearchQuery = class {
     /**
      * Creates an instance of SearchQuery.
-     * @param params - SearchQueryParams, collection of arguments.
+     * @param params - The search query parameters.
      */
     constructor(params) {
       var _a, _b, _c;
@@ -1165,13 +1167,13 @@ ${JSON.stringify(kwargs)}`);
   var Crawl = class {
     /**
      * Creates an instance of Crawl.
-     * @param params - CrawlParams, collection of arguments.
+     * @param params - The crawl parameters.
      */
     constructor(params) {
       this.id = -1;
+      this.project = -1;
       this.created = null;
       this.modified = null;
-      this.project = -1;
       this.time = -1;
       this.report = null;
       this.id = params.id;
@@ -1214,21 +1216,24 @@ ${JSON.stringify(kwargs)}`);
   var Project = class {
     /**
      * Creates an instance of Project.
-     * @param params - ProjectParams, collection of arguments.
+     * @param params - The project parameters.
      */
     constructor(params) {
       this.id = -1;
       this.created = null;
       this.modified = null;
       this.name = null;
+      this.type = null;
       this.url = null;
-      this.urls = [];
+      this.urls = null;
       this.imageDataUri = null;
       this.id = params.id;
+      this.name = params.name;
+      this.type = params.type;
       this.created = params.created;
       this.modified = params.modified;
       this.url = params.url;
-      this.name = params.name;
+      this.urls = params.urls;
       this.imageDataUri = params.imageDataUri;
     }
     /**
@@ -1273,7 +1278,7 @@ ${JSON.stringify(kwargs)}`);
     static async getApiProject(id) {
       const kwargs = {
         "projects": [id],
-        "fields": ["image", "created", "modified"]
+        "fields": ["image", "created", "modified", "urls"]
       };
       const projects = await Plugin.postApiRequest("GetProjects", kwargs);
       const results = projects.results;
@@ -1284,12 +1289,14 @@ ${JSON.stringify(kwargs)}`);
           const modified = new Date(project.modified);
           const name = project.name || project.url;
           const imageDataUri = project.image;
+          const urls = project.urls || null;
           return new Project({
             id,
             created,
             modified,
             name,
-            imageDataUri
+            imageDataUri,
+            urls
           });
         }
       }

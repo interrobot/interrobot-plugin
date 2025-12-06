@@ -6,8 +6,8 @@
         "lib": ["ES2019", "DOM", "DOM.Iterable"],
         "declaration": true,
         "outDir": "./dist/js/commonjs",
-        "moduleResolution": "node",
+        "moduleResolution": "node"
     },
     "include": ["src/**/*"],
-    "exclude": ["node_modules"],
+    "exclude": ["node_modules"]
 }

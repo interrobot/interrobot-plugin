@@ -58,8 +58,8 @@ interface SearchResultJson {
 interface CrawlParams {
     id: number;
     project: number;
-    created: Date;
-    modified: Date;
+    created?: Date;
+    modified?: Date;
     complete?: boolean;
     time?: number;
     report?: any;
@@ -67,9 +67,11 @@ interface CrawlParams {
 
 interface ProjectParams {
     id: number;
-    created: Date;
-    modified: Date;
     name?: string;
+    type?: string;
+    created?: Date;
+    modified?: Date;
+
     url?: string;
     urls?: string[];
     imageDataUri?: string;
@@ -96,7 +98,7 @@ class PluginData {
 
     /**
      * Creates an instance of PluginData.
-     * @param params - PluginDataParams, collection of arguments.
+     * @param params - The plugin data parameters.
      */
     public constructor(params: PluginDataParams) {
         this.meta = params.meta;
@@ -477,7 +479,7 @@ class SearchQuery {
 
     /**
      * Creates an instance of SearchQuery.
-     * @param params - SearchQueryParams, collection of arguments.
+     * @param params - The search query parameters.
      */
     public constructor(params: SearchQueryParams) {
         this.project = params.project;
@@ -792,16 +794,16 @@ class SearchResult {
 class Crawl {
 
     id: number = -1;
-    created: Date = null;
-    modified: Date = null;
     project: number = -1;
     complete: boolean;
-    time: number = -1;
-    report: any = null;
+    created?: Date = null;
+    modified?: Date = null;
+    time?: number = -1;
+    report?: any = null;
 
     /**
      * Creates an instance of Crawl.
-     * @param params - CrawlParams, collection of arguments.
+     * @param params - The crawl parameters.
      */
     public constructor(params: CrawlParams) {
         this.id = params.id;
@@ -857,11 +859,12 @@ class Crawl {
 class Project {
 
     id: number = -1;
-    created: Date = null;
-    modified: Date = null;
+    created?: Date = null;
+    modified?: Date = null;
     name?: string = null;   // name to required when url shut down
+    type?: string = null;   // name to required when url shut down
     url?: string = null;    // deprecated
-    urls?: string[] = [];
+    urls?: string[] = null;
     imageDataUri?: string = null;
 
     static readonly urlDeprectionWarning: string  =
@@ -869,14 +872,17 @@ class Project {
 
     /**
      * Creates an instance of Project.
-     * @param params - ProjectParams, collection of arguments.
+     * @param params - The project parameters.
      */
     public constructor(params: ProjectParams) {
         this.id = params.id;
+        this.name = params.name;
+        this.type = params.type;
         this.created = params.created;
         this.modified = params.modified;
         this.url = params.url;
-        this.name = params.name;
+        this.urls = params.urls;
+
         this.imageDataUri = params.imageDataUri;
     }
 
@@ -925,7 +931,7 @@ class Project {
     public static async getApiProject(id: number): Promise<Project> {
         const kwargs = {
             "projects": [id],
-            "fields": ["image", "created", "modified"],
+            "fields": ["image", "created", "modified", "urls"],
         };
 
         const projects = await Plugin.postApiRequest("GetProjects", kwargs);
@@ -938,13 +944,15 @@ class Project {
                 const modified: Date = new Date(project.modified);
                 const name: string = project.name || project.url; // url is deprecated
                 const imageDataUri: string = project.image;
+                const urls: string[] = project.urls || null;
                 // return new Project(id, created, modified, url, imageDataUri);
                 return new Project({
                     id: id,
                     created: created,
                     modified: modified,
                     name: name,
-                    imageDataUri: imageDataUri
+                    imageDataUri: imageDataUri,
+                    urls: urls
                 });
             }
         }
@@ -985,4 +993,4 @@ class Project {
     }
 }
 
-export { Project, Crawl, SearchQueryType, SearchQuery, Search, SearchResult, PluginData };
+export { Project, Crawl, SearchQueryType, SearchQuery, Search, SearchResult, SearchResultJson, PluginData };

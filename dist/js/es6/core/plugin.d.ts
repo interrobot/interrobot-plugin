@@ -86,7 +86,7 @@ declare class Plugin {
      * Logs warning information to the console.
      * @param msg - The message to log.
      */
-    static logWarning(msg: string): void;
+    static logWarning(msg: string, ex?: Error): void;
     /**
      * Routes a message to the parent frame.
      * @param msg - The message to route.

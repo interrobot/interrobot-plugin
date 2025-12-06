@@ -29,7 +29,7 @@ var SearchQuerySortDirection;
 class PluginData {
     /**
      * Creates an instance of PluginData.
-     * @param params - PluginDataParams, collection of arguments.
+     * @param params - The plugin data parameters.
      */
     constructor(params) {
         var _a;
@@ -373,7 +373,7 @@ class PluginData {
 class SearchQuery {
     /**
      * Creates an instance of SearchQuery.
-     * @param params - SearchQueryParams, collection of arguments.
+     * @param params - The search query parameters.
      */
     constructor(params) {
         var _a, _b, _c;
@@ -625,13 +625,13 @@ SearchResult.wordWhitespaceRe = /\s+/g;
 class Crawl {
     /**
      * Creates an instance of Crawl.
-     * @param params - CrawlParams, collection of arguments.
+     * @param params - The crawl parameters.
      */
     constructor(params) {
         this.id = -1;
+        this.project = -1;
         this.created = null;
         this.modified = null;
-        this.project = -1;
         this.time = -1;
         this.report = null;
         this.id = params.id;
@@ -681,21 +681,24 @@ class Crawl {
 class Project {
     /**
      * Creates an instance of Project.
-     * @param params - ProjectParams, collection of arguments.
+     * @param params - The project parameters.
      */
     constructor(params) {
         this.id = -1;
         this.created = null;
         this.modified = null;
         this.name = null; // name to required when url shut down
+        this.type = null; // name to required when url shut down
         this.url = null; // deprecated
-        this.urls = [];
+        this.urls = null;
         this.imageDataUri = null;
         this.id = params.id;
+        this.name = params.name;
+        this.type = params.type;
         this.created = params.created;
         this.modified = params.modified;
         this.url = params.url;
-        this.name = params.name;
+        this.urls = params.urls;
         this.imageDataUri = params.imageDataUri;
     }
     /**
@@ -744,7 +747,7 @@ class Project {
     static async getApiProject(id) {
         const kwargs = {
             "projects": [id],
-            "fields": ["image", "created", "modified"],
+            "fields": ["image", "created", "modified", "urls"],
         };
         const projects = await Plugin.postApiRequest("GetProjects", kwargs);
         const results = projects.results;
@@ -756,13 +759,15 @@ class Project {
                 const modified = new Date(project.modified);
                 const name = project.name || project.url; // url is deprecated
                 const imageDataUri = project.image;
+                const urls = project.urls || null;
                 // return new Project(id, created, modified, url, imageDataUri);
                 return new Project({
                     id: id,
                     created: created,
                     modified: modified,
                     name: name,
-                    imageDataUri: imageDataUri
+                    imageDataUri: imageDataUri,
+                    urls: urls
                 });
             }
         }

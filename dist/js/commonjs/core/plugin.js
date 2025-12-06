@@ -221,8 +221,9 @@ class Plugin {
      * Logs warning information to the console.
      * @param msg - The message to log.
      */
-    static logWarning(msg) {
-        console.warn(`🤖 ${msg}`);
+    static logWarning(msg, ex = null) {
+        const newlinedError = ex ? `\n${ex}` : "";
+        console.warn(`🤖 ${msg}${newlinedError}`);
     }
     /**
      * Routes a message to the parent frame.

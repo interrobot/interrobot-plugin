@@ -111,7 +111,7 @@
   var PluginData = class {
     /**
      * Creates an instance of PluginData.
-     * @param params - PluginDataParams, collection of arguments.
+     * @param params - The plugin data parameters.
      */
     constructor(params) {
       var _a;
@@ -416,7 +416,7 @@ ${JSON.stringify(kwargs)}`);
   var SearchQuery = class {
     /**
      * Creates an instance of SearchQuery.
-     * @param params - SearchQueryParams, collection of arguments.
+     * @param params - The search query parameters.
      */
     constructor(params) {
       var _a, _b, _c;
@@ -659,13 +659,13 @@ ${JSON.stringify(kwargs)}`);
   var Crawl = class {
     /**
      * Creates an instance of Crawl.
-     * @param params - CrawlParams, collection of arguments.
+     * @param params - The crawl parameters.
      */
     constructor(params) {
       this.id = -1;
+      this.project = -1;
       this.created = null;
       this.modified = null;
-      this.project = -1;
       this.time = -1;
       this.report = null;
       this.id = params.id;
@@ -708,21 +708,24 @@ ${JSON.stringify(kwargs)}`);
   var Project = class {
     /**
      * Creates an instance of Project.
-     * @param params - ProjectParams, collection of arguments.
+     * @param params - The project parameters.
      */
     constructor(params) {
       this.id = -1;
       this.created = null;
       this.modified = null;
       this.name = null;
+      this.type = null;
       this.url = null;
-      this.urls = [];
+      this.urls = null;
       this.imageDataUri = null;
       this.id = params.id;
+      this.name = params.name;
+      this.type = params.type;
       this.created = params.created;
       this.modified = params.modified;
       this.url = params.url;
-      this.name = params.name;
+      this.urls = params.urls;
       this.imageDataUri = params.imageDataUri;
     }
     /**
@@ -767,7 +770,7 @@ ${JSON.stringify(kwargs)}`);
     static async getApiProject(id) {
       const kwargs = {
         "projects": [id],
-        "fields": ["image", "created", "modified"]
+        "fields": ["image", "created", "modified", "urls"]
       };
       const projects = await Plugin.postApiRequest("GetProjects", kwargs);
       const results = projects.results;
@@ -778,12 +781,14 @@ ${JSON.stringify(kwargs)}`);
           const modified = new Date(project.modified);
           const name = project.name || project.url;
           const imageDataUri = project.image;
+          const urls = project.urls || null;
           return new Project({
             id,
             created,
             modified,
             name,
-            imageDataUri
+            imageDataUri,
+            urls
           });
         }
       }
@@ -1066,8 +1071,10 @@ ${JSON.stringify(kwargs)}`);
      * Logs warning information to the console.
      * @param msg - The message to log.
      */
-    static logWarning(msg) {
-      console.warn(`\u{1F916} ${msg}`);
+    static logWarning(msg, ex = null) {
+      const newlinedError = ex ? `
+${ex}` : "";
+      console.warn(`\u{1F916} ${msg}${newlinedError}`);
     }
     /**
      * Routes a message to the parent frame.
@@ -1392,6 +1399,7 @@ This is the default plugin description. Set meta: {} values
     }
     constructor() {
       super();
+      this.nodeCache = /* @__PURE__ */ new Map();
       this.nonResultId = 0;
       this.resultsMap = /* @__PURE__ */ new Map();
       this.resultUrlMap = /* @__PURE__ */ new Map();
@@ -1404,9 +1412,9 @@ This is the default plugin description. Set meta: {} values
     }
     async index() {
       HypertreeUi.setMode(this.getMode());
-      hyt.status2Class = HypertreeUi.status2Class;
-      hyt.status2Color = HypertreeUi.status2Color;
-      hyt.type2Char = HypertreeUi.type2Char;
+      window.hyt.status2Class = HypertreeUi.status2Class;
+      window.hyt.status2Color = HypertreeUi.status2Color;
+      window.hyt.type2Char = HypertreeUi.type2Char;
       const defaultData = {};
       const project = await Project.getApiProject(this.getProjectId());
       const query = new SearchQuery({
@@ -1417,7 +1425,8 @@ This is the default plugin description. Set meta: {} values
         includeExternal: false,
         includeNoRobots: true
       });
-      this.component = new hyt.Hypertree({ parent: document.body }, {
+      Plugin.postContentHeight(Math.max(this.getPostHeight(), 500));
+      this.component = new window.hyt.Hypertree({ parent: document.body }, {
         dataloader: this.fromApi(query),
         langloader: this.fromUndefinedLangauge(),
         langInitBFS: (ht, n) => {
@@ -1433,8 +1442,36 @@ This is the default plugin description. Set meta: {} values
           captionHeight: 0.09
         }
       });
-      await this.component.initPromise.then(() => new Promise((ok, err) => this.component.animateUp(ok, err))).then(() => this.component.drawDetailFrame());
+      await this.component.initPromise.then(() => this.buildNodeCache(this.component.data)).then(() => {
+        var _a;
+        const firstChild = (_a = this.component.data.children) === null || _a === void 0 ? void 0 : _a[0];
+        if (firstChild) {
+          this.component.api.gotoNode(firstChild);
+          this.component.updateLayoutPath_(firstChild);
+        }
+        this.component.transition = null;
+        this.component.unitdisk.update.transformation();
+      }).then(() => new Promise((resolve, reject) => {
+        let attempts = 0;
+        const maxAttempts = 180;
+        const checkAnimation = () => {
+          attempts++;
+          if (attempts > maxAttempts) {
+            this.component.transition = null;
+            this.component.unitdisk.update.transformation();
+            return reject(new Error("failed checkAnimation after maximum attempts"));
+          }
+          if (!this.component.transition) {
+            resolve(void 0);
+          } else {
+            requestAnimationFrame(checkAnimation);
+          }
+        };
+        checkAnimation();
+      })).then(() => this.component.api.goto\u03BB(0.25));
       this.searchDialog = await this.generateSearchDialog();
+      this.resultDialog = this.generateResultDialog();
+      this.panicDialog = this.generatePanicDialog();
       document.addEventListener("hypertreeDetail", async (ev) => {
         await this.openDetail(ev);
       });
@@ -1456,15 +1493,13 @@ This is the default plugin description. Set meta: {} values
       document.addEventListener("hypertreePanic", async (ev) => {
         await this.openDialog(this.panicDialog);
       });
-      this.resultDialog = this.generateResultDialog();
-      this.panicDialog = this.generatePanicDialog();
       window.addEventListener("resize", (ev) => {
         const dialogsHrs = document.querySelectorAll("dialog hr");
         dialogsHrs.forEach((element) => {
           var _a;
           (_a = element.parentNode) === null || _a === void 0 ? void 0 : _a.removeChild(element);
         });
-        Plugin.postContentHeight(window.innerWidth);
+        Plugin.postContentHeight(this.getPostHeight());
       });
       document.addEventListener("keydown", async (ev) => {
         switch (ev.key) {
@@ -1510,29 +1545,30 @@ This is the default plugin description. Set meta: {} values
             break;
         }
       });
-      Plugin.postContentHeight(window.innerWidth);
+      Plugin.postContentHeight(this.getPostHeight());
     }
     clearMaps() {
       this.resultsMap.clear();
       this.resultUrlMap.clear();
+      this.nodeCache.clear();
       this.renderedIds = [];
     }
-    findNodeById(root, targetId) {
-      if (!root) {
-        return null;
-      }
-      if (root["data"] && root["data"]["interrobotId"] === targetId) {
-        return root;
+    buildNodeCache(root) {
+      var _a;
+      if (!root)
+        return;
+      if (((_a = root["data"]) === null || _a === void 0 ? void 0 : _a["interrobotId"]) !== void 0) {
+        this.nodeCache.set(root["data"]["interrobotId"], root);
       }
       if (root["children"] && Array.isArray(root["children"])) {
         for (const child of root["children"]) {
-          const result = this.findNodeById(child, targetId);
-          if (result) {
-            return result;
-          }
+          this.buildNodeCache(child);
         }
       }
-      return null;
+    }
+    findCachedNodeById(targetId) {
+      var _a;
+      return (_a = this.nodeCache.get(targetId)) !== null && _a !== void 0 ? _a : null;
     }
     generateResultDialog() {
       const dialog = document.createElement("dialog");
@@ -1555,7 +1591,7 @@ This is the default plugin description. Set meta: {} values
             const checkNode = () => {
               var _a2;
               attempts++;
-              const resultNode2 = this.findNodeById(this.component.data, hitId);
+              const resultNode2 = this.findCachedNodeById(hitId);
               if ((resultNode2 === null || resultNode2 === void 0 ? void 0 : resultNode2.layout) === null) {
                 this.component.updateLayoutPath_(resultNode2);
               }
@@ -1596,7 +1632,7 @@ This is the default plugin description. Set meta: {} values
           });
           this.isNavigating = false;
           this.component.update.data();
-          const resultNode = this.findNodeById(this.component.data, hitId);
+          const resultNode = this.findCachedNodeById(hitId);
           if ((resultNode === null || resultNode === void 0 ? void 0 : resultNode.layout) === null) {
             this.component.updateLayoutPath_(resultNode);
           }
@@ -1620,7 +1656,7 @@ This is the default plugin description. Set meta: {} values
         <div class="message fadeIn">
             <form id="HypertreeForm">
                 <div class="message__search">
-                    <input type="text" name="query" value="" placeholder="Search by title and/or URL"
+                    <input type="text" name="query" value="" placeholder="Search by title or URL"
                         spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"/>
                     <button><span class="icon">%</span></button>
                     <input type="hidden" name="nodes" value=""/>
@@ -1639,7 +1675,7 @@ This is the default plugin description. Set meta: {} values
       await this.initData(defaultData, autoformFields);
       const relinks = nodesInput.value.split(",").map(Number);
       relinks.forEach((relink) => {
-        const resultNode = this.findNodeById(this.component.data, relink);
+        const resultNode = this.findCachedNodeById(relink);
         if (resultNode && !this.component.args.objects.selections.includes(resultNode)) {
           this.component.api.toggleSelection(resultNode);
         }
@@ -1667,27 +1703,30 @@ This is the default plugin description. Set meta: {} values
           const bordersQuery = new RegExp(`\b${Hypertree.escapeRegExp(queryString)}`, "i");
           const containsQuery = new RegExp(`${Hypertree.escapeRegExp(queryString)}`, "i");
           for (const [resultId, result] of this.resultsMap) {
-            result.sort = -1;
+            const r = result;
+            r.sort = -1;
             if (result.status.toString() === queryString) {
-              result.sort = 70;
+              r.sort = 70;
             } else if (startsWithQuery.test(result.name)) {
-              result.sort = 60;
+              r.sort = 60;
             } else if (bordersQuery.test(result.name)) {
-              result.sort = 50;
+              r.sort = 50;
             } else if (containsQuery.test(result.name)) {
-              result.sort = 40;
+              r.sort = 40;
             } else if (startsWithQuery.test(result.url)) {
-              result.sort = 30;
+              r.sort = 30;
             } else if (containsQuery.test(result.url)) {
-              result.sort = 20;
+              r.sort = 20;
             }
-            if (result.sort >= 20 && this.renderedIds.indexOf(result.id) >= 0) {
+            if (r.sort >= 20 && this.renderedIds.indexOf(result.id) >= 0) {
+              hits.push(result);
+            }
+            if (r.sort >= 20 && this.renderedIds.indexOf(result.id) >= 0) {
               hits.push(result);
             }
           }
           hits.sort((a, b) => {
-            var _a, _b;
-            const sortDiff = ((_a = b.sort) !== null && _a !== void 0 ? _a : 0) - ((_b = a.sort) !== null && _b !== void 0 ? _b : 0);
+            const sortDiff = b.sort - a.sort;
             if (sortDiff !== 0) {
               return sortDiff;
             }
@@ -1699,7 +1738,8 @@ This is the default plugin description. Set meta: {} values
           });
           const totalHits = hits.length;
           const isEmptyQuery = queryString.trim() === "";
-          hits = hits.slice(0, 5);
+          const maxResults = this.isMobileDisplay() ? 3 : 5;
+          hits = hits.slice(0, maxResults);
           const metaElement = dialog.querySelector(".message__results__meta");
           if (metaElement && !isEmptyQuery) {
             metaElement.innerHTML = `Found <strong>${totalHits.toLocaleString()}</strong> results.
@@ -1870,7 +1910,7 @@ This is the default plugin description. Set meta: {} values
         if (activeIds.indexOf(result.id) >= 0) {
         }
         this.resultDialog.innerHTML = detailHtml;
-        const resultNode = this.findNodeById(this.component.data, result.id);
+        const resultNode = this.findCachedNodeById(result.id);
         if (!this.component.args.objects.selections.includes(resultNode)) {
           this.component.api.toggleSelection(resultNode);
         }
@@ -2040,61 +2080,162 @@ This is the default plugin description. Set meta: {} values
         return url.split(/[?#]/)[0];
       }
     }
+    isMobileDisplay() {
+      return window.innerWidth <= 768;
+    }
+    getPostHeight() {
+      let height = window.innerWidth;
+      if (this.isMobileDisplay() && this.component !== null) {
+        height += 16 * 5;
+      }
+      return height;
+    }
     async gatherResults(query) {
+      var _a;
       this.clearMaps();
-      const projectUrl = (await this.getProject()).url;
+      const project = await this.getProject();
+      const matchUrl = (_a = project.url) !== null && _a !== void 0 ? _a : project.urls[0];
+      if (!matchUrl) {
+        Plugin.logWarning("project indeciferable, hub is unknown");
+        return {};
+      }
+      const matchUrls = project.urls ? project.urls : [matchUrl];
+      const isCrawledList = matchUrls.length >= 2;
       const gatheredUrls = [];
-      let projectHitId = -1;
       let seedObject = {};
-      await Search.execute(query, this.resultsMap, async (result) => {
-        const rUrl = result.url;
+      await Search.execute(query, this.resultsMap, async (result2) => {
+        var _a2;
+        const rUrl = (_a2 = result2.url) !== null && _a2 !== void 0 ? _a2 : "";
         if (gatheredUrls.indexOf(rUrl) >= 0) {
           return;
         }
         gatheredUrls.push(rUrl);
-        const rId = result.id;
-        if (rUrl === projectUrl) {
-          projectHitId = rId;
-        }
-        this.resultsMap.set(rId, result);
-        this.resultUrlMap.set(this.normalizeUrl(rUrl), result);
+        this.resultsMap.set(result2.id, result2);
+        this.resultUrlMap.set(this.normalizeUrl(rUrl), result2);
       }, true, false, "Rendering\u2026");
+      let result;
+      if (isCrawledList) {
+        result = this.gatherResultsCrawledListTree(project, matchUrls);
+      } else {
+        result = this.gatherResultsCrawledUrlTree(project, matchUrls);
+      }
+      this.renderedIds = result.renderedIds;
+      return result.seedObject;
+    }
+    gatherResultsCrawledListTree(project, crawledUrls) {
+      var _a, _b;
+      const projectResultJson = {
+        result: 0,
+        id: this.getNonResultUniqueId(),
+        url: ``,
+        name: project.name,
+        status: 418,
+        type: "project",
+        created: (_a = project.created) === null || _a === void 0 ? void 0 : _a.toISOString(),
+        modified: (_b = project.modified) === null || _b === void 0 ? void 0 : _b.toISOString()
+      };
+      const projectRoot = new SearchResult(projectResultJson);
+      this.resultsMap.set(projectRoot.id, projectRoot);
+      this.resultUrlMap.set(this.normalizeUrl(projectRoot.url), projectRoot);
+      const resultsByOrigin = /* @__PURE__ */ new Map();
+      for (const [normalizedUrl, result] of this.resultUrlMap.entries()) {
+        if (result.type === "project") {
+          continue;
+        }
+        try {
+          const resultUrlObj = new URL(normalizedUrl);
+          const origin = resultUrlObj.origin;
+          if (!resultsByOrigin.has(origin)) {
+            resultsByOrigin.set(origin, []);
+          }
+          resultsByOrigin.get(origin).push(result);
+        } catch (e) {
+          console.warn(`Skipping malformed URL: ${normalizedUrl}`, e);
+        }
+      }
+      const childTrees = [];
+      const renderedIds = [];
+      for (const [origin, results] of resultsByOrigin.entries()) {
+        const rootResult = results.find((r) => {
+          try {
+            const url = new URL(r.url);
+            return url.pathname === "/" || url.pathname === "";
+          } catch {
+            return false;
+          }
+        }) || results[0];
+        const root = this.getGatherRoot(this.normalizeUrl(rootResult.url));
+        const urls = results.map((r) => this.normalizeUrl(r.url));
+        this.addGatherUrls(root, urls);
+        const children = this.gatherResultsBranches(root, rootResult.url, renderedIds);
+        const urlHostname = new URL(origin).hostname;
+        const urlTree = this.getResultStem(rootResult.id, urlHostname, "", rootResult.status, rootResult.type, children);
+        childTrees.push(urlTree);
+      }
+      const seedObject = this.getResultStem(projectRoot.id, project.name, "", 200, "project", childTrees);
+      return { seedObject, renderedIds };
+    }
+    getGatherRoot(url) {
+      return { __meta__: { url } };
+    }
+    addGatherUrls(root, urls) {
+      for (const url of urls) {
+        let current = root;
+        const cycled = [];
+        try {
+          const urlProper = new URL(url);
+          const origin = urlProper.origin;
+          const segments = urlProper.pathname.split("/").filter((seg) => seg);
+          const segmentsLen = segments.length;
+          segments.forEach((segment, i) => {
+            cycled.push(segment);
+            if (segmentsLen - 1 === i) {
+              if (!current[segment]) {
+                current[segment] = { __meta__: { url } };
+              }
+            } else {
+              if (!current[segment]) {
+                current[segment] = { __meta__: { url: `${origin}/${cycled.join("/")}/` } };
+              }
+            }
+            current = current[segment];
+          });
+        } catch (ex) {
+          Plugin.logWarning(`Skipping malformed URL: ${url}`, ex);
+        }
+      }
+    }
+    gatherResultsCrawledUrlTree(project, crawledUrls) {
+      const renderedIds = [];
+      const matchUrl = crawledUrls[0];
+      let projectHitId = -1;
+      const errorResult = {
+        seedObject: {},
+        renderedIds
+      };
+      for (const [resultId, result] of this.resultsMap.entries()) {
+        if (result.url === matchUrl) {
+          projectHitId = resultId;
+          break;
+        }
+      }
       if (projectHitId === -1) {
-        return {};
+        Plugin.logWarning("project hub not found");
+        return errorResult;
       }
       const firstHit = this.resultsMap.get(projectHitId);
       if (firstHit === void 0) {
-        return {};
+        Plugin.logWarning("project hub unknown failure");
+        return errorResult;
       }
       const resultUrlMapKeys = [...this.resultUrlMap.keys()];
       resultUrlMapKeys.sort();
-      const root = { __meta__: { url: this.normalizeUrl(firstHit.url) } };
-      for (const url of resultUrlMapKeys) {
-        const urlProper = new URL(url);
-        const origin = urlProper.origin;
-        const segments = urlProper.pathname.split("/").filter((seg) => seg);
-        const segmentsLen = segments.length;
-        const cycled = [];
-        let current = root;
-        segments.forEach((segment, i) => {
-          cycled.push(segment);
-          if (segmentsLen - 1 === i) {
-            if (!current[segment]) {
-              current[segment] = { __meta__: { url } };
-            }
-          } else {
-            if (!current[segment]) {
-              current[segment] = { __meta__: { url: `${origin}/${cycled.join("/")}/` } };
-            }
-          }
-          current = current[segment];
-        });
-      }
-      const renderedIds = [];
+      const root = this.getGatherRoot(firstHit.url);
+      this.addGatherUrls(root, resultUrlMapKeys);
       const children = this.gatherResultsBranches(root, firstHit.url, renderedIds);
-      this.renderedIds = renderedIds;
-      seedObject = this.getResultStem(firstHit === null || firstHit === void 0 ? void 0 : firstHit.id, new URL(firstHit.url).hostname, "", firstHit === null || firstHit === void 0 ? void 0 : firstHit.status, firstHit === null || firstHit === void 0 ? void 0 : firstHit.type, children);
-      return seedObject;
+      const hostname = new URL(firstHit.url).hostname;
+      const seedObject = this.getResultStem(firstHit.id, hostname, "", firstHit.status, firstHit.type, children);
+      return { seedObject, renderedIds };
     }
     fromApi(query) {
       return (callback) => {
@@ -2111,7 +2252,7 @@ This is the default plugin description. Set meta: {} values
   Hypertree.meta = {
     "title": "Website Hypertree",
     "category": "Visualization",
-    "version": "1.0.1",
+    "version": "1.2.0",
     "author": "InterroBot",
     "synopsis": `create a hypertree from website content`,
     "description": `Get a new, uniquely hyperbolic perspective on your website\u2014your
@@ -2132,5 +2273,9 @@ This is the default plugin description. Set meta: {} values
   Hypertree.panicDialogId = "PanicDialog";
   Hypertree.searchDialogId = "SearchDialog";
   Hypertree.searchResultsDialogId = "SearchDialogResults";
-  Plugin.initialize(Hypertree);
+  window.addEventListener("DOMContentLoaded", () => {
+    if (window.hyt) {
+      Plugin.initialize(Hypertree);
+    }
+  });
 })();
