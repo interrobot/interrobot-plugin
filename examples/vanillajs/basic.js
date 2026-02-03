@@ -1,12 +1,10 @@
-
-
 class BasicExamplePlugin extends InterroBot.Core.Plugin {
-    
+
     static meta = {
         "url": "https://interro.bot",
         "title": "Basic Plugin Example",
         "category": "Example",
-        "version": "1.0.2",
+        "version": "1.0.3",
         "author": "InterroBot",
         "synopsis": `a basic plugin example, using vanillajs`,
         "description": `This example is as simple as it gets.`,
@@ -33,9 +31,9 @@ class BasicExamplePlugin extends InterroBot.Core.Plugin {
             <div id="LinkFormProgress"></div>`)}
             ${InterroBot.Ui.Templates.standardResults()}
         `);
-        
+
         await this.initData({}, []);
-        
+
         const button = document.querySelector("button");
         button.addEventListener("click", async (ev) => {
             ev.preventDefault();
@@ -51,11 +49,12 @@ class BasicExamplePlugin extends InterroBot.Core.Plugin {
     }
 
     async process() {
-        
+
         // as an example, collect page title word counts across all html pages
         // it's a contrived example, but let us keep things simple
         const titleWords = new Map();
         let resultsMap;
+
         // the function to handle individual SearchResults
         // in this example, counting term/word instances in the name field
         const exampleResultHandler = async (result, titleWordsMap) => {
@@ -73,25 +72,31 @@ class BasicExamplePlugin extends InterroBot.Core.Plugin {
 
         // projectId comes for free as a member of Plugin
         const projectId = this.getProjectId();
+
         // build a query, these are exactly as you'd type them into InterroBot search
         const freeQueryString = "headers: text/html";
-        // pipe delimited fields you want retrieved
+
         // id and url come with the base model, everything else costs time
-        const fields = "name";
+        // here, I just grab the "name" field
         let internalHtmlPagesQuery = new InterroBot.Core.SearchQuery({
             project: projectId,
             query: freeQueryString,
-            fields: fields,
+            fields: ["name"],
             type: InterroBot.Core.SearchQueryType.Any,
             includeExternal: false,
             includeNoRobots: false,
         });
-        
+
         // run each SearchResult through its handler, and we're done processing
+        const options = {
+            paginate: true,
+            showProgress: false,
+            progressMessage: "Processing…"
+        };
         await InterroBot.Core.Search.execute(internalHtmlPagesQuery, this.resultsMap, async (result) => {
             await exampleResultHandler(result, titleWords);
-        }, true, false, "Processing…");
-        
+        }, options);
+
         // call for html presentation
         await this.report(titleWords);
     }

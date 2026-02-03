@@ -1,8 +1,5 @@
-// Wordcloud, EN only. Take web copy, pull out interesting words.
-//  Present aforementioned words as "cloud."
-
 import { Plugin } from "../../../src/ts/core/plugin";
-import { SearchQueryType, SearchQuery, Search, SearchResult, Project, PluginData } from "../../../src/ts/core/api";
+import { Project, Search, SearchExecuteOptions, SearchQuery, SearchQueryType, SearchResult } from "../../../src/ts/core/api";
 import { HtmlProcessingWidget } from "../../../src/ts/ui/processing";
 import { Templates } from "../../../src/ts/ui/templates";
 import { Stopwords } from "../../../src/ts/core/stopwords";
@@ -529,15 +526,20 @@ class Wordcloud extends Plugin {
         let internalHtmlPagesQuery = new SearchQuery({
             project: projectId,
             query: internalQueryString,
-            fields: "content",
+            fields: ["content"],
             type: SearchQueryType.Any,
             includeExternal: false,
             includeNoRobots: false,
         });
 
+        const options: SearchExecuteOptions = {
+            paginate: true,
+            showProgress: false,
+            progressMessage: "Finding jargon…"
+        };
         await Search.execute(internalHtmlPagesQuery, this.resultsMap, async (result: SearchResult) => {
             await this.wordcloudResultHandler(result);
-        }, true, false, "Finding jargon…");
+        }, options);
 
         let wordcloudWordList: WordcloudWord[] = [...this.wordMap.values()];
         this.wordMapPresentation = this.sortAndTruncatePresentation(wordcloudWordList);
@@ -921,14 +923,11 @@ class Wordcloud extends Plugin {
 
     private async saveSvgAsImage(svgElement: SVGElement, fileName: string): Promise<void> {
 
-        // Get the SVG data
         const svgData = new XMLSerializer().serializeToString(svgElement);
-
-        // Create a canvas element
         const canvas = document.createElement("canvas");
-        const img = document.createElement("img");
         canvas.width = Wordcloud.svgWidth;
         canvas.height = Wordcloud.svgHeight;
+        const img = document.createElement("img");
         const svgBase64 = btoa(unescape(encodeURIComponent(svgData)));
         const dataURL = 'data:image/svg+xml;base64,' + svgBase64;
 

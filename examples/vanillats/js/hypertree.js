@@ -92,26 +92,14 @@
   // examples/vanillats/js/build/src/ts/core/api.js
   var SearchQueryType;
   (function(SearchQueryType2) {
-    SearchQueryType2[SearchQueryType2["Page"] = 0] = "Page";
-    SearchQueryType2[SearchQueryType2["Asset"] = 1] = "Asset";
-    SearchQueryType2[SearchQueryType2["Any"] = 2] = "Any";
+    SearchQueryType2["Page"] = "page";
+    SearchQueryType2["Asset"] = "asset";
+    SearchQueryType2["Any"] = "any";
   })(SearchQueryType || (SearchQueryType = {}));
-  var SearchQuerySortField;
-  (function(SearchQuerySortField2) {
-    SearchQuerySortField2[SearchQuerySortField2["Id"] = 0] = "Id";
-    SearchQuerySortField2[SearchQuerySortField2["Time"] = 1] = "Time";
-    SearchQuerySortField2[SearchQuerySortField2["Status"] = 2] = "Status";
-    SearchQuerySortField2[SearchQuerySortField2["Url"] = 3] = "Url";
-  })(SearchQuerySortField || (SearchQuerySortField = {}));
-  var SearchQuerySortDirection;
-  (function(SearchQuerySortDirection2) {
-    SearchQuerySortDirection2[SearchQuerySortDirection2["Ascending"] = 0] = "Ascending";
-    SearchQuerySortDirection2[SearchQuerySortDirection2["Descending"] = 1] = "Descending";
-  })(SearchQuerySortDirection || (SearchQuerySortDirection = {}));
   var PluginData = class {
     /**
      * Creates an instance of PluginData.
-     * @param params - The plugin data parameters.
+     * @param params - Configuration object containing projectId, meta, defaultData, and autoformInputs
      */
     constructor(params) {
       var _a;
@@ -416,7 +404,7 @@ ${JSON.stringify(kwargs)}`);
   var SearchQuery = class {
     /**
      * Creates an instance of SearchQuery.
-     * @param params - The search query parameters.
+     * @param params - Configuration object containing project, query, fields, type, includeExternal, and includeNoRobots
      */
     constructor(params) {
       var _a, _b, _c;
@@ -424,7 +412,11 @@ ${JSON.stringify(kwargs)}`);
       this.includeNoRobots = false;
       this.project = params.project;
       this.query = params.query;
-      this.fields = params.fields;
+      if (typeof params.fields === "string") {
+        this.fields = params.fields.split("|");
+      } else {
+        this.fields = params.fields;
+      }
       this.type = params.type;
       this.includeExternal = (_a = params.includeExternal) !== null && _a !== void 0 ? _a : true;
       this.includeNoRobots = (_b = params.includeNoRobots) !== null && _b !== void 0 ? _b : false;
@@ -440,7 +432,7 @@ ${JSON.stringify(kwargs)}`);
      * @returns A string representing the cache key.
      */
     getHaystackCacheKey() {
-      return `${this.project}~${this.fields}~${this.type}~${this.includeExternal}~${this.includeNoRobots}`;
+      return `${this.project}~${this.fields.join("|")}~${this.type}~${this.includeExternal}~${this.includeNoRobots}`;
     }
   };
   SearchQuery.maxPerPage = 100;
@@ -448,27 +440,28 @@ ${JSON.stringify(kwargs)}`);
   var Search = class {
     /**
      * Executes a search query.
-     * @param query - The search query to execute.
-     * @param existingResults - Map of existing results.
-     * @param processingMessage - Message to display during processing.
-     * @param resultHandler - Function to handle each search result.
-     * @returns A promise that resolves to a boolean indicating if results were from cache.
+     * @param query - The search query to execute
+     * @param resultsMap - Map of existing results
+     * @param resultHandler - Function to handle each search result
+     * @param options - Optional configuration for pagination, progress display, and custom messages
+     * @returns A promise that resolves to a boolean indicating if results were from cache
      */
-    static async execute(query, existingResults, resultHandler, deep = false, quiet = true, processingMessage = "Processing...") {
+    static async execute(query, resultsMap, resultHandler, options) {
       const timeStart = (/* @__PURE__ */ new Date()).getTime();
-      if (query.getHaystackCacheKey() === Search.resultsHaystackCacheKey && existingResults) {
-        const resultTotal2 = existingResults.size;
-        if (quiet === false) {
-          const eventStart = new CustomEvent("ProcessingMessage", { detail: { action: "set", message: processingMessage } });
+      const { paginate = false, showProgress = true, progressMessage = "Processing..." } = options !== null && options !== void 0 ? options : {};
+      if (query.getHaystackCacheKey() === Search.resultsHaystackCacheKey && resultsMap) {
+        const resultTotal2 = resultsMap.size;
+        if (showProgress === true) {
+          const eventStart = new CustomEvent("ProcessingMessage", { detail: { action: "set", message: progressMessage } });
           document.dispatchEvent(eventStart);
         }
         await Search.sleep(16);
         let i = 0;
-        await existingResults.forEach(async (result, resultId) => {
+        await resultsMap.forEach(async (result, resultId) => {
           await resultHandler(result);
         });
         Plugin.logTiming(`Processed ${resultTotal2.toLocaleString()} search result(s)`, (/* @__PURE__ */ new Date()).getTime() - timeStart);
-        if (quiet === false) {
+        if (showProgress === true) {
           const msg = { detail: { action: "clear" } };
           const eventFinished = new CustomEvent("ProcessingMessage", msg);
           document.dispatchEvent(eventFinished);
@@ -482,9 +475,9 @@ ${JSON.stringify(kwargs)}`);
         "project": query.project,
         "query": query.query,
         "external": query.includeExternal,
-        "type": SearchQueryType[query.type].toLowerCase(),
+        "type": query.type,
         "offset": 0,
-        "fields": query.fields.split("|"),
+        "fields": query.fields,
         "norobots": query.includeNoRobots,
         "sort": query.sort,
         "perpage": query.perPage
@@ -497,9 +490,12 @@ ${JSON.stringify(kwargs)}`);
         const result = results[i];
         await Search.handleResult(result, resultTotal, resultHandler);
       }
-      while (responseJson["__meta__"]["results"]["pagination"]["nextOffset"] !== null && deep === true) {
+      while (responseJson["__meta__"]["results"]["pagination"]["nextOffset"] !== null && paginate === true) {
         const next = responseJson["__meta__"]["results"]["pagination"]["nextOffset"];
         kwargs["offset"] = next;
+        if (query.sort === "?" && next > 0) {
+          console.warn("Random sort (?) with pagination generates fresh randomness on each page. Consider maxing perpage (100) and using 1 page of results when sampling.");
+        }
         responseJson = await Plugin.postApiRequest("GetResources", kwargs);
         results = responseJson.results;
         for (let i = 0; i < results.length; i++) {
@@ -659,7 +655,7 @@ ${JSON.stringify(kwargs)}`);
   var Crawl = class {
     /**
      * Creates an instance of Crawl.
-     * @param params - The crawl parameters.
+     * @param params - Configuration object containing id, project, created, modified, complete, time, and report
      */
     constructor(params) {
       this.id = -1;
@@ -708,7 +704,7 @@ ${JSON.stringify(kwargs)}`);
   var Project = class {
     /**
      * Creates an instance of Project.
-     * @param params - The project parameters.
+     * @param params - Configuration object containing id, created, modified, name, type, url, urls, and imageDataUri
      */
     constructor(params) {
       this.id = -1;
@@ -1264,7 +1260,7 @@ ${ex}` : "";
       };
       const projectId = this.getProjectId();
       const freeQueryString = "headers: text/html";
-      const fields = "name";
+      const fields = ["name"];
       const internalHtmlPagesQuery = new SearchQuery({
         project: projectId,
         query: freeQueryString,
@@ -1273,9 +1269,14 @@ ${ex}` : "";
         includeExternal: false,
         includeNoRobots: false
       });
+      const options = {
+        paginate: true,
+        showProgress: false,
+        progressMessage: "Processing\u2026"
+      };
       await Search.execute(internalHtmlPagesQuery, resultsMap, async (result) => {
         await exampleResultHandler(result, titleWords);
-      }, true, false, "Processing\u2026");
+      }, options);
       await this.report(titleWords);
     }
     /**
@@ -1420,7 +1421,7 @@ This is the default plugin description. Set meta: {} values
       const query = new SearchQuery({
         project: this.getProjectId(),
         query: "norobots: false AND redirect: false",
-        fields: "name|status|type",
+        fields: ["name", "status", "type"],
         type: SearchQueryType.Any,
         includeExternal: false,
         includeNoRobots: true
@@ -2103,6 +2104,11 @@ This is the default plugin description. Set meta: {} values
       const isCrawledList = matchUrls.length >= 2;
       const gatheredUrls = [];
       let seedObject = {};
+      const options = {
+        paginate: true,
+        showProgress: false,
+        progressMessage: "Rendering\u2026"
+      };
       await Search.execute(query, this.resultsMap, async (result2) => {
         var _a2;
         const rUrl = (_a2 = result2.url) !== null && _a2 !== void 0 ? _a2 : "";
@@ -2112,7 +2118,7 @@ This is the default plugin description. Set meta: {} values
         gatheredUrls.push(rUrl);
         this.resultsMap.set(result2.id, result2);
         this.resultUrlMap.set(this.normalizeUrl(rUrl), result2);
-      }, true, false, "Rendering\u2026");
+      }, options);
       let result;
       if (isCrawledList) {
         result = this.gatherResultsCrawledListTree(project, matchUrls);
@@ -2273,9 +2279,5 @@ This is the default plugin description. Set meta: {} values
   Hypertree.panicDialogId = "PanicDialog";
   Hypertree.searchDialogId = "SearchDialog";
   Hypertree.searchResultsDialogId = "SearchDialogResults";
-  window.addEventListener("DOMContentLoaded", () => {
-    if (window.hyt) {
-      Plugin.initialize(Hypertree);
-    }
-  });
+  Plugin.initialize(Hypertree);
 })();

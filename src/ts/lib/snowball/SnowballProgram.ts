@@ -3,7 +3,7 @@
  * Copyright 2023, Ben Caulfield
  * http://pragmar.com
  * http://www.mozilla.org/MPL/
- * 
+ *
  * Snowball JavaScript Library v0.3
  * http://code.google.com/p/urim/
  * http://snowball.tartarus.org/
@@ -170,12 +170,12 @@ class SnowballProgram {
 		if (this.limit - this.cursor < s_size) {
 			return false;
 		}
-			
+
 		for (let i: number = 0; i < s_size; i++) {
 			if (this.current.charCodeAt(this.cursor + i) != s.charCodeAt(i)) {
 				return false;
 			}
-		}	
+		}
 		this.cursor += s_size;
 		return true;
 	}
@@ -197,9 +197,9 @@ class SnowballProgram {
 		for (var i = 0; i < s_size; i++) {
 			if (this.current.charCodeAt(this.cursor - s_size + i) != s.charCodeAt(i)) {
 				return false;
-			}	
+			}
 		}
-			
+
 		this.cursor -= s_size;
 		return true;
 	}
@@ -224,7 +224,7 @@ class SnowballProgram {
 				diff = this.current.charCodeAt(c + common) - w.s[i2];
 				if (diff) {
 					break;
-				}	
+				}
 				common++;
 			}
 			if (diff < 0) {
@@ -243,21 +243,17 @@ class SnowballProgram {
 		while (true) {
 			var w = v[i];
 			if (common_i >= w.s_size) {
+
 				this.cursor = c + w.s_size;
-				if (w.method) {
-					// method() not referenced in any language files
-					console.warn(`method is unsupported type`);
-				}
-				return w.result;
-				
-				// leaving method handling in for reference (if something breaks)
-				// this.cursor = c + w.s_size;
-				// if (!w.method)
-				// 	return w.result;
-				// var res = w.method();
-				// this.cursor = c + w.s_size;
-				// if (res)
-				// 	return w.result;
+				if (!w.method){
+                    return w.result;
+                }
+
+				var res = w.method();
+				this.cursor = c + w.s_size;
+				if (res){
+					return w.result;
+                }
 			}
 			i = w.substring_i;
 			if (i < 0)
@@ -286,14 +282,14 @@ class SnowballProgram {
 			let common: number = common_i < common_j ? common_i : common_j;
 
 			let w: Among = v[k];
-			
+
 			for (let i2: number = w.s_size - 1 - common; i2 >= 0; i2--) {
 				if (c - common == lb) {
 					diff = -1;
 					break;
 				}
-				// don't getCurrent(), it'll self nullify, that is the 
-				// responsibility of the last-in-line function				
+				// don't getCurrent(), it'll self nullify, that is the
+				// responsibility of the last-in-line function
 				const current: string = this.current;
 				diff = current.charCodeAt(c - 1 - common) - w.s[i2];
 				if (diff) {
@@ -311,18 +307,18 @@ class SnowballProgram {
 			if (j - i <= 1) {
 				if (i > 0 || j == i || first_key_inspected) {
 					break;
-				}	
+				}
 				first_key_inspected = true;
 			}
 		}
 		while (true) {
 			var w = v[i];
 			if (common_i >= w.s_size) {
-				this.cursor = c - w.s_size;	
+				this.cursor = c - w.s_size;
 				return w.result;
 				// method() not referenced in project languages
 				// leaving for historical reference
-				// this.cursor = c - w.s_size;				
+				// this.cursor = c - w.s_size;
 				// if (!w.method)
 				// 	return w.result;
 				//  var res = w.method();
@@ -385,7 +381,7 @@ class SnowballProgram {
 			this.cursor += adjustment;
 		} else if (this.cursor > c_bra) {
 			this.cursor = c_bra;
-		}			
+		}
 		return adjustment;
 	}
 
@@ -399,9 +395,9 @@ class SnowballProgram {
 			throw ("faulty slice operation");
 	}
 
-	
 
-	
+
+
 
 	/**
 	 * Gets the current substring.
@@ -417,9 +413,14 @@ class SnowballProgram {
 	 * @param s - The string to compare.
 	 * @returns True if the substrings match, false otherwise.
 	 */
-	private eq_v_b(s: string): boolean {
+	public eq_v_b(s: string): boolean {
 		return this.eq_s_b(s.length, s);
 	}
+
+    public slice_to(): string {
+        this.slice_check();
+        return this.current.substring(this.bra, this.ket);
+    }
 
 }
 

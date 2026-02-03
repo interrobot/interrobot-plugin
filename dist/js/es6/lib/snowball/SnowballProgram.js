@@ -211,19 +211,14 @@ class SnowballProgram {
             var w = v[i];
             if (common_i >= w.s_size) {
                 this.cursor = c + w.s_size;
-                if (w.method) {
-                    // method() not referenced in any language files
-                    console.warn(`method is unsupported type`);
+                if (!w.method) {
+                    return w.result;
                 }
-                return w.result;
-                // leaving method handling in for reference (if something breaks)
-                // this.cursor = c + w.s_size;
-                // if (!w.method)
-                // 	return w.result;
-                // var res = w.method();
-                // this.cursor = c + w.s_size;
-                // if (res)
-                // 	return w.result;
+                var res = w.method();
+                this.cursor = c + w.s_size;
+                if (res) {
+                    return w.result;
+                }
             }
             i = w.substring_i;
             if (i < 0)
@@ -254,8 +249,8 @@ class SnowballProgram {
                     diff = -1;
                     break;
                 }
-                // don't getCurrent(), it'll self nullify, that is the 
-                // responsibility of the last-in-line function				
+                // don't getCurrent(), it'll self nullify, that is the
+                // responsibility of the last-in-line function
                 const current = this.current;
                 diff = current.charCodeAt(c - 1 - common) - w.s[i2];
                 if (diff) {
@@ -285,7 +280,7 @@ class SnowballProgram {
                 return w.result;
                 // method() not referenced in project languages
                 // leaving for historical reference
-                // this.cursor = c - w.s_size;				
+                // this.cursor = c - w.s_size;
                 // if (!w.method)
                 // 	return w.result;
                 //  var res = w.method();
@@ -372,6 +367,10 @@ class SnowballProgram {
      */
     eq_v_b(s) {
         return this.eq_s_b(s.length, s);
+    }
+    slice_to() {
+        this.slice_check();
+        return this.current.substring(this.bra, this.ket);
     }
 }
 export { SnowballProgram };

@@ -2,14 +2,14 @@
  * Enumeration for different types of search queries.
  */
 declare enum SearchQueryType {
-    Page = 0,
-    Asset = 1,
-    Any = 2
+    Page = "page",
+    Asset = "asset",
+    Any = "any"
 }
 interface SearchQueryParams {
     project: number;
     query: string;
-    fields: string;
+    fields: string[];
     type: SearchQueryType;
     includeExternal?: boolean;
     includeNoRobots?: boolean;
@@ -33,6 +33,11 @@ interface SearchResultJson {
     links?: string[];
     assets?: string[];
     origin?: string;
+}
+interface SearchExecuteOptions {
+    paginate?: boolean;
+    showProgress?: boolean;
+    progressMessage?: string;
 }
 interface CrawlParams {
     id: number;
@@ -71,7 +76,7 @@ declare class PluginData {
     private project;
     /**
      * Creates an instance of PluginData.
-     * @param params - The plugin data parameters.
+     * @param params - Configuration object containing projectId, meta, defaultData, and autoformInputs
      */
     constructor(params: PluginDataParams);
     /**
@@ -116,7 +121,7 @@ declare class SearchQuery {
     private static readonly validSorts;
     readonly project: number;
     readonly query: string;
-    readonly fields: string;
+    readonly fields: string[];
     readonly type: SearchQueryType;
     readonly includeExternal: boolean;
     readonly includeNoRobots: boolean;
@@ -124,7 +129,7 @@ declare class SearchQuery {
     readonly perPage: number;
     /**
      * Creates an instance of SearchQuery.
-     * @param params - The search query parameters.
+     * @param params - Configuration object containing project, query, fields, type, includeExternal, and includeNoRobots
      */
     constructor(params: SearchQueryParams);
     /**
@@ -138,13 +143,13 @@ declare class Search {
     private static resultsHaystackCacheKey;
     /**
      * Executes a search query.
-     * @param query - The search query to execute.
-     * @param existingResults - Map of existing results.
-     * @param processingMessage - Message to display during processing.
-     * @param resultHandler - Function to handle each search result.
-     * @returns A promise that resolves to a boolean indicating if results were from cache.
+     * @param query - The search query to execute
+     * @param resultsMap - Map of existing results
+     * @param resultHandler - Function to handle each search result
+     * @param options - Optional configuration for pagination, progress display, and custom messages
+     * @returns A promise that resolves to a boolean indicating if results were from cache
      */
-    static execute(query: SearchQuery, existingResults: Map<number, SearchResult>, resultHandler: any, deep?: boolean, quiet?: boolean, processingMessage?: string): Promise<boolean>;
+    static execute(query: SearchQuery, resultsMap: Map<number, SearchResult>, resultHandler: (result: SearchResult) => Promise<void>, options?: SearchExecuteOptions): Promise<boolean>;
     /**
      * Sleeps for the specified number of milliseconds.
      * @param millis - The number of milliseconds to sleep.
@@ -241,7 +246,7 @@ declare class Crawl {
     report?: any;
     /**
      * Creates an instance of Crawl.
-     * @param params - The crawl parameters.
+     * @param params - Configuration object containing id, project, created, modified, complete, time, and report
      */
     constructor(params: CrawlParams);
     /**
@@ -276,7 +281,7 @@ declare class Project {
     static readonly urlDeprectionWarning: string;
     /**
      * Creates an instance of Project.
-     * @param params - The project parameters.
+     * @param params - Configuration object containing id, created, modified, name, type, url, urls, and imageDataUri
      */
     constructor(params: ProjectParams);
     /**
@@ -303,4 +308,4 @@ declare class Project {
      */
     static getApiCrawls(project: number): Promise<Crawl[]>;
 }
-export { Project, Crawl, SearchQueryType, SearchQuery, Search, SearchResult, SearchResultJson, PluginData };
+export { Project, ProjectParams, Crawl, CrawlParams, SearchQueryType, SearchQuery, SearchQueryParams, Search, SearchExecuteOptions, SearchResult, SearchResultJson, PluginData, PluginDataParams };

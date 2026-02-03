@@ -6,6 +6,26 @@ declare enum SortOrder {
     Descending = 1
 }
 /**
+ * Enumeration for sorting order.
+ */
+interface TableConfig {
+    container: HTMLElement;
+    project: number;
+    headings: string[];
+    results: string[][];
+    perPage?: number;
+    header?: string;
+    resultsSort?: HTMLResultsTableSort;
+    rowRenderer?: Function | null;
+    cellRenderer?: {
+        [id: string]: Function;
+    } | null;
+    cellHandler?: Function | null;
+    exportExtra?: {
+        [id: string]: any;
+    } | null;
+}
+/**
  * Represents a page in the HTML results table.
  */
 declare class HTMLResultsTablePage {
@@ -67,6 +87,7 @@ declare class HtmlResultsTable {
     private scrollHandler;
     /**
      * Creates a new HtmlResultsTable and appends it to the parent element.
+     * @deprecated Use create() instead. This method will be removed at some point tbd.
      * @param parentElement - The parent element to append the table to.
      * @param project - The project number.
      * @param perPage - The number of items per page.
@@ -85,6 +106,7 @@ declare class HtmlResultsTable {
     } | null, cellHandler: Function | null, exportExtra: {
         [id: string]: any;
     } | null): HtmlResultsTable;
+    static create(config: TableConfig): HtmlResultsTable;
     /**
      * Generates a formatted column number.
      * @param num - The number to format.
@@ -176,4 +198,4 @@ declare class HtmlResultsTable {
      */
     getPagination(): HTMLResultsTablePage[];
 }
-export { HtmlResultsTable, HTMLResultsTablePage, HTMLResultsTableSort, SortOrder };
+export { HtmlResultsTable, HTMLResultsTablePage, HTMLResultsTableSort, SortOrder, TableConfig };

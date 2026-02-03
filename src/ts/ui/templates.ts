@@ -124,7 +124,7 @@ class Templates {
      */
     public static cellRendererSameAsLastLink(cellValue: string, rowData: {}, i: number): {} {
         const result = Templates.cellRendererSameAsLast(cellValue, rowData, i);
-        result["content"] = `<a class= "ulink" 
+        result["content"] = `<a tabindex="0" class= "ulink" 
             data-id="${HtmlUtils.htmlEncode(rowData["ID"])}" 
             href="${HtmlUtils.htmlEncode(cellValue)}">${HtmlUtils.htmlEncode(cellValue)}</a>`;
         return result;
@@ -148,9 +148,9 @@ class Templates {
         const interrobotPageDetail: string = `${origin}/search/${projectId}/resource/${cellValue}/`;
         const result = {
             "classes": [],
-            "content": `<a class= "ulink" href="${interrobotPageDetail}"
+            "content": `<a tabindex="0" href="${HtmlUtils.htmlEncode(interrobotPageDetail)}"
                 data-id="${HtmlUtils.htmlEncode(rowData["ID"])}" 
-                href="${HtmlUtils.htmlEncode(interrobotPageDetail)}">${HtmlUtils.htmlEncode(cellValue)}</a>`
+                class="ulink">${HtmlUtils.htmlEncode(cellValue)}</a>`
         };
         return result;
     }

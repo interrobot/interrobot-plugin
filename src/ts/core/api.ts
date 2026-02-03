@@ -8,27 +8,15 @@ import { Plugin } from "./plugin.js";
  * Enumeration for different types of search queries.
  */
 enum SearchQueryType {
-    Page,
-    Asset,
-    Any,
-}
-
-enum SearchQuerySortField {
-    Id,
-    Time,
-    Status,
-    Url,
-}
-
-enum SearchQuerySortDirection {
-    Ascending,
-    Descending,
+    Page = "page",
+    Asset = "asset",
+    Any = "any",
 }
 
 interface SearchQueryParams {
     project: number;
     query: string;
-    fields: string;
+    fields: string[];
     type: SearchQueryType;
     includeExternal?: boolean;
     includeNoRobots?: boolean;
@@ -53,6 +41,12 @@ interface SearchResultJson {
     links?: string[];
     assets?: string[];
     origin?: string;
+}
+
+interface SearchExecuteOptions {
+    paginate?: boolean;
+    showProgress?: boolean;
+    progressMessage?: string;
 }
 
 interface CrawlParams {
@@ -91,14 +85,14 @@ class PluginData {
 
     private autoformInputs: HTMLElement[];
     private defaultData: {};
-    private data: {[key: string]: any};
+    private data: { [key: string]: any };
     private dataLoaded: Date;
     private meta: { [key: string]: string };
     private project: number;
 
     /**
      * Creates an instance of PluginData.
-     * @param params - The plugin data parameters.
+     * @param params - Configuration object containing projectId, meta, defaultData, and autoformInputs
      */
     public constructor(params: PluginDataParams) {
         this.meta = params.meta;
@@ -470,7 +464,7 @@ class SearchQuery {
     private static readonly validSorts: string[] = ["?", "id", "-id", "time", "-time", "status", "-status", "url", "-url",];
     public readonly project: number;
     public readonly query: string;
-    public readonly fields: string;
+    public readonly fields: string[];
     public readonly type: SearchQueryType;
     public readonly includeExternal: boolean = true;
     public readonly includeNoRobots: boolean = false;
@@ -479,12 +473,18 @@ class SearchQuery {
 
     /**
      * Creates an instance of SearchQuery.
-     * @param params - The search query parameters.
+     * @param params - Configuration object containing project, query, fields, type, includeExternal, and includeNoRobots
      */
     public constructor(params: SearchQueryParams) {
         this.project = params.project;
         this.query = params.query;
-        this.fields = params.fields;
+
+        // backcompat <=0.17 (piped string handling)
+        if (typeof params.fields === "string") {
+            this.fields = (params.fields as string).split("|");
+        } else {
+            this.fields = params.fields;
+        }
         this.type = params.type;
         this.includeExternal = params.includeExternal ?? true;
         this.includeNoRobots = params.includeNoRobots ?? false;
@@ -502,7 +502,7 @@ class SearchQuery {
      * @returns A string representing the cache key.
      */
     public getHaystackCacheKey(): string {
-        return `${this.project}~${this.fields}~${this.type}~${this.includeExternal}~${this.includeNoRobots}`;
+        return `${this.project}~${this.fields.join("|")}~${this.type}~${this.includeExternal}~${this.includeNoRobots}`;
     }
 }
 
@@ -513,31 +513,38 @@ class Search {
 
     /**
      * Executes a search query.
-     * @param query - The search query to execute.
-     * @param existingResults - Map of existing results.
-     * @param processingMessage - Message to display during processing.
-     * @param resultHandler - Function to handle each search result.
-     * @returns A promise that resolves to a boolean indicating if results were from cache.
+     * @param query - The search query to execute
+     * @param resultsMap - Map of existing results
+     * @param resultHandler - Function to handle each search result
+     * @param options - Optional configuration for pagination, progress display, and custom messages
+     * @returns A promise that resolves to a boolean indicating if results were from cache
      */
-
-    public static async execute(query: SearchQuery, existingResults: Map<number, SearchResult>,
-        resultHandler: any, deep: boolean = false, quiet: boolean = true,
-        processingMessage: string = "Processing..."): Promise<boolean> {
+    public static async execute(
+        query: SearchQuery,
+        resultsMap: Map<number, SearchResult>,
+        resultHandler: (result: SearchResult) => Promise<void>,
+        options?: SearchExecuteOptions
+    ): Promise<boolean> {
 
         const timeStart = new Date().getTime();
+        const {
+            paginate = false,
+            showProgress = true,
+            progressMessage = "Processing..."
+        } = options ?? {};
 
         // Promise<boolean> returned is a from-cache flag, true if cached
-        if (query.getHaystackCacheKey() === Search.resultsHaystackCacheKey && existingResults) {
+        if (query.getHaystackCacheKey() === Search.resultsHaystackCacheKey && resultsMap) {
 
-            const resultTotal: number = existingResults.size;
+            const resultTotal: number = resultsMap.size;
 
             // reuse api reuslts
             // print something to screen to inform user of operation
             // this is a blitz, doesn't get the http request breathing room of api http requests
             // anyways, paint first, then saturate cpu
-            if (quiet === false) {
+            if (showProgress === true) {
                 const eventStart: CustomEvent = new CustomEvent("ProcessingMessage",
-                    { detail: { action: "set", message: processingMessage } });
+                    { detail: { action: "set", message: progressMessage } });
                 document.dispatchEvent(eventStart);
             }
 
@@ -548,13 +555,13 @@ class Search {
             // note for of loop with sleep mod 100 works, looks smooth, but slows the operation by > 20%
             // this is faster, but it can't paint progress well as it can saturate the main thread
             let i = 0;
-            await existingResults.forEach(async (result: SearchResult, resultId: number) => {
+            await resultsMap.forEach(async (result: SearchResult, resultId: number) => {
                 await resultHandler(result);
             });
             Plugin.logTiming(`Processed ${resultTotal.toLocaleString()} search result(s)`,
                 new Date().getTime() - timeStart);
 
-            if (quiet === false) {
+            if (showProgress === true) {
                 const msg: {} = { detail: { action: "clear" } };
                 const eventFinished: CustomEvent = new CustomEvent("ProcessingMessage", msg);
                 document.dispatchEvent(eventFinished);
@@ -570,9 +577,9 @@ class Search {
             "project": query.project,
             "query": query.query,
             "external": query.includeExternal,
-            "type": SearchQueryType[query.type].toLowerCase(),
+            "type": query.type,
             "offset": 0,
-            "fields": query.fields.split("|"),
+            "fields": query.fields,
             "norobots": query.includeNoRobots,
             "sort": query.sort,
             "perpage": query.perPage,
@@ -587,10 +594,16 @@ class Search {
             await Search.handleResult(result, resultTotal, resultHandler);
         }
 
-        while (responseJson["__meta__"]["results"]["pagination"]["nextOffset"] !== null && deep === true) {
+        while (responseJson["__meta__"]["results"]["pagination"]["nextOffset"] !== null && paginate === true) {
 
             const next = responseJson["__meta__"]["results"]["pagination"]["nextOffset"];
             kwargs["offset"] = next;
+
+            if (query.sort === "?" && next > 0) {
+                console.warn("Random sort (?) with pagination generates fresh randomness on each page. " +
+                    "Consider maxing perpage (100) and using 1 page of results when sampling.");
+            }
+
             responseJson = await Plugin.postApiRequest("GetResources", kwargs);
 
             results = responseJson.results;
@@ -803,7 +816,7 @@ class Crawl {
 
     /**
      * Creates an instance of Crawl.
-     * @param params - The crawl parameters.
+     * @param params - Configuration object containing id, project, created, modified, complete, time, and report
      */
     public constructor(params: CrawlParams) {
         this.id = params.id;
@@ -840,7 +853,7 @@ class Crawl {
     }
 
 
-    private getReportDetailByKey(key: string): boolean {
+    private getReportDetailByKey(key: string): any | null {
         // returns a dictionary of key/values for the corresponding key
         // InterroBot pre-2.6 will not contain a detail object
         if (this.report && this.report.hasOwnProperty("detail") &&
@@ -867,12 +880,12 @@ class Project {
     urls?: string[] = null;
     imageDataUri?: string = null;
 
-    static readonly urlDeprectionWarning: string  =
+    static readonly urlDeprectionWarning: string =
         `"url" field is deprecated, use "name" or "urls" instead.`;
 
     /**
      * Creates an instance of Project.
-     * @param params - The project parameters.
+     * @param params - Configuration object containing id, created, modified, name, type, url, urls, and imageDataUri
      */
     public constructor(params: ProjectParams) {
         this.id = params.id;
@@ -993,4 +1006,18 @@ class Project {
     }
 }
 
-export { Project, Crawl, SearchQueryType, SearchQuery, Search, SearchResult, SearchResultJson, PluginData };
+export {
+    Project,
+    ProjectParams,
+    Crawl,
+    CrawlParams,
+    SearchQueryType,
+    SearchQuery,
+    SearchQueryParams,
+    Search,
+    SearchExecuteOptions,
+    SearchResult,
+    SearchResultJson,
+    PluginData,
+    PluginDataParams
+};

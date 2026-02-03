@@ -4,7 +4,7 @@
 // important note: this script runs from the context of the plugin iframe
 // but static methods will have the context of the caller
 
-import { Project, PluginData, SearchQuery, Search, SearchResult, SearchQueryType } from "./api.js";
+import { Project, PluginData, SearchQuery, Search, SearchExecuteOptions, SearchResult, SearchQueryType } from "./api.js";
 import { HtmlUtils } from "./html.js";
 import { TouchProxy } from "./touch.js";
 
@@ -519,9 +519,9 @@ class Plugin {
         // build a query, these are exactly as you'd type them into InterroBot search
         const freeQueryString: string = "headers: text/html";
 
-        // pipe delimited fields you want retrieved
+        // array of fields you want retrieved
         // id and url come with the base model, everything else costs time
-        const fields: string = "name";
+        const fields: string[] = ["name"];
         // const internalHtmlPagesQuery = new SearchQuery(projectId, freeQueryString, fields,
         //     SearchQueryType.Any, false, false);
         const internalHtmlPagesQuery = new SearchQuery({
@@ -535,9 +535,14 @@ class Plugin {
 
 
         // run each SearchResult through its handler, and we're done processing
+        const options: SearchExecuteOptions = {
+            paginate: true,
+            showProgress: false,
+            progressMessage: "Processing…"
+        };
         await Search.execute(internalHtmlPagesQuery, resultsMap, async (result: SearchResult) => {
             await exampleResultHandler(result, titleWords);
-        }, true, false, "Processing…");
+        }, options);
 
         // call for html presentation
         await this.report(titleWords);

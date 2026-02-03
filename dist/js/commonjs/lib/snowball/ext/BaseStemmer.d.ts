@@ -39,6 +39,8 @@ declare class BaseStemmer {
     protected a_9: Among[];
     /** Array of Among objects for stemming rules. */
     protected a_10: Among[];
+    /** Array of Among objects for stemming rules. */
+    protected a_11: Among[];
     /** Grouping of vowels. */
     protected g_v: number[];
     /** Grouping of vowels including W, X, and Y. */

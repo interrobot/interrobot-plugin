@@ -141,6 +141,7 @@ declare class SnowballProgram {
      * @param s - The string to compare.
      * @returns True if the substrings match, false otherwise.
      */
-    private eq_v_b;
+    eq_v_b(s: string): boolean;
+    slice_to(): string;
 }
 export { SnowballProgram };

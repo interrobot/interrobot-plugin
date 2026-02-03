@@ -21,7 +21,6 @@ The InterroBot plugin ecosystem is designed for power users. Whether you're buil
 InterroBot hosts an iframe of your webpage and exposes an API from which you can pull data down for analysis.
 
 If you're familiar with vanilla TypeScript or JavaScript, creating a custom plugin script for InterroBot is remarkably straight forward. First you start with a [bare-bones HTML file](https://raw.githubusercontent.com/interrobot/interrobot-plugin/refs/heads/master/examples/vanillajs/basic.html) and a script extending the Plugin base class.
-
 ```javascript
 // TypeScript vs. JavaScript, both are fine. See examples.
 import { Plugin } from "./src/ts/core/plugin";
@@ -48,13 +47,15 @@ Plugin.initialize(BasicExamplePlugin);
 
 BasicExamplePlugin will not do much at this point, but it will load and run the default `index()` behavior.
 You can, of course, override the default `index()` behavior, rendering your page however you wish.
-
 ```javascript
 protected async index() {
+
     // add your form and supporting HTML
     this.render(`<div>HTML</div>`);
+
     // initialize the plugin within InterroBot, from within iframe
     await this.initData({}, []);
+
     // add handlers to the form
     const button = document.querySelector("button");
     button.addEventListener("click", async (ev) => {
@@ -65,10 +66,9 @@ protected async index() {
 
 The `process()` method called above would be where you process data. Here a query is executed on
 the crawl index, and each result run through the exampleResultsHandler.
-
-
 ```javascript
 protected async process() {
+
     // gather title words and running counts with a result handler
     const titleWords: Map<string, number> = new Map<string, number>();
     let resultsMap: Map<number, SearchResult>;
@@ -81,24 +81,36 @@ protected async process() {
 
     // projectId comes for free as a member of Plugin
     const projectId = this.getProjectId();
+
     // build a query, these are exactly as you'd type them into InterroBot search
     const freeQueryString = "headers: text/html";
-    // pipe delimited fields you want retrieved
+
+
     // id and url come with the base model, everything else costs time
-    const fields = "name";
+    // here, I just grab the "name" field
     let internalHtmlPagesQuery = new InterroBot.Core.SearchQuery({
         project: projectId,
         query: freeQueryString,
-        fields: fields,
+        fields: ["name"],
         type: InterroBot.Core.SearchQueryType.Any,
         includeExternal: false,
         includeNoRobots: false,
     });
 
     // run each SearchResult through its handler, and we're done processing
-    await InterroBot.Core.Search.execute(internalHtmlPagesQuery, this.resultsMap, async (result) => {
-        await exampleResultHandler(result, titleWords);
-    }, true, false, "Processing…");
+    await InterroBot.Core.Search.execute(
+        internalHtmlPagesQuery,
+        this.resultsMap,
+        async (result) => {
+            await exampleResultHandler(result, titleWords);
+        },
+        {
+            paginate: true,
+            showProgress: false,
+            progressMessage: "Processing…"
+        }
+    );
+
     // call for HTML presentation of titleWords with processing complete
     await this.report(titleWords);
 }

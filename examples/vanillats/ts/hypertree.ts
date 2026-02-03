@@ -8,7 +8,7 @@ declare global {
 }
 
 import { DarkMode, Plugin } from "../../../src/ts/core/plugin";
-import { SearchQueryType, SearchQuery, Search, SearchResult, Project, SearchResultJson } from "../../../src/ts/core/api";
+import { Project, Search, SearchExecuteOptions, SearchQuery, SearchQueryType, SearchResult, SearchResultJson } from "../../../src/ts/core/api";
 import { HtmlUtils } from "../../../src/ts/core/html";
 
 interface LanguageData {
@@ -153,7 +153,7 @@ class Hypertree extends Plugin {
         const query = new SearchQuery({
             project: this.getProjectId(),
             query: "norobots: false AND redirect: false",
-            fields: "name|status|type",
+            fields: ["name", "status", "type"],
             type: SearchQueryType.Any,
             includeExternal: false,
             includeNoRobots: true,
@@ -1045,6 +1045,11 @@ class Hypertree extends Plugin {
         let seedObject: {} | null = {};
 
         // gather all search results
+        const options: SearchExecuteOptions = {
+            paginate: true,
+            showProgress: false,
+            progressMessage: "Rendering…"
+        };
         await Search.execute(query, this.resultsMap, async (result: SearchResult) => {
             const rUrl: string = result.url ?? "";
             if (gatheredUrls.indexOf(rUrl) >= 0) {
@@ -1053,7 +1058,7 @@ class Hypertree extends Plugin {
             gatheredUrls.push(rUrl);
             this.resultsMap.set(result.id, result);
             this.resultUrlMap.set(this.normalizeUrl(rUrl), result);
-        }, true, false, "Rendering…");
+        }, options);
 
 
         let result: TreeResult;

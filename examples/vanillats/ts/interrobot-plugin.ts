@@ -17,6 +17,7 @@ export namespace Core {
     export const SearchQuery = api.SearchQuery;
     export const Search = api.Search;
     export const SearchResult = api.SearchResult;
+    export type SearchExecuteOptions = api.SearchExecuteOptions;
     export const PluginData = api.PluginData;
     export const HtmlUtils = html.HtmlUtils;
     export const Plugin = plugin.Plugin;

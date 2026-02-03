@@ -78,6 +78,7 @@ class HTMLResultsTableButton {
 class HtmlResultsTable {
     /**
      * Creates a new HtmlResultsTable and appends it to the parent element.
+     * @deprecated Use create() instead. This method will be removed at some point tbd.
      * @param parentElement - The parent element to append the table to.
      * @param project - The project number.
      * @param perPage - The number of items per page.
@@ -92,8 +93,17 @@ class HtmlResultsTable {
      * @returns A new instance of HtmlResultsTable.
      */
     static createElement(parentElement, project, perPage, header, headings, results, resultsSort, rowRenderer, cellRenderer, cellHandler, exportExtra) {
+        console.warn("createElement() is deprecated, use create()");
         const pagedTable = new HtmlResultsTable(project, perPage, header, headings, results, resultsSort, rowRenderer, cellRenderer, cellHandler, exportExtra);
-        parentElement.appendChild(pagedTable.baseElement);
+        parentElement === null || parentElement === void 0 ? void 0 : parentElement.appendChild(pagedTable.baseElement);
+        plugin_js_1.Plugin.postContentHeight();
+        return pagedTable;
+    }
+    static create(config) {
+        const { container, project, headings, results, perPage = 20, // sensible default
+        header = "", resultsSort = new HTMLResultsTableSort("ID", SortOrder.Ascending, "ID", SortOrder.Ascending), rowRenderer = null, cellRenderer = null, cellHandler = null, exportExtra = null } = config;
+        const pagedTable = new HtmlResultsTable(project, perPage, header, headings, results, resultsSort, rowRenderer, cellRenderer, cellHandler, exportExtra);
+        container === null || container === void 0 ? void 0 : container.appendChild(pagedTable.baseElement);
         plugin_js_1.Plugin.postContentHeight();
         return pagedTable;
     }
@@ -385,7 +395,7 @@ class HtmlResultsTable {
                 return HtmlResultsTable.sortResultsHelper(secondaryAVal, secondaryAValNumber, secondaryAValIsNumber, secondaryBVal, secondaryBValNumber, secondaryBValIsNumber, secondarySort);
             }
             else {
-                // sort primary                
+                // sort primary
                 return HtmlResultsTable.sortResultsHelper(primaryAVal, primaryAValNumber, primaryAValIsNumber, primaryBVal, primaryBValNumber, primaryBValIsNumber, primarySort);
             }
         };
@@ -417,8 +427,10 @@ class HtmlResultsTable {
             let sortableLabel = "";
             let sortableChevronLink = "";
             if (sortable) {
-                sortableLabel = `<a class="sortable" data-heading="${html_js_1.HtmlUtils.htmlEncode(heading)}" href="#">${html_js_1.HtmlUtils.htmlEncode(encodedLabel)}</a>`;
-                sortableChevronLink = `<a title="${encodedLabel}" class="sortable" data-heading="${html_js_1.HtmlUtils.htmlEncode(heading)}" href="#">
+                // label
+                sortableLabel = `<a tabindex="0" class="sortable" data-heading="${html_js_1.HtmlUtils.htmlEncode(heading)}" href="#">${html_js_1.HtmlUtils.htmlEncode(encodedLabel)}</a>`;
+                // chevrons
+                sortableChevronLink = `<a tabindex="-1" title="${encodedLabel}" class="sortable" data-heading="${html_js_1.HtmlUtils.htmlEncode(heading)}" href="#">
                     ${svg}<span class="reader">${encodedLabel}</span></a>`;
             }
             else {
@@ -472,7 +484,7 @@ class HtmlResultsTable {
                     cellContents = `${Number(cell).toLocaleString()}`;
                 }
                 else if (classes.indexOf("url") > -1) {
-                    cellContents = `<a class="ulink" data-id="${html_js_1.HtmlUtils.htmlEncode(row[headingIdIndex])}" 
+                    cellContents = `<a tabindex="0" class="ulink" data-id="${html_js_1.HtmlUtils.htmlEncode(row[headingIdIndex])}" 
                         href="${html_js_1.HtmlUtils.htmlEncode(cell)}">${html_js_1.HtmlUtils.htmlEncode(cell)}</a>`;
                 }
                 // console.log(cell);
@@ -524,8 +536,8 @@ class HtmlResultsTable {
                     <span class="info__dl export">
                         <button class="icon">${exportIconChar}</button>
                         <ul class="export__ulink">
-                            <li><a class="ulink" href="#" data-format="csv">Export CSV</a></li>
-                            <li><a class="ulink" href="#" data-format="xlsx">Export Excel</a></li>
+                            <li><a tabindex="0" class="ulink" href="#" data-format="csv">Export CSV</a></li>
+                            <li><a tabindex="0" class="ulink" href="#" data-format="xlsx">Export Excel</a></li>
                         </ul>
                     </span>
                     <span class="info__results"><span class="info__results__nobr">
@@ -603,7 +615,7 @@ class HtmlResultsTable {
         const downloadMenuToggle = this.baseElement.querySelector(".info__dl button");
         if (downloadMenuToggle !== null) {
             downloadMenuToggle[navLinkMethod]("click", this.downloadMenuHandler);
-            // fix touch hover keeping menu open after request to close            
+            // fix touch hover keeping menu open after request to close
             const hasMouse = matchMedia("(pointer:fine)").matches && !(/android/i.test(window.navigator.userAgent));
             if (hasMouse) {
                 const dl = this.baseElement.querySelector(".info__dl");
@@ -683,7 +695,7 @@ class HtmlResultsTable {
         }
         // previous links now, why? built in reverse, see subsequent reverse()
         if (this.resultsOffset > 0) {
-            pages.push(new HTMLResultsTablePage("◀", (this.resultsOffset - this.perPage), this.perPage, false));
+            pages.push(new HTMLResultsTablePage("◀", (this.resultsOffset - this.perPage), this.perPage, true));
             pages.push(new HTMLResultsTablePage("◀◀", 0, this.perPage, false));
         }
         // flip it
@@ -713,7 +725,7 @@ class HtmlResultsTable {
         }
         // next?
         if (this.resultsCount > this.resultsOffset + this.perPage) {
-            pages.push(new HTMLResultsTablePage("▶", this.resultsOffset + this.perPage, this.perPage, false));
+            pages.push(new HTMLResultsTablePage("▶", this.resultsOffset + this.perPage, this.perPage, true));
             let modLast = this.resultsCount - (this.resultsCount % this.perPage);
             modLast = modLast == this.resultsCount ? modLast - this.perPage : modLast;
             pages.push(new HTMLResultsTablePage("▶▶", modLast, this.perPage, false));

@@ -3,7 +3,7 @@
  * Copyright 2023, Ben Caulfield
  * http://pragmar.com
  * http://www.mozilla.org/MPL/
- * 
+ *
  * Snowball JavaScript Library v0.3
  * http://code.google.com/p/urim/
  * http://snowball.tartarus.org/
@@ -41,6 +41,8 @@ class BaseStemmer {
     protected a_9: Among[];
     /** Array of Among objects for stemming rules. */
     protected a_10: Among[];
+    /** Array of Among objects for stemming rules. */
+    protected a_11: Among[];
 
     /** Grouping of vowels. */
     protected g_v: number[];

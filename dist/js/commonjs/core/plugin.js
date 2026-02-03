@@ -452,9 +452,9 @@ class Plugin {
         const projectId = this.getProjectId();
         // build a query, these are exactly as you'd type them into InterroBot search
         const freeQueryString = "headers: text/html";
-        // pipe delimited fields you want retrieved
+        // array of fields you want retrieved
         // id and url come with the base model, everything else costs time
-        const fields = "name";
+        const fields = ["name"];
         // const internalHtmlPagesQuery = new SearchQuery(projectId, freeQueryString, fields,
         //     SearchQueryType.Any, false, false);
         const internalHtmlPagesQuery = new api_js_1.SearchQuery({
@@ -466,9 +466,14 @@ class Plugin {
             includeNoRobots: false,
         });
         // run each SearchResult through its handler, and we're done processing
+        const options = {
+            paginate: true,
+            showProgress: false,
+            progressMessage: "Processing…"
+        };
         await api_js_1.Search.execute(internalHtmlPagesQuery, resultsMap, async (result) => {
             await exampleResultHandler(result, titleWords);
-        }, true, false, "Processing…");
+        }, options);
         // call for html presentation
         await this.report(titleWords);
     }

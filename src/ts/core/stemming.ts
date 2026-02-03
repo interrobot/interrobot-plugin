@@ -1,10 +1,18 @@
 ﻿import { BypassStemmer } from "../lib/snowball/ext/BypassStemmer.js";
+import { DanishStemmer } from "../lib/snowball/ext/DanishStemmer.js";
+import { DutchStemmer } from "../lib/snowball/ext/DutchStemmer.js";
 import { EnglishStemmer } from "../lib/snowball/ext/EnglishStemmer.js";
+import { FinnishStemmer } from "../lib/snowball/ext/FinnishStemmer.js";
 import { FrenchStemmer } from "../lib/snowball/ext/FrenchStemmer.js";
 import { GermanStemmer } from "../lib/snowball/ext/GermanStemmer.js";
+import { HungarianStemmer } from "../lib/snowball/ext/HungarianStemmer.js";
+import { ItalianStemmer } from "../lib/snowball/ext/ItalianStemmer.js";
+import { NorwegianStemmer } from "../lib/snowball/ext/NorwegianStemmer.js";
+import { PortugueseStemmer } from "../lib/snowball/ext/PortugueseStemmer.js";
+import { RomanianStemmer } from "../lib/snowball/ext/RomanianStemmer.js";
 import { RussianStemmer } from "../lib/snowball/ext/RussianStemmer.js";
 import { SpanishStemmer } from "../lib/snowball/ext/SpanishStemmer.js";
-
+import { SwedishStemmer } from "../lib/snowball/ext/SwedishStemmer.js";
 
 /**
  * A class that provides stemming functionality for multiple languages using the Snowball algorithm.
@@ -29,26 +37,54 @@ class SnowballStemmer {
         if (!(this.language in SnowballStemmer.cache)) {
             SnowballStemmer.cache[this.language] = {};
         }
-        
+
         switch (language) {
-            case "de":
-                this.snowball = new GermanStemmer();
+            case "da":
+                this.snowball = new DanishStemmer();
+                break;
+            case "nl":
+                this.snowball = new DutchStemmer();
                 break;
             case "en":
                 this.snowball = new EnglishStemmer();
                 break;
+            case "fi":
+                this.snowball = new FinnishStemmer();
+                break;
             case "fr":
                 this.snowball = new FrenchStemmer();
+                break;
+            case "de":
+                this.snowball = new GermanStemmer();
+                break;
+            case "hu":
+                this.snowball = new HungarianStemmer();
+                break;
+            case "it":
+                this.snowball = new ItalianStemmer();
+                break;
+            case "no":
+                this.snowball = new NorwegianStemmer();
+                break;
+            case "pt":
+                this.snowball = new PortugueseStemmer();
+                break;
+            case "ro":
+                this.snowball = new RomanianStemmer();
                 break;
             case "ru":
                 this.snowball = new RussianStemmer();
                 break;
-            case "sp":
+            case "es":
                 this.snowball = new SpanishStemmer();
+                break;
+            case "sv":
+                this.snowball = new SwedishStemmer();
                 break;
             case "":
             default:
                 this.snowball = new BypassStemmer();
+                break;
         }
     }
 
@@ -72,8 +108,8 @@ class SnowballStemmer {
      */
     public stemCache(term: string): string {
         if (!(term in SnowballStemmer.cache)) {
-            SnowballStemmer.cache[this.language][term] = this.stem(term);            
-        } 
+            SnowballStemmer.cache[this.language][term] = this.stem(term);
+        }
         return SnowballStemmer.cache[this.language][term];
     }
 

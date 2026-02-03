@@ -26,7 +26,7 @@ class Among {
      * @param result - The result associated with this Among object.
      * @throws Will throw an error if any of the required parameters are missing or invalid.
      */
-    constructor(s, substring_i, result) {
+    constructor(s, substring_i, result, method) {
         if ((!s && s != "") || (!substring_i && (substring_i != 0)) || !result)
             throw (`Failed 'Among' initialization: s: ${s},  substring_i: ${substring_i}, result: ${result}`);
         this.s = Among.toCharArray(s);
@@ -34,7 +34,7 @@ class Among {
         this.substring_i = substring_i;
         this.result = result;
         // leave this, connects to a removed language feature. may make a comeback
-        // this.method = method;
+        this.method = method;
     }
     /**
      * Converts a string to an array of character codes.

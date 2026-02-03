@@ -528,7 +528,7 @@ ${ex}` : "";
       };
       const projectId = this.getProjectId();
       const freeQueryString = "headers: text/html";
-      const fields = "name";
+      const fields = ["name"];
       const internalHtmlPagesQuery = new SearchQuery({
         project: projectId,
         query: freeQueryString,
@@ -537,9 +537,14 @@ ${ex}` : "";
         includeExternal: false,
         includeNoRobots: false
       });
+      const options = {
+        paginate: true,
+        showProgress: false,
+        progressMessage: "Processing\u2026"
+      };
       await Search.execute(internalHtmlPagesQuery, resultsMap, async (result) => {
         await exampleResultHandler(result, titleWords);
-      }, true, false, "Processing\u2026");
+      }, options);
       await this.report(titleWords);
     }
     /**
@@ -600,26 +605,14 @@ This is the default plugin description. Set meta: {} values
   // examples/vanillats/js/build/src/ts/core/api.js
   var SearchQueryType;
   (function(SearchQueryType2) {
-    SearchQueryType2[SearchQueryType2["Page"] = 0] = "Page";
-    SearchQueryType2[SearchQueryType2["Asset"] = 1] = "Asset";
-    SearchQueryType2[SearchQueryType2["Any"] = 2] = "Any";
+    SearchQueryType2["Page"] = "page";
+    SearchQueryType2["Asset"] = "asset";
+    SearchQueryType2["Any"] = "any";
   })(SearchQueryType || (SearchQueryType = {}));
-  var SearchQuerySortField;
-  (function(SearchQuerySortField2) {
-    SearchQuerySortField2[SearchQuerySortField2["Id"] = 0] = "Id";
-    SearchQuerySortField2[SearchQuerySortField2["Time"] = 1] = "Time";
-    SearchQuerySortField2[SearchQuerySortField2["Status"] = 2] = "Status";
-    SearchQuerySortField2[SearchQuerySortField2["Url"] = 3] = "Url";
-  })(SearchQuerySortField || (SearchQuerySortField = {}));
-  var SearchQuerySortDirection;
-  (function(SearchQuerySortDirection2) {
-    SearchQuerySortDirection2[SearchQuerySortDirection2["Ascending"] = 0] = "Ascending";
-    SearchQuerySortDirection2[SearchQuerySortDirection2["Descending"] = 1] = "Descending";
-  })(SearchQuerySortDirection || (SearchQuerySortDirection = {}));
   var PluginData = class {
     /**
      * Creates an instance of PluginData.
-     * @param params - The plugin data parameters.
+     * @param params - Configuration object containing projectId, meta, defaultData, and autoformInputs
      */
     constructor(params) {
       var _a;
@@ -924,7 +917,7 @@ ${JSON.stringify(kwargs)}`);
   var SearchQuery = class {
     /**
      * Creates an instance of SearchQuery.
-     * @param params - The search query parameters.
+     * @param params - Configuration object containing project, query, fields, type, includeExternal, and includeNoRobots
      */
     constructor(params) {
       var _a, _b, _c;
@@ -932,7 +925,11 @@ ${JSON.stringify(kwargs)}`);
       this.includeNoRobots = false;
       this.project = params.project;
       this.query = params.query;
-      this.fields = params.fields;
+      if (typeof params.fields === "string") {
+        this.fields = params.fields.split("|");
+      } else {
+        this.fields = params.fields;
+      }
       this.type = params.type;
       this.includeExternal = (_a = params.includeExternal) !== null && _a !== void 0 ? _a : true;
       this.includeNoRobots = (_b = params.includeNoRobots) !== null && _b !== void 0 ? _b : false;
@@ -948,7 +945,7 @@ ${JSON.stringify(kwargs)}`);
      * @returns A string representing the cache key.
      */
     getHaystackCacheKey() {
-      return `${this.project}~${this.fields}~${this.type}~${this.includeExternal}~${this.includeNoRobots}`;
+      return `${this.project}~${this.fields.join("|")}~${this.type}~${this.includeExternal}~${this.includeNoRobots}`;
     }
   };
   SearchQuery.maxPerPage = 100;
@@ -956,27 +953,28 @@ ${JSON.stringify(kwargs)}`);
   var Search = class {
     /**
      * Executes a search query.
-     * @param query - The search query to execute.
-     * @param existingResults - Map of existing results.
-     * @param processingMessage - Message to display during processing.
-     * @param resultHandler - Function to handle each search result.
-     * @returns A promise that resolves to a boolean indicating if results were from cache.
+     * @param query - The search query to execute
+     * @param resultsMap - Map of existing results
+     * @param resultHandler - Function to handle each search result
+     * @param options - Optional configuration for pagination, progress display, and custom messages
+     * @returns A promise that resolves to a boolean indicating if results were from cache
      */
-    static async execute(query, existingResults, resultHandler, deep = false, quiet = true, processingMessage = "Processing...") {
+    static async execute(query, resultsMap, resultHandler, options) {
       const timeStart = (/* @__PURE__ */ new Date()).getTime();
-      if (query.getHaystackCacheKey() === Search.resultsHaystackCacheKey && existingResults) {
-        const resultTotal2 = existingResults.size;
-        if (quiet === false) {
-          const eventStart = new CustomEvent("ProcessingMessage", { detail: { action: "set", message: processingMessage } });
+      const { paginate = false, showProgress = true, progressMessage = "Processing..." } = options !== null && options !== void 0 ? options : {};
+      if (query.getHaystackCacheKey() === Search.resultsHaystackCacheKey && resultsMap) {
+        const resultTotal2 = resultsMap.size;
+        if (showProgress === true) {
+          const eventStart = new CustomEvent("ProcessingMessage", { detail: { action: "set", message: progressMessage } });
           document.dispatchEvent(eventStart);
         }
         await Search.sleep(16);
         let i = 0;
-        await existingResults.forEach(async (result, resultId) => {
+        await resultsMap.forEach(async (result, resultId) => {
           await resultHandler(result);
         });
         Plugin.logTiming(`Processed ${resultTotal2.toLocaleString()} search result(s)`, (/* @__PURE__ */ new Date()).getTime() - timeStart);
-        if (quiet === false) {
+        if (showProgress === true) {
           const msg = { detail: { action: "clear" } };
           const eventFinished = new CustomEvent("ProcessingMessage", msg);
           document.dispatchEvent(eventFinished);
@@ -990,9 +988,9 @@ ${JSON.stringify(kwargs)}`);
         "project": query.project,
         "query": query.query,
         "external": query.includeExternal,
-        "type": SearchQueryType[query.type].toLowerCase(),
+        "type": query.type,
         "offset": 0,
-        "fields": query.fields.split("|"),
+        "fields": query.fields,
         "norobots": query.includeNoRobots,
         "sort": query.sort,
         "perpage": query.perPage
@@ -1005,9 +1003,12 @@ ${JSON.stringify(kwargs)}`);
         const result = results[i];
         await Search.handleResult(result, resultTotal, resultHandler);
       }
-      while (responseJson["__meta__"]["results"]["pagination"]["nextOffset"] !== null && deep === true) {
+      while (responseJson["__meta__"]["results"]["pagination"]["nextOffset"] !== null && paginate === true) {
         const next = responseJson["__meta__"]["results"]["pagination"]["nextOffset"];
         kwargs["offset"] = next;
+        if (query.sort === "?" && next > 0) {
+          console.warn("Random sort (?) with pagination generates fresh randomness on each page. Consider maxing perpage (100) and using 1 page of results when sampling.");
+        }
         responseJson = await Plugin.postApiRequest("GetResources", kwargs);
         results = responseJson.results;
         for (let i = 0; i < results.length; i++) {
@@ -1167,7 +1168,7 @@ ${JSON.stringify(kwargs)}`);
   var Crawl = class {
     /**
      * Creates an instance of Crawl.
-     * @param params - The crawl parameters.
+     * @param params - Configuration object containing id, project, created, modified, complete, time, and report
      */
     constructor(params) {
       this.id = -1;
@@ -1216,7 +1217,7 @@ ${JSON.stringify(kwargs)}`);
   var Project = class {
     /**
      * Creates an instance of Project.
-     * @param params - The project parameters.
+     * @param params - Configuration object containing id, created, modified, name, type, url, urls, and imageDataUri
      */
     constructor(params) {
       this.id = -1;
@@ -1468,9 +1469,25 @@ ${JSON.stringify(kwargs)}`);
       this.extended = extended;
     }
   };
+  var HTMLResultsTableSort = class {
+    /**
+     * Creates a new instance of HTMLResultsTableSort.
+     * @param primaryHeading - The primary heading to sort by.
+     * @param primarySort - The sort order for the primary heading.
+     * @param secondaryHeading - The secondary heading to sort by.
+     * @param secondarySort - The sort order for the secondary heading.
+     */
+    constructor(primaryHeading, primarySort, secondaryHeading, secondarySort) {
+      this.primaryHeading = primaryHeading;
+      this.primarySort = primarySort;
+      this.secondaryHeading = secondaryHeading;
+      this.secondarySort = secondarySort;
+    }
+  };
   var HtmlResultsTable = class {
     /**
      * Creates a new HtmlResultsTable and appends it to the parent element.
+     * @deprecated Use create() instead. This method will be removed at some point tbd.
      * @param parentElement - The parent element to append the table to.
      * @param project - The project number.
      * @param perPage - The number of items per page.
@@ -1485,8 +1502,29 @@ ${JSON.stringify(kwargs)}`);
      * @returns A new instance of HtmlResultsTable.
      */
     static createElement(parentElement, project, perPage, header, headings, results, resultsSort, rowRenderer, cellRenderer, cellHandler, exportExtra) {
+      console.warn("createElement() is deprecated, use create()");
       const pagedTable = new HtmlResultsTable(project, perPage, header, headings, results, resultsSort, rowRenderer, cellRenderer, cellHandler, exportExtra);
-      parentElement.appendChild(pagedTable.baseElement);
+      parentElement === null || parentElement === void 0 ? void 0 : parentElement.appendChild(pagedTable.baseElement);
+      Plugin.postContentHeight();
+      return pagedTable;
+    }
+    static create(config) {
+      const {
+        container,
+        project,
+        headings,
+        results,
+        perPage = 20,
+        // sensible default
+        header = "",
+        resultsSort = new HTMLResultsTableSort("ID", SortOrder.Ascending, "ID", SortOrder.Ascending),
+        rowRenderer = null,
+        cellRenderer = null,
+        cellHandler = null,
+        exportExtra = null
+      } = config;
+      const pagedTable = new HtmlResultsTable(project, perPage, header, headings, results, resultsSort, rowRenderer, cellRenderer, cellHandler, exportExtra);
+      container === null || container === void 0 ? void 0 : container.appendChild(pagedTable.baseElement);
       Plugin.postContentHeight();
       return pagedTable;
     }
@@ -1785,8 +1823,8 @@ ${JSON.stringify(kwargs)}`);
         let sortableLabel = "";
         let sortableChevronLink = "";
         if (sortable) {
-          sortableLabel = `<a class="sortable" data-heading="${HtmlUtils.htmlEncode(heading)}" href="#">${HtmlUtils.htmlEncode(encodedLabel)}</a>`;
-          sortableChevronLink = `<a title="${encodedLabel}" class="sortable" data-heading="${HtmlUtils.htmlEncode(heading)}" href="#">
+          sortableLabel = `<a tabindex="0" class="sortable" data-heading="${HtmlUtils.htmlEncode(heading)}" href="#">${HtmlUtils.htmlEncode(encodedLabel)}</a>`;
+          sortableChevronLink = `<a tabindex="-1" title="${encodedLabel}" class="sortable" data-heading="${HtmlUtils.htmlEncode(heading)}" href="#">
                     ${svg}<span class="reader">${encodedLabel}</span></a>`;
         } else {
           sortableLabel = `${HtmlUtils.htmlEncode(encodedLabel)}`;
@@ -1832,7 +1870,7 @@ ${JSON.stringify(kwargs)}`);
           } else if (cellIsNumeric && !isNaN(cellNumber) && cellHeading !== "" && cellHeading !== "ID") {
             cellContents = `${Number(cell).toLocaleString()}`;
           } else if (classes.indexOf("url") > -1) {
-            cellContents = `<a class="ulink" data-id="${HtmlUtils.htmlEncode(row[headingIdIndex])}" 
+            cellContents = `<a tabindex="0" class="ulink" data-id="${HtmlUtils.htmlEncode(row[headingIdIndex])}" 
                         href="${HtmlUtils.htmlEncode(cell)}">${HtmlUtils.htmlEncode(cell)}</a>`;
           }
           rowCells.push(`<td class="${HtmlUtils.htmlEncode(classes.join(" "))}">${cellContents}</td>`);
@@ -1876,8 +1914,8 @@ ${JSON.stringify(kwargs)}`);
                     <span class="info__dl export">
                         <button class="icon">${exportIconChar}</button>
                         <ul class="export__ulink">
-                            <li><a class="ulink" href="#" data-format="csv">Export CSV</a></li>
-                            <li><a class="ulink" href="#" data-format="xlsx">Export Excel</a></li>
+                            <li><a tabindex="0" class="ulink" href="#" data-format="csv">Export CSV</a></li>
+                            <li><a tabindex="0" class="ulink" href="#" data-format="xlsx">Export Excel</a></li>
                         </ul>
                     </span>
                     <span class="info__results"><span class="info__results__nobr">
@@ -2027,7 +2065,7 @@ ${JSON.stringify(kwargs)}`);
         pagesAdded++;
       }
       if (this.resultsOffset > 0) {
-        pages.push(new HTMLResultsTablePage("\u25C0", this.resultsOffset - this.perPage, this.perPage, false));
+        pages.push(new HTMLResultsTablePage("\u25C0", this.resultsOffset - this.perPage, this.perPage, true));
         pages.push(new HTMLResultsTablePage("\u25C0\u25C0", 0, this.perPage, false));
       }
       pages.reverse();
@@ -2053,7 +2091,7 @@ ${JSON.stringify(kwargs)}`);
         pagesAdded++;
       }
       if (this.resultsCount > this.resultsOffset + this.perPage) {
-        pages.push(new HTMLResultsTablePage("\u25B6", this.resultsOffset + this.perPage, this.perPage, false));
+        pages.push(new HTMLResultsTablePage("\u25B6", this.resultsOffset + this.perPage, this.perPage, true));
         let modLast = this.resultsCount - this.resultsCount % this.perPage;
         modLast = modLast == this.resultsCount ? modLast - this.perPage : modLast;
         pages.push(new HTMLResultsTablePage("\u25B6\u25B6", modLast, this.perPage, false));
@@ -2168,7 +2206,7 @@ ${JSON.stringify(kwargs)}`);
      */
     static cellRendererSameAsLastLink(cellValue, rowData, i) {
       const result = Templates.cellRendererSameAsLast(cellValue, rowData, i);
-      result["content"] = `<a class= "ulink" 
+      result["content"] = `<a tabindex="0" class= "ulink" 
             data-id="${HtmlUtils.htmlEncode(rowData["ID"])}" 
             href="${HtmlUtils.htmlEncode(cellValue)}">${HtmlUtils.htmlEncode(cellValue)}</a>`;
       return result;
@@ -2191,9 +2229,9 @@ ${JSON.stringify(kwargs)}`);
       const interrobotPageDetail = `${origin}/search/${projectId}/resource/${cellValue}/`;
       const result = {
         "classes": [],
-        "content": `<a class= "ulink" href="${interrobotPageDetail}"
+        "content": `<a tabindex="0" href="${HtmlUtils.htmlEncode(interrobotPageDetail)}"
                 data-id="${HtmlUtils.htmlEncode(rowData["ID"])}" 
-                href="${HtmlUtils.htmlEncode(interrobotPageDetail)}">${HtmlUtils.htmlEncode(cellValue)}</a>`
+                class="ulink">${HtmlUtils.htmlEncode(cellValue)}</a>`
       };
       return result;
     }

@@ -23,6 +23,8 @@ declare class Among {
     substring_i: number;
     /** The result associated with this Among object. */
     result: any;
+    /** The result associated with this Among object. */
+    method: any;
     /**
      * Creates an instance of Among.
      * @param s - The string to be represented.
@@ -30,7 +32,7 @@ declare class Among {
      * @param result - The result associated with this Among object.
      * @throws Will throw an error if any of the required parameters are missing or invalid.
      */
-    constructor(s: string, substring_i: number, result: any);
+    constructor(s: string, substring_i: number, result: any, method?: any);
     /**
      * Converts a string to an array of character codes.
      * @param s - The string to convert.
