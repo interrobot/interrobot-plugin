@@ -6,9 +6,11 @@ Plugin development within InterroBot Desktop requires access to developer tools 
 
 ### Windows Users
 
-The standard version of InterroBot has an issue preventing devtools from opening, necessitating this separate version for plugin development. This is a temporary solution until the upstream issue is resolved.
+Use F12 or open via the Dev Tools button in Options.
 
-* Use a debug version of InterroBot, available from your account at [interro.bot](https://interro.bot).
+### Linux Users
+
+Right click anywhere in the Window and select "Inspect."
 
 ### macOS Users
 
@@ -44,6 +46,6 @@ Allowing the interro.bot domain will do nothing productive, InterroBot client ru
 
 From an InterroBot project (in app), go to the reports page within a project. Under 3rd Party Reports, with the server running on loopback, add the following URL: http://127.0.0.1:8084/vanillajs/basic.html
 
-A note of caution, the basic.html page is a blank if not loaded into InterroBot. 
+A note of caution, the basic.html page is a blank if not loaded into InterroBot.
 
 
