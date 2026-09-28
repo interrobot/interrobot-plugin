@@ -12,6 +12,7 @@
         return new DOMParser().parseFromString(html, "text/html");
       } catch (ex) {
         console.warn(ex);
+        return null;
       }
     }
     /**
@@ -20,13 +21,15 @@
      * @returns A cleaned Document object.
      */
     static getDocumentCleanText(html) {
+      var _a;
       let dom = this.getDocument(html);
       if (dom === null) {
         dom = new Document();
       }
       const textUnfriendly = dom.querySelectorAll("script, style, svg, noscript, iframe");
       for (let i = textUnfriendly.length - 1; i >= 0; i--) {
-        textUnfriendly[i].parentElement.removeChild(textUnfriendly[i]);
+        const tu = textUnfriendly[i];
+        (_a = tu.parentElement) === null || _a === void 0 ? void 0 : _a.removeChild(textUnfriendly[i]);
       }
       return dom;
     }
@@ -59,11 +62,12 @@
      * @returns A string containing the element's text content.
      */
     static getElementTextOnly(dom, element) {
+      var _a;
       const xpr = HtmlUtils.getElementTextIterator(dom, element);
       const texts = [];
       let node = xpr.iterateNext();
       while (node) {
-        texts.push(node.nodeValue.trim());
+        texts.push((_a = node.nodeValue) === null || _a === void 0 ? void 0 : _a.trim());
         node = xpr.iterateNext();
       }
       return texts.join(" ");
@@ -77,17 +81,181 @@
       return URL.canParse(str);
     }
     /**
-     * Encodes HTML special characters in a string.
+     * Encodes HTML special characters in a string. Safe for use in
+     * text nodes and attribute values (escapes quotes, unlike
+     * text-node serialization).
      * @param str - The string to encode.
      * @returns An HTML-encoded string.
      */
     static htmlEncode(str) {
-      return new Option(str).innerHTML;
+      return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
     }
   };
-  HtmlUtils.urlsRegex = /((([A-Za-z]{3,9}:(?:\/\/)?)(?:[\-;:&=\+\$,\w]+@)?[A-Za-z0-9\.\-]+|(?:www\.|[\-;:&=\+\$,\w]+@)[A-Za-z0-9\.\-]+)((?:\/[\+~%\/\.\w\-_\:]*)?\??(?:[\-\+=&;%@\.\w_]*)#?(?:[\.\!\/\\\w]*))?)/g;
-  HtmlUtils.urlRegex = /^((([A-Za-z]{3,9}:(?:\/\/)?)(?:[\-;:&=\+\$,\w]+@)?[A-Za-z0-9\.\-]+|(?:www\.|[\-;:&=\+\$,\w]+@)[A-Za-z0-9\.\-]+)((?:\/[\+~%\/\.\w\-_\:]*)?\??(?:[\-\+=&;%@\.\w_]*)#?(?:[\.\!\/\\\w]*))?)$/;
   HtmlUtils.styleAttributeRegex = /style\s*=\s*("([^"]*)"|'([^']*)')/gi;
+
+  // examples/vanillats/js/build/src/ts/core/host.js
+  var PluginConnection = class {
+    /**
+     * Creates a new PluginConnection instance.
+     * @param iframeSrc - The source URL of the iframe.
+     * @param hostOrigin - The origin of the host (optional).
+     */
+    constructor(iframeSrc, hostOrigin) {
+      this.iframeSrc = iframeSrc;
+      if (hostOrigin) {
+        this.hostOrigin = hostOrigin;
+      } else {
+        this.hostOrigin = "";
+      }
+      const url = new URL(iframeSrc);
+      if (iframeSrc === "about:srcdoc") {
+        this.pluginOrigin = "about:srcdoc";
+      } else {
+        this.pluginOrigin = url.origin;
+      }
+    }
+    /**
+     * Gets the iframe source URL.
+     * @returns The iframe source URL.
+     */
+    getIframeSrc() {
+      return this.iframeSrc;
+    }
+    /**
+     * Gets the host origin.
+     * @returns The host origin.
+     */
+    getHostOrigin() {
+      return this.hostOrigin;
+    }
+    /**
+     * Gets the plugin origin.
+     * @returns The plugin origin.
+     */
+    getPluginOrigin() {
+      return this.pluginOrigin;
+    }
+    /**
+     * Returns a string representation of the connection.
+     * @returns A string describing the host and plugin origins.
+     */
+    toString() {
+      return `host = ${this.hostOrigin}; plugin = ${this.pluginOrigin}`;
+    }
+  };
+  var Host = class {
+    /**
+     * Sets the connection used to pin messages to the host origin.
+     * @param connection - The plugin/host connection.
+     */
+    static setConnection(connection) {
+      Host.connection = connection;
+    }
+    /**
+     * Wraps data in the host message envelope and delivers it to the host
+     * frame, pinned to the host origin when known. All plugin-to-host
+     * traffic funnels through here — prefer this over raw
+     * window.parent.postMessage(msg, "*"), which delivers to any embedder.
+     * @param data - The payload, e.g. { reportHeight: 640 }.
+     */
+    static postToHost(data) {
+      Host.routeMessage({
+        target: "interrobot",
+        data
+      });
+    }
+    /**
+     * Sends an API request to the parent frame.
+     * @param apiMethod - The API method to call.
+     * @param apiKwargs - The arguments for the API call.
+     * @param timeoutMillis - Milliseconds before the request rejects (default 300000).
+     * @returns A promise that resolves with the API response.
+     */
+    static async postApiRequest(apiMethod, apiKwargs, timeoutMillis = 3e5) {
+      const seq = ++Host.apiRequestSeq;
+      return new Promise((resolve, reject) => {
+        let timer = 0;
+        const listener = (ev) => {
+          var _a, _b, _c;
+          var _d, _e, _f;
+          if (ev.source !== window.parent) {
+            return;
+          }
+          const hostOrigin = (_d = (_a = Host.connection) === null || _a === void 0 ? void 0 : _a.getHostOrigin()) !== null && _d !== void 0 ? _d : "";
+          if (hostOrigin !== "" && ev.origin !== hostOrigin && !Host.originMismatchWarned) {
+            Host.originMismatchWarned = true;
+            Host.logWarning(`api response origin '${ev.origin}' != expected '${hostOrigin}'`);
+          }
+          const evData = ev.data;
+          const evDataData = (_e = evData === null || evData === void 0 ? void 0 : evData.data) !== null && _e !== void 0 ? _e : {};
+          if (evDataData && typeof evDataData === "object" && evDataData.hasOwnProperty("apiResponse")) {
+            const requestMeta = (_f = (_c = (_b = evDataData.apiResponse) === null || _b === void 0 ? void 0 : _b["__meta__"]) === null || _c === void 0 ? void 0 : _c["request"]) !== null && _f !== void 0 ? _f : {};
+            const seqMatched = requestMeta["seq"] === void 0 || requestMeta["seq"] === seq;
+            if (apiMethod === requestMeta["method"] && seqMatched) {
+              window.clearTimeout(timer);
+              window.removeEventListener("message", listener);
+              resolve(evDataData.apiResponse);
+            }
+          }
+        };
+        timer = window.setTimeout(() => {
+          window.removeEventListener("message", listener);
+          reject(new Error(`api request '${apiMethod}' (seq=${seq}) timed out after ${timeoutMillis / 1e3}s`));
+        }, timeoutMillis);
+        window.addEventListener("message", listener);
+        Host.postToHost({
+          apiRequest: {
+            method: apiMethod,
+            kwargs: apiKwargs,
+            seq
+          }
+        });
+      });
+    }
+    /**
+     * Logs timing information to the console.
+     * @param msg - The message to log.
+     * @param millis - The time in milliseconds.
+     */
+    static logTiming(msg, millis) {
+      const seconds = (millis / 1e3).toFixed(3);
+      console.log(`\u{1F916} [${seconds}s] ${msg}`);
+    }
+    /**
+     * Logs warning information to the console.
+     * @param msg - The message to log.
+     */
+    static logWarning(msg, ex = null) {
+      const newlinedError = ex ? `
+${ex}` : "";
+      console.warn(`\u{1F916} ${msg}${newlinedError}`);
+    }
+    /**
+     * Delivers an enveloped message to the parent frame, pinned to the host
+     * origin when known. Use postToHost(), which builds the envelope.
+     * @param msg - The message to route.
+     */
+    static routeMessage(msg) {
+      let parentOrigin = "";
+      if (Host.connection) {
+        parentOrigin = Host.connection.getHostOrigin();
+        window.parent.postMessage(msg, parentOrigin);
+      } else {
+        window.parent.postMessage(msg);
+      }
+    }
+    /**
+     * Sleeps for the specified number of milliseconds. Useful to give the
+     * main thread a break to paint (e.g. progress ui) mid-processing.
+     * @param millis - The number of milliseconds to sleep.
+     */
+    static async sleep(millis) {
+      return new Promise((resolve) => setTimeout(() => resolve(), millis));
+    }
+  };
+  Host.connection = null;
+  Host.apiRequestSeq = 0;
+  Host.originMismatchWarned = false;
 
   // examples/vanillats/js/build/src/ts/core/api.js
   var SearchQueryType;
@@ -103,6 +271,7 @@
      */
     constructor(params) {
       var _a;
+      this.dataLoaded = null;
       this.meta = params.meta;
       this.defaultData = params.defaultData;
       this.autoformInputs = (_a = params.autoformInputs) !== null && _a !== void 0 ? _a : [];
@@ -111,9 +280,6 @@
         apiVersion: "1.1",
         autoform: {}
       };
-      if (this.data.autoform === null) {
-        this.data.autoform = [];
-      }
       this.data.autoform[this.project] = {};
       if (this.autoformInputs.length > 0) {
         const changeHandler = async (el) => {
@@ -134,7 +300,7 @@
         const radioHandler = async (el) => {
           let name = el.getAttribute("name");
           const elInput = el;
-          const checkedRadios = document.querySelectorAll(`input[type=radio][name=${elInput.name}]:checked`);
+          const checkedRadios = document.querySelectorAll(`input[type=radio][name=${CSS.escape(elInput.name)}]:checked`);
           if (checkedRadios.length !== 1) {
             console.error("radio control failure");
             return;
@@ -145,7 +311,7 @@
         const pipedHandler = async (el) => {
           let name = el.getAttribute("name");
           const elInput = el;
-          const checkedCheckboxes = document.querySelectorAll(`input[type=checkbox][name=${elInput.name}]:checked`);
+          const checkedCheckboxes = document.querySelectorAll(`input[type=checkbox][name=${CSS.escape(elInput.name)}]:checked`);
           const piperList = [];
           for (let i = 0; i < checkedCheckboxes.length; i++) {
             piperList.push(checkedCheckboxes[i].value);
@@ -163,38 +329,38 @@
               const input = el;
               if (input.type == "checkbox") {
                 const elInput = el;
-                const allCheckboxes = document.querySelectorAll(`input[type=checkbox][name=${elInput.name}]`);
+                const allCheckboxes = document.querySelectorAll(`input[type=checkbox][name=${CSS.escape(elInput.name)}]`);
                 if (allCheckboxes.length === 1) {
-                  input.addEventListener("change", async (ev) => {
+                  input.addEventListener("change", async () => {
                     await changeHandler(input);
                   });
                 } else if (allCheckboxes.length > 1) {
-                  input.addEventListener("change", async (ev) => {
+                  input.addEventListener("change", async () => {
                     await pipedHandler(input);
                   });
                 }
               } else if (input.type == "radio") {
-                input.addEventListener("change", async (ev) => {
+                input.addEventListener("change", async () => {
                   await radioHandler(input);
                 });
               } else {
-                input.addEventListener("change", async (ev) => {
+                input.addEventListener("change", async () => {
                   await changeHandler(input);
                 });
               }
               break;
             case "textarea":
               const textarea = el;
-              textarea.addEventListener("change", async (ev) => {
+              textarea.addEventListener("change", async () => {
                 await changeHandler(textarea);
               });
-              textarea.addEventListener("input", async (ev) => {
+              textarea.addEventListener("input", async () => {
                 await changeHandler(textarea);
               });
               break;
             case "select":
               const select = el;
-              select.addEventListener("change", async (ev) => {
+              select.addEventListener("change", async () => {
                 await changeHandler(select);
               });
               break;
@@ -234,28 +400,27 @@
      * Loads the plugin data from the server.
      */
     async loadData() {
-      var _a, _b, _c;
+      var _a, _b;
+      var _c, _d, _e;
       let pluginUrl = window.location.href;
       if (pluginUrl === "about:srcdoc") {
-        pluginUrl = `/reports/${window.parent.document.getElementById("report").dataset.report}/`;
+        pluginUrl = `/reports/${(_c = (_a = window.parent.document.getElementById("report")) === null || _a === void 0 ? void 0 : _a.dataset.report) !== null && _c !== void 0 ? _c : ""}/`;
       }
       const kwargs = {
         "pluginUrl": pluginUrl
       };
       const startTime = (/* @__PURE__ */ new Date()).getTime();
-      const result = await Plugin.postApiRequest("GetPluginData", kwargs);
+      const result = await Host.postApiRequest("GetPluginData", kwargs);
       const endTime = (/* @__PURE__ */ new Date()).getTime();
       try {
-        Plugin.logTiming(`Loaded options: ${JSON.stringify(kwargs)}`, endTime - startTime);
+        Host.logTiming(`Loaded options: ${JSON.stringify(kwargs)}`, endTime - startTime);
         const jsonResponseData = result["data"];
         const jsonResponseDataEmpty = Object.keys(jsonResponseData).length === 0;
         const merged = {};
-        for (let k in this.defaultData) {
-          const val = this.defaultData[k];
+        for (const k in this.defaultData) {
           merged[k] = this.defaultData[k];
         }
-        for (let k in jsonResponseData) {
-          const val = this.defaultData[k];
+        for (const k in jsonResponseData) {
           merged[k] = jsonResponseData[k];
         }
         if (jsonResponseDataEmpty) {
@@ -279,7 +444,7 @@ ${JSON.stringify(kwargs)}`);
           }
         }
         if (!(this.project in this.data["autoform"])) {
-          const defaultProjectData = (_b = (_a = this.defaultData["autoform"]) === null || _a === void 0 ? void 0 : _a[this.project]) !== null && _b !== void 0 ? _b : {};
+          const defaultProjectData = (_d = (_b = this.defaultData["autoform"]) === null || _b === void 0 ? void 0 : _b[this.project]) !== null && _d !== void 0 ? _d : {};
           this.data["autoform"][this.project] = defaultProjectData;
         }
       }
@@ -289,7 +454,7 @@ ${JSON.stringify(kwargs)}`);
           continue;
         }
         const name = el.name;
-        const val = (_c = this.data["autoform"][this.project][name]) !== null && _c !== void 0 ? _c : null;
+        const val = (_e = this.data["autoform"][this.project][name]) !== null && _e !== void 0 ? _e : null;
         const lowerTag = el.tagName.toLowerCase();
         let input;
         let isBooleanCheckbox = false;
@@ -346,9 +511,9 @@ ${JSON.stringify(kwargs)}`);
         }
       }
       radioGroups.forEach((inputName) => {
-        const hasCheck = document.querySelector(`input[name=${inputName}]:checked`) !== null;
+        const hasCheck = document.querySelector(`input[name=${CSS.escape(inputName)}]:checked`) !== null;
         if (!hasCheck) {
-          const firstRadio = document.querySelector(`input[name=${inputName}]`);
+          const firstRadio = document.querySelector(`input[name=${CSS.escape(inputName)}]`);
           if (firstRadio) {
             firstRadio.checked = true;
           }
@@ -381,33 +546,18 @@ ${JSON.stringify(kwargs)}`);
         pluginUrl: window.location.href,
         pluginData: data
       };
-      const result = await Plugin.postApiRequest("SetPluginData", kwargs);
+      const result = await Host.postApiRequest("SetPluginData", kwargs);
       return;
-    }
-    /**
-     * Gets the data slug for the plugin.
-     * @returns The base64 encoded plugin URL.
-     */
-    getDataSlug() {
-      const key = this.getPluginUrl();
-      const b64Key = btoa(key);
-      return b64Key;
-    }
-    /**
-     * Gets the current plugin URL.
-     * @returns The full URL of the plugin.
-     */
-    getPluginUrl() {
-      return `${window.location.protocol}//${window.location.host}${window.location.pathname}`;
     }
   };
   var SearchQuery = class {
     /**
-     * Creates an instance of SearchQuery.
+     * Creates an instance of SearchQuery. Only project and query are
+     * required, remaining params have sensible defaults.
      * @param params - Configuration object containing project, query, fields, type, includeExternal, and includeNoRobots
      */
     constructor(params) {
-      var _a, _b, _c;
+      var _a, _b, _c, _d, _e;
       this.includeExternal = true;
       this.includeNoRobots = false;
       this.project = params.project;
@@ -415,13 +565,13 @@ ${JSON.stringify(kwargs)}`);
       if (typeof params.fields === "string") {
         this.fields = params.fields.split("|");
       } else {
-        this.fields = params.fields;
+        this.fields = (_a = params.fields) !== null && _a !== void 0 ? _a : [];
       }
-      this.type = params.type;
-      this.includeExternal = (_a = params.includeExternal) !== null && _a !== void 0 ? _a : true;
-      this.includeNoRobots = (_b = params.includeNoRobots) !== null && _b !== void 0 ? _b : false;
-      this.perPage = (_c = params.perPage) !== null && _c !== void 0 ? _c : SearchQuery.maxPerPage;
-      if (SearchQuery.validSorts.indexOf(params.sort) >= 0) {
+      this.type = (_b = params.type) !== null && _b !== void 0 ? _b : SearchQueryType.Any;
+      this.includeExternal = (_c = params.includeExternal) !== null && _c !== void 0 ? _c : true;
+      this.includeNoRobots = (_d = params.includeNoRobots) !== null && _d !== void 0 ? _d : false;
+      this.perPage = (_e = params.perPage) !== null && _e !== void 0 ? _e : SearchQuery.maxPerPage;
+      if (params.sort !== void 0 && SearchQuery.validSorts.indexOf(params.sort) >= 0) {
         this.sort = params.sort;
       } else {
         this.sort = SearchQuery.validSorts[1];
@@ -447,29 +597,28 @@ ${JSON.stringify(kwargs)}`);
      * @returns A promise that resolves to a boolean indicating if results were from cache
      */
     static async execute(query, resultsMap, resultHandler, options) {
+      Host.logWarning(Search.executeDeprecationWarning);
       const timeStart = (/* @__PURE__ */ new Date()).getTime();
       const { paginate = false, showProgress = true, progressMessage = "Processing..." } = options !== null && options !== void 0 ? options : {};
-      if (query.getHaystackCacheKey() === Search.resultsHaystackCacheKey && resultsMap) {
+      if (resultsMap && Search.resultsCache.get(resultsMap) === query.getHaystackCacheKey()) {
         const resultTotal2 = resultsMap.size;
         if (showProgress === true) {
           const eventStart = new CustomEvent("ProcessingMessage", { detail: { action: "set", message: progressMessage } });
           document.dispatchEvent(eventStart);
         }
-        await Search.sleep(16);
-        let i = 0;
-        await resultsMap.forEach(async (result, resultId) => {
+        await Host.sleep(16);
+        for (const result of resultsMap.values()) {
           await resultHandler(result);
-        });
-        Plugin.logTiming(`Processed ${resultTotal2.toLocaleString()} search result(s)`, (/* @__PURE__ */ new Date()).getTime() - timeStart);
+        }
+        Host.logTiming(`Processed ${resultTotal2.toLocaleString()} search result(s)`, (/* @__PURE__ */ new Date()).getTime() - timeStart);
         if (showProgress === true) {
           const msg = { detail: { action: "clear" } };
           const eventFinished = new CustomEvent("ProcessingMessage", msg);
           document.dispatchEvent(eventFinished);
         }
         return true;
-      } else {
-        Search.resultsHaystackCacheKey = query.getHaystackCacheKey();
-        Search.resultsCacheTotal = 0;
+      } else if (resultsMap) {
+        Search.resultsCache.set(resultsMap, query.getHaystackCacheKey());
       }
       const kwargs = {
         "project": query.project,
@@ -482,13 +631,12 @@ ${JSON.stringify(kwargs)}`);
         "sort": query.sort,
         "perpage": query.perPage
       };
-      let responseJson = await Plugin.postApiRequest("GetResources", kwargs);
+      let responseJson = await Host.postApiRequest("GetResources", kwargs);
       const resultTotal = responseJson["__meta__"]["results"]["total"];
-      Search.resultsCacheTotal = resultTotal;
       let results = responseJson.results;
       for (let i = 0; i < results.length; i++) {
         const result = results[i];
-        await Search.handleResult(result, resultTotal, resultHandler);
+        await Search.handleResult(result, resultTotal, resultHandler, showProgress);
       }
       while (responseJson["__meta__"]["results"]["pagination"]["nextOffset"] !== null && paginate === true) {
         const next = responseJson["__meta__"]["results"]["pagination"]["nextOffset"];
@@ -496,37 +644,88 @@ ${JSON.stringify(kwargs)}`);
         if (query.sort === "?" && next > 0) {
           console.warn("Random sort (?) with pagination generates fresh randomness on each page. Consider maxing perpage (100) and using 1 page of results when sampling.");
         }
-        responseJson = await Plugin.postApiRequest("GetResources", kwargs);
+        responseJson = await Host.postApiRequest("GetResources", kwargs);
         results = responseJson.results;
         for (let i = 0; i < results.length; i++) {
           const result = results[i];
-          await Search.handleResult(result, resultTotal, resultHandler);
+          await Search.handleResult(result, resultTotal, resultHandler, showProgress);
         }
       }
-      Plugin.logTiming(`Loaded/processed ${resultTotal.toLocaleString()} search result(s)`, (/* @__PURE__ */ new Date()).getTime() - timeStart);
+      Host.logTiming(`Loaded/processed ${resultTotal.toLocaleString()} search result(s)`, (/* @__PURE__ */ new Date()).getTime() - timeStart);
       return false;
     }
     /**
-     * Sleeps for the specified number of milliseconds.
-     * @param millis - The number of milliseconds to sleep.
+     * Streams search results as an async iterator, paginating internally.
+     * The streamlined alternative to execute():
+     *
+     *     for await (const result of Search.results(query)) { ... }
+     *
+     * No implicit caching, progress events are opt-in — break out of the
+     * loop anytime to stop fetching.
+     * @param query - The search query to execute
+     * @param options - Optional; showProgress emits SearchResultHandled events
+     * @returns An async generator yielding each SearchResult
      */
-    static async sleep(millis) {
-      return new Promise((resolve) => setTimeout(() => resolve(), millis));
+    static async *results(query, options) {
+      var _a;
+      const showProgress = (_a = options === null || options === void 0 ? void 0 : options.showProgress) !== null && _a !== void 0 ? _a : false;
+      const kwargs = {
+        "project": query.project,
+        "query": query.query,
+        "external": query.includeExternal,
+        "type": query.type,
+        "offset": 0,
+        "fields": query.fields,
+        "norobots": query.includeNoRobots,
+        "sort": query.sort,
+        "perpage": query.perPage
+      };
+      while (true) {
+        const responseJson = await Host.postApiRequest("GetResources", kwargs);
+        const resultTotal = responseJson["__meta__"]["results"]["total"];
+        for (const jsonResult of responseJson.results) {
+          const searchResult = new SearchResult(jsonResult);
+          yield searchResult;
+          if (showProgress) {
+            Search.dispatchResultHandled(searchResult.result, resultTotal);
+          }
+        }
+        const nextOffset = responseJson["__meta__"]["results"]["pagination"]["nextOffset"];
+        if (nextOffset === null) {
+          return;
+        }
+        if (query.sort === "?" && kwargs["offset"] === 0) {
+          console.warn("Random sort (?) with pagination generates fresh randomness on each page. Consider maxing perpage (100) and using 1 page of results when sampling.");
+        }
+        kwargs["offset"] = nextOffset;
+      }
     }
     /**
      * Handles a single search result.
      * @param jsonResult - The JSON representation of the search result.
      * @param resultTotal - The total number of results.
      * @param resultHandler - Function to handle the search result.
+     * @param showProgress - Whether to emit a SearchResultHandled progress event.
      */
-    static async handleResult(jsonResult, resultTotal, resultHandler) {
+    static async handleResult(jsonResult, resultTotal, resultHandler, showProgress) {
       const searchResult = new SearchResult(jsonResult);
       await resultHandler(searchResult);
-      const resultNum = searchResult.result;
+      if (showProgress) {
+        Search.dispatchResultHandled(searchResult.result, resultTotal);
+      }
+    }
+    /**
+     * Dispatches the SearchResultHandled progress event.
+     * @param resultNum - The 1-based position of the handled result.
+     * @param resultTotal - The total number of results.
+     */
+    static dispatchResultHandled(resultNum, resultTotal) {
       const event = new CustomEvent("SearchResultHandled", { detail: { resultNum, resultTotal } });
       document.dispatchEvent(event);
     }
   };
+  Search.executeDeprecationWarning = `"execute" search method is deprecated, use "results" instead.`;
+  Search.resultsCache = /* @__PURE__ */ new WeakMap();
   var SearchResult = class {
     static normalizeContentWords(input) {
       const out = [];
@@ -544,33 +743,19 @@ ${JSON.stringify(kwargs)}`);
      * @param jsonResult - The JSON representation of the search result.
      */
     constructor(jsonResult) {
-      var _a;
-      this.optionalFields = [
-        "created",
-        "modified",
-        "size",
-        "status",
-        "time",
-        "norobots",
-        "name",
-        "type",
-        "content",
-        "headers",
-        "links",
-        "assets",
-        "origin"
-      ];
+      var _a, _b;
       this.result = jsonResult.result;
       this.id = jsonResult.id;
-      this.url = (_a = jsonResult.url) !== null && _a !== void 0 ? _a : null;
-      this.name = jsonResult.name;
+      this.url = (_a = jsonResult.url) !== null && _a !== void 0 ? _a : "";
+      this.name = (_b = jsonResult.name) !== null && _b !== void 0 ? _b : "";
       this.processedContent = "";
-      for (let field of this.optionalFields) {
+      for (const field of SearchResult.optionalFields) {
         if (field in jsonResult) {
+          const value = jsonResult[field];
           if (field === "created" || field === "modified") {
-            this[field] = new Date(jsonResult[field]);
+            this[field] = new Date(value);
           } else {
-            this[field] = jsonResult[field];
+            this[field] = value;
           }
         }
       }
@@ -608,12 +793,13 @@ ${JSON.stringify(kwargs)}`);
      * @returns The content as plain text.
      */
     getContentTextOnly() {
+      var _a;
       const out = [];
       let element = null;
       const texts = HtmlUtils.getDocumentCleanTextIterator(this.getContent());
       element = texts.iterateNext();
       while (element !== null) {
-        let elementValue = SearchResult.normalizeContentString(element.nodeValue);
+        let elementValue = SearchResult.normalizeContentString((_a = element.nodeValue) !== null && _a !== void 0 ? _a : "");
         if (elementValue !== "") {
           const elementValueWords = elementValue.split(" ").filter((word) => word !== "");
           if (elementValueWords.length > 0) {
@@ -652,12 +838,28 @@ ${JSON.stringify(kwargs)}`);
   };
   SearchResult.wordPunctuationRe = /\s+(?=[\.,;:!\?] )/g;
   SearchResult.wordWhitespaceRe = /\s+/g;
+  SearchResult.optionalFields = [
+    "created",
+    "modified",
+    "size",
+    "status",
+    "time",
+    "norobots",
+    "name",
+    "type",
+    "content",
+    "headers",
+    "links",
+    "assets",
+    "origin"
+  ];
   var Crawl = class {
     /**
      * Creates an instance of Crawl.
      * @param params - Configuration object containing id, project, created, modified, complete, time, and report
      */
     constructor(params) {
+      var _a, _b, _c, _d, _e;
       this.id = -1;
       this.project = -1;
       this.created = null;
@@ -666,29 +868,29 @@ ${JSON.stringify(kwargs)}`);
       this.report = null;
       this.id = params.id;
       this.project = params.project;
-      this.created = params.created;
-      this.modified = params.modified;
-      this.complete = params.complete;
-      this.time = params.time;
-      this.report = params.report;
+      this.created = (_a = params.created) !== null && _a !== void 0 ? _a : null;
+      this.modified = (_b = params.modified) !== null && _b !== void 0 ? _b : null;
+      this.complete = (_c = params.complete) !== null && _c !== void 0 ? _c : false;
+      this.time = (_d = params.time) !== null && _d !== void 0 ? _d : -1;
+      this.report = (_e = params.report) !== null && _e !== void 0 ? _e : null;
     }
     /**
      * Gets the timings from the crawl report.
-     * @returns The timings object.
+     * @returns The timings object, or null (InterroBot pre-2.6).
      */
     getTimings() {
       return this.getReportDetailByKey("timings");
     }
     /**
      * Gets the sizes from the crawl report.
-     * @returns The sizes object.
+     * @returns The sizes object, or null (InterroBot pre-2.6).
      */
     getSizes() {
       return this.getReportDetailByKey("sizes");
     }
     /**
      * Gets the counts from the crawl report.
-     * @returns The counts object.
+     * @returns The counts object, or null (InterroBot pre-2.6).
      */
     getCounts() {
       return this.getReportDetailByKey("counts");
@@ -729,7 +931,8 @@ ${JSON.stringify(kwargs)}`);
      * @returns The image data URI.
      */
     getImageDataUri() {
-      return this.imageDataUri;
+      var _a;
+      return (_a = this.imageDataUri) !== null && _a !== void 0 ? _a : "";
     }
     /**
      * Gets the display title of the project.
@@ -739,10 +942,11 @@ ${JSON.stringify(kwargs)}`);
       if (this.name) {
         return this.name;
       } else if (this.url) {
-        Plugin.logWarning(Project.urlDeprectionWarning);
+        Host.logWarning(Project.urlDeprecationWarning);
         return new URL(this.url).hostname;
       } else {
-        return "[error]";
+        Host.logWarning(`project ${this.id} display title unavailable, "name" empty`);
+        return "";
       }
     }
     getDisplayUrl() {
@@ -752,23 +956,25 @@ ${JSON.stringify(kwargs)}`);
         const more = urlCount > 1 ? ` + ${urlCount - 1} more` : "";
         return `${firstUrl}${more}`;
       } else if (this.url) {
-        Plugin.logWarning(Project.urlDeprectionWarning);
+        Host.logWarning(Project.urlDeprecationWarning);
         return new URL(this.url).hostname;
       } else {
-        return "[error]";
+        Host.logWarning(`project ${this.id} display url unavailable, "urls" empty`);
+        return "";
       }
     }
     /**
      * Gets a project by its ID from the API.
      * @param id - The project ID.
-     * @returns A promise that resolves to a Project instance, or null if not found.
+     * @returns A promise that resolves to a Project instance.
+     * @throws If no project matches the id.
      */
     static async getApiProject(id) {
       const kwargs = {
         "projects": [id],
         "fields": ["image", "created", "modified", "urls"]
       };
-      const projects = await Plugin.postApiRequest("GetProjects", kwargs);
+      const projects = await Host.postApiRequest("GetProjects", kwargs);
       const results = projects.results;
       for (let i = 0; i < results.length; i++) {
         const project = results[i];
@@ -788,7 +994,7 @@ ${JSON.stringify(kwargs)}`);
           });
         }
       }
-      return null;
+      throw new Error(`project id=${id} not found`);
     }
     /**
      * Gets all crawls for a project from the API.
@@ -801,7 +1007,7 @@ ${JSON.stringify(kwargs)}`);
         project,
         fields: ["created", "modified", "report", "time"]
       };
-      const response = await Plugin.postApiRequest("GetCrawls", kwargs);
+      const response = await Host.postApiRequest("GetCrawls", kwargs);
       const crawls = [];
       const crawlResults = response.results;
       for (let i = 0; i < crawlResults.length; i++) {
@@ -819,7 +1025,8 @@ ${JSON.stringify(kwargs)}`);
       return crawls;
     }
   };
-  Project.urlDeprectionWarning = `"url" field is deprecated, use "name" or "urls" instead.`;
+  Project.urlDeprecationWarning = `"url" field is deprecated, use "name" or "urls" instead.`;
+  Project.urlDeprectionWarning = Project.urlDeprecationWarning;
 
   // examples/vanillats/js/build/src/ts/core/touch.js
   var TouchProxy = class {
@@ -843,9 +1050,7 @@ ${JSON.stringify(kwargs)}`);
      * @param ev - The TouchEvent to be proxied.
      */
     async proxyToContainer(ev) {
-      var _a;
       let primeTouch;
-      let touches = (_a = ev.touches) !== null && _a !== void 0 ? _a : ev.changedTouches;
       if (ev.touches.length === 1) {
         primeTouch = ev.touches[0];
       } else if (ev.changedTouches.length === 1) {
@@ -868,17 +1073,9 @@ ${JSON.stringify(kwargs)}`);
         force: primeTouch.force,
         eventType: ev.type
       };
-      const msg = {
-        target: "interrobot",
-        data: {
-          reportTouch: touchData
-        }
-      };
-      window.parent.postMessage(msg, "*");
-    }
-    async touchEnd(ev) {
-    }
-    async touchMove(ev) {
+      Host.postToHost({
+        reportTouch: touchData
+      });
     }
   };
 
@@ -888,65 +1085,16 @@ ${JSON.stringify(kwargs)}`);
     DarkMode2[DarkMode2["Light"] = 0] = "Light";
     DarkMode2[DarkMode2["Dark"] = 1] = "Dark";
   })(DarkMode || (DarkMode = {}));
-  var PluginConnection = class {
-    /**
-     * Creates a new PluginConnection instance.
-     * @param iframeSrc - The source URL of the iframe.
-     * @param hostOrigin - The origin of the host (optional).
-     */
-    constructor(iframeSrc, hostOrigin) {
-      this.iframeSrc = iframeSrc;
-      if (hostOrigin) {
-        this.hostOrigin = hostOrigin;
-      } else {
-        this.hostOrigin = "";
-      }
-      const url = new URL(iframeSrc);
-      if (iframeSrc === "about:srcdoc") {
-        this.pluginOrigin = "about:srcdoc";
-      } else {
-        this.pluginOrigin = url.origin;
-      }
-    }
-    /**
-     * Gets the iframe source URL.
-     * @returns The iframe source URL.
-     */
-    getIframeSrc() {
-      return this.iframeSrc;
-    }
-    /**
-     * Gets the host origin.
-     * @returns The host origin.
-     */
-    getHostOrigin() {
-      return this.hostOrigin;
-    }
-    /**
-     * Gets the plugin origin.
-     * @returns The plugin origin.
-     */
-    getPluginOrigin() {
-      return this.pluginOrigin;
-    }
-    /**
-     * Returns a string representation of the connection.
-     * @returns A string describing the host and plugin origins.
-     */
-    toString() {
-      return `host = ${this.hostOrigin}; plugin = ${this.pluginOrigin}`;
-    }
-  };
   var Plugin = class {
     /**
      * Initializes the plugin class.
-     * @param classtype - The class type to initialize.
-     * @returns An instance of the initialized class.
+     * @param classtype - The plugin subclass to instantiate when the page is ready.
+     * @returns A promise resolving to the instance of the initialized class.
      */
     static async initialize(classtype) {
       const createAndConfigure = () => {
-        let instance = new classtype();
-        Plugin.postMeta(instance.constructor.meta);
+        const instance = new classtype();
+        Plugin.postMeta(instance.getInstanceMeta());
         window.addEventListener("load", () => Plugin.postContentHeight());
         window.addEventListener("resize", () => Plugin.postContentHeight());
         return instance;
@@ -972,13 +1120,9 @@ ${JSON.stringify(kwargs)}`);
       }
       if (currentScrollHeight !== Plugin.contentScrollHeight) {
         const constrainedHeight = constrainTo && constrainTo >= 1 ? Math.min(constrainTo, currentScrollHeight) : currentScrollHeight;
-        const msg = {
-          target: "interrobot",
-          data: {
-            reportHeight: constrainedHeight
-          }
-        };
-        Plugin.routeMessage(msg);
+        Plugin.postToHost({
+          reportHeight: constrainedHeight
+        });
       }
     }
     /**
@@ -987,72 +1131,39 @@ ${JSON.stringify(kwargs)}`);
      * @param openInBrowser - Whether to open the link in a browser.
      */
     static postOpenResourceLink(resource, openInBrowser) {
-      const msg = {
-        target: "interrobot",
-        data: {
-          reportLink: {
-            openInBrowser,
-            resource
-          }
+      Plugin.postToHost({
+        reportLink: {
+          openInBrowser,
+          resource
         }
-      };
-      Plugin.routeMessage(msg);
+      });
     }
     /**
      * Posts plugin metadata to the parent frame.
      * @param meta - The metadata object to post.
      */
     static postMeta(meta) {
-      const msg = {
-        target: "interrobot",
-        data: {
-          reportMeta: meta
-        }
-      };
-      Plugin.routeMessage(msg);
+      Plugin.postToHost({
+        reportMeta: meta
+      });
     }
     /**
-     * Sends an API request to the parent frame.
+     * Wraps data in the host message envelope and delivers it to the host
+     * frame. See Host.postToHost().
+     * @param data - The payload, e.g. { reportHeight: 640 }.
+     */
+    static postToHost(data) {
+      Host.postToHost(data);
+    }
+    /**
+     * Sends an API request to the parent frame. See Host.postApiRequest().
      * @param apiMethod - The API method to call.
      * @param apiKwargs - The arguments for the API call.
+     * @param timeoutMillis - Milliseconds before the request rejects (default 300000).
      * @returns A promise that resolves with the API response.
      */
-    static async postApiRequest(apiMethod, apiKwargs) {
-      let result = null;
-      const getPromisedResult = async () => {
-        return new Promise((resolve) => {
-          const listener = async (ev) => {
-            var _a;
-            if (ev === void 0) {
-              return;
-            }
-            const evData = ev.data;
-            const evDataData = (_a = evData.data) !== null && _a !== void 0 ? _a : {};
-            if (evDataData && typeof evDataData === "object" && evDataData.hasOwnProperty("apiResponse")) {
-              const resultMethod = evDataData.apiResponse["__meta__"]["request"]["method"];
-              if (apiMethod === resultMethod) {
-                result = evData.data.apiResponse;
-                window.removeEventListener("message", listener);
-                resolve();
-              } else {
-              }
-            }
-          };
-          const msg = {
-            target: "interrobot",
-            data: {
-              apiRequest: {
-                method: apiMethod,
-                kwargs: apiKwargs
-              }
-            }
-          };
-          window.addEventListener("message", listener);
-          Plugin.routeMessage(msg);
-        });
-      };
-      await getPromisedResult();
-      return result;
+    static async postApiRequest(apiMethod, apiKwargs, timeoutMillis = 3e5) {
+      return Host.postApiRequest(apiMethod, apiKwargs, timeoutMillis);
     }
     /**
      * Logs timing information to the console.
@@ -1060,32 +1171,28 @@ ${JSON.stringify(kwargs)}`);
      * @param millis - The time in milliseconds.
      */
     static logTiming(msg, millis) {
-      const seconds = (millis / 1e3).toFixed(3);
-      console.log(`\u{1F916} [${seconds}s] ${msg}`);
+      Host.logTiming(msg, millis);
     }
     /**
      * Logs warning information to the console.
      * @param msg - The message to log.
      */
     static logWarning(msg, ex = null) {
-      const newlinedError = ex ? `
-${ex}` : "";
-      console.warn(`\u{1F916} ${msg}${newlinedError}`);
+      Host.logWarning(msg, ex);
     }
     /**
-     * Routes a message to the parent frame.
-     * @param msg - The message to route.
+     * Sleeps for the specified number of milliseconds. Useful to give the
+     * main thread a break to paint (e.g. progress ui) mid-processing.
+     * @param millis - The number of milliseconds to sleep.
      */
-    static routeMessage(msg) {
-      let parentOrigin = "";
-      if (Plugin.connection) {
-        parentOrigin = Plugin.connection.getHostOrigin();
-        window.parent.postMessage(msg, parentOrigin);
-      } else {
-        window.parent.postMessage(msg);
-      }
+    static async sleep(millis) {
+      return Host.sleep(millis);
     }
+    /** @deprecated casing, use getStaticBasePath() */
     static GetStaticBasePath() {
+      return Plugin.getStaticBasePath();
+    }
+    static getStaticBasePath() {
       function isLinux() {
         if ("userAgentData" in navigator && navigator.userAgentData) {
           const platform = navigator.userAgentData.platform.toLowerCase();
@@ -1105,23 +1212,26 @@ ${ex}` : "";
      * Creates a new Plugin instance.
      */
     constructor() {
+      var _a, _b, _c, _d, _e;
+      this.data = null;
       this.projectId = -1;
       this.mode = DarkMode.Light;
+      this.project = null;
       let paramProject;
       let paramMode;
       let paramOrigin;
       if (this.parentIsOrigin()) {
         const ifx = window.parent.document.getElementById("report");
-        paramProject = parseInt(ifx.dataset.project, 10);
-        paramMode = parseInt(ifx.dataset.mode, 10);
-        paramOrigin = ifx.dataset.origin;
+        paramProject = parseInt((_a = ifx === null || ifx === void 0 ? void 0 : ifx.dataset.project) !== null && _a !== void 0 ? _a : "", 10);
+        paramMode = parseInt((_b = ifx === null || ifx === void 0 ? void 0 : ifx.dataset.mode) !== null && _b !== void 0 ? _b : "", 10);
+        paramOrigin = (_c = ifx === null || ifx === void 0 ? void 0 : ifx.dataset.origin) !== null && _c !== void 0 ? _c : null;
       } else {
         const urlSearchParams = new URLSearchParams(window.location.search);
-        paramProject = parseInt(urlSearchParams.get("project"), 10);
-        paramMode = parseInt(urlSearchParams.get("mode"), 10);
+        paramProject = parseInt((_d = urlSearchParams.get("project")) !== null && _d !== void 0 ? _d : "", 10);
+        paramMode = parseInt((_e = urlSearchParams.get("mode")) !== null && _e !== void 0 ? _e : "", 10);
         paramOrigin = urlSearchParams.get("origin");
       }
-      Plugin.connection = new PluginConnection(document.location.href, paramOrigin);
+      Host.setConnection(new PluginConnection(document.location.href, paramOrigin));
       if (isNaN(paramProject)) {
         const errorMessage = `missing project url argument`;
         throw new Error(errorMessage);
@@ -1141,7 +1251,7 @@ ${ex}` : "";
      * @returns A promise that resolves after the specified delay.
      */
     delay(ms) {
-      return new Promise((resolve) => setTimeout(resolve, ms));
+      return Plugin.sleep(ms);
     }
     /**
      * Gets the current mode.
@@ -1162,7 +1272,7 @@ ${ex}` : "";
      * @returns the class meta.
      */
     getInstanceMeta() {
-      return this.constructor["meta"];
+      return this.constructor.meta;
     }
     /**
      * Initializes the plugin data.
@@ -1189,19 +1299,35 @@ ${ex}` : "";
       return this.data;
     }
     /**
-     * Gets the current project.
+     * Gets the plugin's project. Cached after first fetch.
      * @returns A promise that resolves with the current Project.
+     * @throws If the project can't be retrieved — an unrecoverable
+     *   state, the host supplied the project id at load.
      */
     async getProject() {
-      if (this.project === void 0) {
-        const project = await Project.getApiProject(this.projectId);
-        if (project === null) {
-          const errorMessage = `project id=${this.projectId} not found`;
-          throw new Error(errorMessage);
-        }
-        this.project = project;
+      if (this.project === null) {
+        this.project = await Project.getApiProject(this.projectId);
       }
       return this.project;
+    }
+    /**
+     * Streams search results for this plugin's project, paginating
+     * internally. The simplest path from query to results:
+     *
+     *     for await (const result of this.search("headers: text/html", { fields: ["name"] })) {
+     *         // result is a SearchResult
+     *     }
+     *
+     * @param query - The query, exactly as you'd type it into InterroBot search.
+     * @param options - Optional SearchQuery params (fields, type, sort, etc.); project and query come from context.
+     * @returns An async generator yielding each SearchResult.
+     */
+    search(query, options) {
+      return Search.results(new SearchQuery({
+        project: this.projectId,
+        query,
+        ...options
+      }));
     }
     /**
      * Renders HTML content in the document body.
@@ -1214,13 +1340,14 @@ ${ex}` : "";
      * Initializes the plugin index page.
      */
     async index() {
-      const project = await Project.getApiProject(this.getProjectId());
+      var _a;
+      const project = await this.getProject();
       const encodedTitle = HtmlUtils.htmlEncode(project.getDisplayTitle());
-      const encodedMetaTitle = HtmlUtils.htmlEncode(Plugin.meta["title"]);
+      const encodedMetaTitle = HtmlUtils.htmlEncode((_a = this.getInstanceMeta()["title"]) !== null && _a !== void 0 ? _a : "");
       this.render(`
             <div class="main__heading">
                 <div class="main__heading__icon">
-                    <img id="projectIcon" src="${project.getImageDataUri()}" alt="Icon for ${encodedTitle}" />
+                    <img id="projectIcon" src="${HtmlUtils.htmlEncode(project.getImageDataUri())}" alt="Icon for ${encodedTitle}" />
                 </div>
                 <div class="main__heading__title">
                     <h1>${encodedMetaTitle}</h1>
@@ -1245,38 +1372,14 @@ ${ex}` : "";
      * Processes the plugin data.
      */
     async process() {
+      var _a;
       const titleWords = /* @__PURE__ */ new Map();
-      let resultsMap;
-      const exampleResultHandler = async (result, titleWordsMap) => {
+      for await (const result of this.search("headers: text/html", { fields: ["name"], includeExternal: false })) {
         const terms = result.name.trim().split(/[\s\-—]+/g);
-        for (let term of terms) {
-          if (!titleWordsMap.has(term)) {
-            titleWordsMap.set(term, 1);
-          } else {
-            const currentCount = titleWordsMap.get(term);
-            titleWordsMap.set(term, currentCount + 1);
-          }
+        for (const term of terms) {
+          titleWords.set(term, ((_a = titleWords.get(term)) !== null && _a !== void 0 ? _a : 0) + 1);
         }
-      };
-      const projectId = this.getProjectId();
-      const freeQueryString = "headers: text/html";
-      const fields = ["name"];
-      const internalHtmlPagesQuery = new SearchQuery({
-        project: projectId,
-        query: freeQueryString,
-        fields,
-        type: SearchQueryType.Any,
-        includeExternal: false,
-        includeNoRobots: false
-      });
-      const options = {
-        paginate: true,
-        showProgress: false,
-        progressMessage: "Processing\u2026"
-      };
-      await Search.execute(internalHtmlPagesQuery, resultsMap, async (result) => {
-        await exampleResultHandler(result, titleWords);
-      }, options);
+      }
       await this.report(titleWords);
     }
     /**
@@ -1284,6 +1387,7 @@ ${ex}` : "";
      * @param titleWords - A map of title words and their counts.
      */
     async report(titleWords) {
+      var _a;
       const titleWordsRemap = new Map([...titleWords.entries()].sort((a, b) => {
         const aVal = a[1];
         const bVal = b[1];
@@ -1295,15 +1399,17 @@ ${ex}` : "";
       }));
       const tableRows = [];
       for (let term of titleWordsRemap.keys()) {
-        const count = titleWordsRemap.get(term);
-        const truncatedTerm = term.length > 24 ? term.substring(24) + "\u2026" : term;
+        const count = (_a = titleWordsRemap.get(term)) !== null && _a !== void 0 ? _a : 0;
+        const truncatedTerm = term.length > 24 ? term.substring(0, 24) + "\u2026" : term;
         tableRows.push(`<tr><td>${HtmlUtils.htmlEncode(truncatedTerm)}</td><td>${count.toLocaleString()}</td></tr>`);
       }
       const resultsElement = document.querySelector(".main__results");
-      resultsElement.innerHTML = tableRows.length === 0 ? `<p>No results found.</p>` : `<div><section><table style="max-width:340px">
-            <thead><tr><th>Term</th><th>Count</th></tr></thead>
-            <tbody>${tableRows.join("")}</tbody>
-            </table></section></div>`;
+      if (resultsElement) {
+        resultsElement.innerHTML = tableRows.length === 0 ? `<p>No results found.</p>` : `<div><section><table style="max-width:340px">
+                <thead><tr><th>Term</th><th>Count</th></tr></thead>
+                <tbody>${tableRows.join("")}</tbody>
+                </table></section></div>`;
+      }
       Plugin.postContentHeight();
     }
     parentIsOrigin() {
@@ -1311,11 +1417,7 @@ ${ex}` : "";
         if (!window.parent || window.parent === window) {
           return false;
         }
-        let parentDocument = window.parent.document;
-        if (!parentDocument) {
-          return false;
-        }
-        return !parentDocument.hidden;
+        return Boolean(window.parent.document);
       } catch {
         return false;
       }
@@ -1857,6 +1959,7 @@ This is the default plugin description. Set meta: {} values
       this.focusSearchDialogResult(1);
     }
     async updateAutoformNodes() {
+      var _a;
       const activeIds = [];
       const selections = [...this.component.args.objects.selections];
       selections.sort((a, b) => {
@@ -1869,7 +1972,7 @@ This is the default plugin description. Set meta: {} values
         }
       });
       const nodesVal = activeIds.join(",");
-      await this.data.setAutoformField("nodes", nodesVal);
+      await ((_a = this.data) === null || _a === void 0 ? void 0 : _a.setAutoformField("nodes", nodesVal));
     }
     async openDetail(ev) {
       var _a;
@@ -2092,7 +2195,7 @@ This is the default plugin description. Set meta: {} values
       return height;
     }
     async gatherResults(query) {
-      var _a;
+      var _a, _b;
       this.clearMaps();
       const project = await this.getProject();
       const matchUrl = (_a = project.url) !== null && _a !== void 0 ? _a : project.urls[0];
@@ -2104,21 +2207,15 @@ This is the default plugin description. Set meta: {} values
       const isCrawledList = matchUrls.length >= 2;
       const gatheredUrls = [];
       let seedObject = {};
-      const options = {
-        paginate: true,
-        showProgress: false,
-        progressMessage: "Rendering\u2026"
-      };
-      await Search.execute(query, this.resultsMap, async (result2) => {
-        var _a2;
-        const rUrl = (_a2 = result2.url) !== null && _a2 !== void 0 ? _a2 : "";
+      for await (const result2 of Search.results(query)) {
+        const rUrl = (_b = result2.url) !== null && _b !== void 0 ? _b : "";
         if (gatheredUrls.indexOf(rUrl) >= 0) {
-          return;
+          continue;
         }
         gatheredUrls.push(rUrl);
         this.resultsMap.set(result2.id, result2);
         this.resultUrlMap.set(this.normalizeUrl(rUrl), result2);
-      }, options);
+      }
       let result;
       if (isCrawledList) {
         result = this.gatherResultsCrawledListTree(project, matchUrls);
@@ -2130,11 +2227,12 @@ This is the default plugin description. Set meta: {} values
     }
     gatherResultsCrawledListTree(project, crawledUrls) {
       var _a, _b;
+      var _c;
       const projectResultJson = {
         result: 0,
         id: this.getNonResultUniqueId(),
         url: ``,
-        name: project.name,
+        name: (_c = project.name) !== null && _c !== void 0 ? _c : ``,
         status: 418,
         type: "project",
         created: (_a = project.created) === null || _a === void 0 ? void 0 : _a.toISOString(),

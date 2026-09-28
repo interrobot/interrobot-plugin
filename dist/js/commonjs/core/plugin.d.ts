@@ -1,4 +1,5 @@
-import { Project, PluginData } from "./api.js";
+import { Project, PluginData, SearchQueryParams, SearchResult } from "./api.js";
+import { PluginConnection } from "./host.js";
 /**
  * Enumeration for dark mode settings.
  */
@@ -7,57 +8,23 @@ declare enum DarkMode {
     Dark = 1
 }
 /**
- * Represents a connection between the plugin and its host.
- */
-declare class PluginConnection {
-    private iframeSrc;
-    private hostOrigin;
-    private pluginOrigin;
-    /**
-     * Creates a new PluginConnection instance.
-     * @param iframeSrc - The source URL of the iframe.
-     * @param hostOrigin - The origin of the host (optional).
-     */
-    constructor(iframeSrc: string, hostOrigin: string | null);
-    /**
-     * Gets the iframe source URL.
-     * @returns The iframe source URL.
-     */
-    getIframeSrc(): string;
-    /**
-     * Gets the host origin.
-     * @returns The host origin.
-     */
-    getHostOrigin(): string;
-    /**
-     * Gets the plugin origin.
-     * @returns The plugin origin.
-     */
-    getPluginOrigin(): string;
-    /**
-     * Returns a string representation of the connection.
-     * @returns A string describing the host and plugin origins.
-     */
-    toString(): string;
-}
-/**
  * Main Plugin class for InterroBot.
  */
 declare class Plugin {
     /**
      * Metadata for the plugin.
      */
-    static readonly meta: {};
+    static readonly meta: Record<string, string>;
     /**
      * Initializes the plugin class.
-     * @param classtype - The class type to initialize.
-     * @returns An instance of the initialized class.
+     * @param classtype - The plugin subclass to instantiate when the page is ready.
+     * @returns A promise resolving to the instance of the initialized class.
      */
-    static initialize(classtype: any): Promise<any>;
+    static initialize<T extends Plugin>(classtype: new () => T): Promise<T>;
     /**
      * Posts the current content height to the parent frame.
      */
-    static postContentHeight(constrainTo?: number): void;
+    static postContentHeight(constrainTo?: number | null): void;
     /**
      * Posts a request to open a resource link.
      * @param resource - The resource identifier.
@@ -68,14 +35,21 @@ declare class Plugin {
      * Posts plugin metadata to the parent frame.
      * @param meta - The metadata object to post.
      */
-    static postMeta(meta: {}): void;
+    static postMeta(meta: Record<string, any>): void;
     /**
-     * Sends an API request to the parent frame.
+     * Wraps data in the host message envelope and delivers it to the host
+     * frame. See Host.postToHost().
+     * @param data - The payload, e.g. { reportHeight: 640 }.
+     */
+    static postToHost(data: Record<string, any>): void;
+    /**
+     * Sends an API request to the parent frame. See Host.postApiRequest().
      * @param apiMethod - The API method to call.
      * @param apiKwargs - The arguments for the API call.
+     * @param timeoutMillis - Milliseconds before the request rejects (default 300000).
      * @returns A promise that resolves with the API response.
      */
-    static postApiRequest(apiMethod: string, apiKwargs: {}): Promise<any>;
+    static postApiRequest(apiMethod: string, apiKwargs: {}, timeoutMillis?: number): Promise<any>;
     /**
      * Logs timing information to the console.
      * @param msg - The message to log.
@@ -86,16 +60,18 @@ declare class Plugin {
      * Logs warning information to the console.
      * @param msg - The message to log.
      */
-    static logWarning(msg: string, ex?: Error): void;
+    static logWarning(msg: string, ex?: Error | null): void;
     /**
-     * Routes a message to the parent frame.
-     * @param msg - The message to route.
+     * Sleeps for the specified number of milliseconds. Useful to give the
+     * main thread a break to paint (e.g. progress ui) mid-processing.
+     * @param millis - The number of milliseconds to sleep.
      */
-    private static routeMessage;
+    static sleep(millis: number): Promise<void>;
+    /** @deprecated casing, use getStaticBasePath() */
     static GetStaticBasePath(): string;
+    static getStaticBasePath(): string;
     private static contentScrollHeight;
-    private static connection;
-    data: PluginData;
+    data: PluginData | null;
     private projectId;
     private mode;
     private project;
@@ -108,7 +84,7 @@ declare class Plugin {
      * @param ms - The number of milliseconds to delay.
      * @returns A promise that resolves after the specified delay.
      */
-    protected delay(ms: number): Promise<unknown>;
+    protected delay(ms: number): Promise<void>;
     /**
      * Gets the current mode.
      * @returns The mode (DarkMode.Light, DarkMode.Dark).
@@ -123,13 +99,13 @@ declare class Plugin {
      * Gets the instance meta, the subclassed override data
      * @returns the class meta.
      */
-    getInstanceMeta(): {};
+    getInstanceMeta(): Record<string, any>;
     /**
      * Initializes the plugin data.
      * @param defaultData - The default data for the plugin.
      * @param autoform - An array of HTML elements for the autoform.
      */
-    initData(defaultData: {}, autoform: HTMLElement[]): Promise<void>;
+    initData(defaultData: Record<string, any>, autoform: HTMLElement[]): Promise<void>;
     /**
      * Initializes and returns the plugin data.
      * @param defaultData - The default data for the plugin.
@@ -138,10 +114,25 @@ declare class Plugin {
      */
     initAndGetData(defaultData: any, autoform: HTMLElement[]): Promise<PluginData>;
     /**
-     * Gets the current project.
+     * Gets the plugin's project. Cached after first fetch.
      * @returns A promise that resolves with the current Project.
+     * @throws If the project can't be retrieved — an unrecoverable
+     *   state, the host supplied the project id at load.
      */
     getProject(): Promise<Project>;
+    /**
+     * Streams search results for this plugin's project, paginating
+     * internally. The simplest path from query to results:
+     *
+     *     for await (const result of this.search("headers: text/html", { fields: ["name"] })) {
+     *         // result is a SearchResult
+     *     }
+     *
+     * @param query - The query, exactly as you'd type it into InterroBot search.
+     * @param options - Optional SearchQuery params (fields, type, sort, etc.); project and query come from context.
+     * @returns An async generator yielding each SearchResult.
+     */
+    protected search(query: string, options?: Omit<SearchQueryParams, "project" | "query">): AsyncGenerator<SearchResult, void, undefined>;
     /**
      * Renders HTML content in the document body.
      * @param html - The HTML content to render.
@@ -159,7 +150,7 @@ declare class Plugin {
      * Generates and displays a report based on the processed data.
      * @param titleWords - A map of title words and their counts.
      */
-    protected report(titleWords: any): Promise<void>;
+    protected report(titleWords: Map<string, number>): Promise<void>;
     private parentIsOrigin;
 }
 export { Plugin, PluginConnection, DarkMode };

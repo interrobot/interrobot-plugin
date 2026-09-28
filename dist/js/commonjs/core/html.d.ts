@@ -2,10 +2,6 @@
  * Utility class for HTML-related operations.
  */
 declare class HtmlUtils {
-    /** Regular expression for matching URLs in a string. */
-    private static readonly urlsRegex;
-    /** Regular expression for validating a single URL. */
-    private static readonly urlRegex;
     /** Regular expression for matching style attributes in HTML. */
     private static readonly styleAttributeRegex;
     /**
@@ -47,7 +43,9 @@ declare class HtmlUtils {
      */
     static isUrl(str: string): boolean;
     /**
-     * Encodes HTML special characters in a string.
+     * Encodes HTML special characters in a string. Safe for use in
+     * text nodes and attribute values (escapes quotes, unlike
+     * text-node serialization).
      * @param str - The string to encode.
      * @returns An HTML-encoded string.
      */

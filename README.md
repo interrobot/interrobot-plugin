@@ -8,7 +8,7 @@
    <a href="https://www.npmjs.com/package/interrobot-plugin">NPM</a> ·
    <a href="https://interro.bot/plugins/">Plugins</a> ·
    <a href="https://interro.bot/">InterroBot</a>
-<p>
+</p>
 
 InterroBot plugins transform your web crawler into, well... anything you want. With unrestricted API crawl data access, Interrobot plugins can bring your website analysis concepts to life.
 
@@ -64,59 +64,35 @@ protected async index() {
 }
 ```
 
-The `process()` method called above would be where you process data. Here a query is executed on
-the crawl index, and each result run through the exampleResultsHandler.
+The `process()` method called above would be where you process data. Query the crawl index with
+`this.search()`, and stream the results — pagination is handled for you, and you can `break` out
+of the loop at any point to stop fetching.
 ```javascript
 protected async process() {
 
-    // gather title words and running counts with a result handler
-    const titleWords: Map<string, number> = new Map<string, number>();
-    let resultsMap: Map<number, SearchResult>;
-    const exampleResultHandler = async (result: SearchResult,
-        titleWordsMap: Map<string, number>) => {
-        const terms: string[] = result.name.trim().split(/[\s\-—]+/g);
-        terms.forEach(term => titleWordsMap.set(term,
-            (titleWordsMap.get(term) ?? 0) + 1));
+    // queries are exactly as you'd type them into InterroBot search.
+    // id and url come with the base model, everything else costs time.
+    // here, I just grab the "name" field (the page title)
+    const titleWords = new Map();
+    for await (const result of this.search("headers: text/html",
+        { fields: ["name"], includeExternal: false })) {
+        const terms = result.name.trim().split(/[\s\-—]+/g);
+        terms.forEach(term => titleWords.set(term,
+            (titleWords.get(term) ?? 0) + 1));
     }
-
-    // projectId comes for free as a member of Plugin
-    const projectId = this.getProjectId();
-
-    // build a query, these are exactly as you'd type them into InterroBot search
-    const freeQueryString = "headers: text/html";
-
-
-    // id and url come with the base model, everything else costs time
-    // here, I just grab the "name" field
-    let internalHtmlPagesQuery = new InterroBot.Core.SearchQuery({
-        project: projectId,
-        query: freeQueryString,
-        fields: ["name"],
-        type: InterroBot.Core.SearchQueryType.Any,
-        includeExternal: false,
-        includeNoRobots: false,
-    });
-
-    // run each SearchResult through its handler, and we're done processing
-    await InterroBot.Core.Search.execute(
-        internalHtmlPagesQuery,
-        this.resultsMap,
-        async (result) => {
-            await exampleResultHandler(result, titleWords);
-        },
-        {
-            paginate: true,
-            showProgress: false,
-            progressMessage: "Processing…"
-        }
-    );
 
     // call for HTML presentation of titleWords with processing complete
     await this.report(titleWords);
 }
 ```
 
-The above snippets are pulled (and gently modified) from a plugin in the repository, [basic.js](https://github.com/interrobot/interrobot-plugin/blob/master/examples/vanillajs/basic.js). For more ideas getting started, check out the [examples](https://github.com/interrobot/interrobot-plugin/blob/master/examples/) directory.
+Behind `this.search()` sits the lower-level API: build an `InterroBot.Core.SearchQuery` for any
+project, and either stream it (`InterroBot.Core.Search.results(query)`) or run a result handler
+callback over it with progress events and result caching (`InterroBot.Core.Search.execute(query,
+resultsMap, resultHandler, options)`). `this.search()` is the recommended path; reach for `execute`
+when you want cached replay of the result set across reruns of a report.
+
+For working plugins and more ideas getting started, check out the [examples](https://github.com/interrobot/interrobot-plugin/blob/master/examples/) directory.
 
 ## What data is available via API?
 
@@ -173,7 +149,4 @@ Retrieves a list of crawls using the Plugin API.
 
 ## Licensing
 
-MPL 2.0, with exceptions. This repo contains JavaScript to TypeScript ports and a Markdown library based on existing code, all contained within `./src/lib`. As they arrived under existing licenses, they will remain under those.
-
-* *Typo.js*: TypeScript port continues under the original [Modified BSD License](https://raw.githubusercontent.com/cfinke/Typo.js/master/license.txt).
-* *Snowball.js*: TypeScript port continues under the original [MPL 1.1](https://raw.githubusercontent.com/fortnightlabs/snowball-js/master/LICENSE) license.
+MPL 2.0. Earlier releases (0.18 and prior) additionally bundled JavaScript to TypeScript ports within `./src/lib` — *Typo.js* ([Modified BSD License](https://raw.githubusercontent.com/cfinke/Typo.js/master/license.txt)) and *Snowball.js* ([MPL 1.1](https://raw.githubusercontent.com/fortnightlabs/snowball-js/master/LICENSE)) — which remain under their original licenses where they appear in release history.

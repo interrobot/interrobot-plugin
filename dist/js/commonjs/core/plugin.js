@@ -8,6 +8,8 @@ exports.DarkMode = exports.PluginConnection = exports.Plugin = void 0;
 const api_js_1 = require("./api.js");
 const html_js_1 = require("./html.js");
 const touch_js_1 = require("./touch.js");
+const host_js_1 = require("./host.js");
+Object.defineProperty(exports, "PluginConnection", { enumerable: true, get: function () { return host_js_1.PluginConnection; } });
 /**
  * Enumeration for dark mode settings.
  */
@@ -15,76 +17,20 @@ var DarkMode;
 (function (DarkMode) {
     DarkMode[DarkMode["Light"] = 0] = "Light";
     DarkMode[DarkMode["Dark"] = 1] = "Dark";
-})(DarkMode || (DarkMode = {}));
-exports.DarkMode = DarkMode;
-/**
- * Represents a connection between the plugin and its host.
- */
-class PluginConnection {
-    /**
-     * Creates a new PluginConnection instance.
-     * @param iframeSrc - The source URL of the iframe.
-     * @param hostOrigin - The origin of the host (optional).
-     */
-    constructor(iframeSrc, hostOrigin) {
-        this.iframeSrc = iframeSrc;
-        if (hostOrigin) {
-            this.hostOrigin = hostOrigin;
-        }
-        else {
-            this.hostOrigin = "";
-        }
-        const url = new URL(iframeSrc);
-        if (iframeSrc === "about:srcdoc") {
-            this.pluginOrigin = "about:srcdoc"; // there is no faithful origin
-        }
-        else {
-            this.pluginOrigin = url.origin;
-        }
-    }
-    /**
-     * Gets the iframe source URL.
-     * @returns The iframe source URL.
-     */
-    getIframeSrc() {
-        return this.iframeSrc;
-    }
-    /**
-     * Gets the host origin.
-     * @returns The host origin.
-     */
-    getHostOrigin() {
-        return this.hostOrigin;
-    }
-    /**
-     * Gets the plugin origin.
-     * @returns The plugin origin.
-     */
-    getPluginOrigin() {
-        return this.pluginOrigin;
-    }
-    /**
-     * Returns a string representation of the connection.
-     * @returns A string describing the host and plugin origins.
-     */
-    toString() {
-        return `host = ${this.hostOrigin}; plugin = ${this.pluginOrigin}`;
-    }
-}
-exports.PluginConnection = PluginConnection;
+})(DarkMode || (exports.DarkMode = DarkMode = {}));
 /**
  * Main Plugin class for InterroBot.
  */
 class Plugin {
     /**
      * Initializes the plugin class.
-     * @param classtype - The class type to initialize.
-     * @returns An instance of the initialized class.
+     * @param classtype - The plugin subclass to instantiate when the page is ready.
+     * @returns A promise resolving to the instance of the initialized class.
      */
     static async initialize(classtype) {
         const createAndConfigure = () => {
-            let instance = new classtype();
-            Plugin.postMeta(instance.constructor.meta);
+            const instance = new classtype();
+            Plugin.postMeta(instance.getInstanceMeta());
             window.addEventListener("load", () => Plugin.postContentHeight());
             window.addEventListener("resize", () => Plugin.postContentHeight());
             return instance;
@@ -116,13 +62,9 @@ class Plugin {
             // height will only ever increase
             const constrainedHeight = constrainTo && constrainTo >= 1 ?
                 Math.min(constrainTo, currentScrollHeight) : currentScrollHeight;
-            const msg = {
-                target: "interrobot",
-                data: {
-                    reportHeight: constrainedHeight,
-                },
-            };
-            Plugin.routeMessage(msg);
+            Plugin.postToHost({
+                reportHeight: constrainedHeight,
+            });
         }
     }
     /**
@@ -131,16 +73,12 @@ class Plugin {
      * @param openInBrowser - Whether to open the link in a browser.
      */
     static postOpenResourceLink(resource, openInBrowser) {
-        const msg = {
-            target: "interrobot",
-            data: {
-                reportLink: {
-                    openInBrowser: openInBrowser,
-                    resource: resource,
-                }
-            },
-        };
-        Plugin.routeMessage(msg);
+        Plugin.postToHost({
+            reportLink: {
+                openInBrowser: openInBrowser,
+                resource: resource,
+            }
+        });
     }
     /**
      * Posts plugin metadata to the parent frame.
@@ -148,65 +86,27 @@ class Plugin {
      */
     static postMeta(meta) {
         // meta { url, title, category, version, author, description}
-        const msg = {
-            target: "interrobot",
-            data: {
-                reportMeta: meta
-            },
-        };
-        Plugin.routeMessage(msg);
+        Plugin.postToHost({
+            reportMeta: meta
+        });
     }
     /**
-     * Sends an API request to the parent frame.
+     * Wraps data in the host message envelope and delivers it to the host
+     * frame. See Host.postToHost().
+     * @param data - The payload, e.g. { reportHeight: 640 }.
+     */
+    static postToHost(data) {
+        host_js_1.Host.postToHost(data);
+    }
+    /**
+     * Sends an API request to the parent frame. See Host.postApiRequest().
      * @param apiMethod - The API method to call.
      * @param apiKwargs - The arguments for the API call.
+     * @param timeoutMillis - Milliseconds before the request rejects (default 300000).
      * @returns A promise that resolves with the API response.
      */
-    static async postApiRequest(apiMethod, apiKwargs) {
-        // meta { url, title, category, version, author, description}
-        let result = null;
-        const getPromisedResult = async () => {
-            return new Promise((resolve) => {
-                const listener = async (ev) => {
-                    // debug message being passed here. too spammy to leave on officially,
-                    // too dependably useful to remove
-                    // console.log(ev);
-                    var _a;
-                    if (ev === undefined) {
-                        return;
-                    }
-                    const evData = ev.data;
-                    const evDataData = (_a = evData.data) !== null && _a !== void 0 ? _a : {};
-                    if (evDataData && typeof evDataData === "object" && evDataData.hasOwnProperty("apiResponse")) {
-                        const resultMethod = evDataData.apiResponse["__meta__"]["request"]["method"];
-                        if (apiMethod === resultMethod) {
-                            result = evData.data.apiResponse;
-                            window.removeEventListener("message", listener);
-                            resolve();
-                        }
-                        else {
-                            // SetPluginData on an independent event channel, doesn't serialize requests
-                            // like GetResources, continue listening for correct respsonse
-                            // console.log(`apiMethod mismatch: sent: ${apiMethod} recieved: ${resultMethod}`);
-                        }
-                    }
-                };
-                const msg = {
-                    target: "interrobot",
-                    data: {
-                        apiRequest: {
-                            method: apiMethod,
-                            kwargs: apiKwargs,
-                        }
-                    },
-                };
-                // listen for response to postmessage api request with listener()
-                window.addEventListener("message", listener);
-                Plugin.routeMessage(msg);
-            });
-        };
-        await getPromisedResult();
-        return result;
+    static async postApiRequest(apiMethod, apiKwargs, timeoutMillis = 300000) {
+        return host_js_1.Host.postApiRequest(apiMethod, apiKwargs, timeoutMillis);
     }
     /**
      * Logs timing information to the console.
@@ -214,39 +114,28 @@ class Plugin {
      * @param millis - The time in milliseconds.
      */
     static logTiming(msg, millis) {
-        const seconds = (millis / 1000).toFixed(3);
-        console.log(`🤖 [${seconds}s] ${msg}`);
+        host_js_1.Host.logTiming(msg, millis);
     }
     /**
      * Logs warning information to the console.
      * @param msg - The message to log.
      */
     static logWarning(msg, ex = null) {
-        const newlinedError = ex ? `\n${ex}` : "";
-        console.warn(`🤖 ${msg}${newlinedError}`);
+        host_js_1.Host.logWarning(msg, ex);
     }
     /**
-     * Routes a message to the parent frame.
-     * @param msg - The message to route.
+     * Sleeps for the specified number of milliseconds. Useful to give the
+     * main thread a break to paint (e.g. progress ui) mid-processing.
+     * @param millis - The number of milliseconds to sleep.
      */
-    static routeMessage(msg) {
-        // Pt 1 of 2
-        // window.parent.origin can't be read from external URL, only works with core
-        // console.log(document.location.href);
-        // console.log(Plugin.connection.toString());
-        let parentOrigin = "";
-        if (Plugin.connection) {
-            parentOrigin = Plugin.connection.getHostOrigin();
-            window.parent.postMessage(msg, parentOrigin);
-        }
-        else {
-            // core iframe uses srcdoc, has no usable origin
-            // TODO, Plugin.connection should be set regardless?
-            // this happens on export dl ands external urls btw
-            window.parent.postMessage(msg);
-        }
+    static async sleep(millis) {
+        return host_js_1.Host.sleep(millis);
     }
+    /** @deprecated casing, use getStaticBasePath() */
     static GetStaticBasePath() {
+        return Plugin.getStaticBasePath();
+    }
+    static getStaticBasePath() {
         function isLinux() {
             if ("userAgentData" in navigator && navigator.userAgentData) {
                 const platform = navigator.userAgentData.platform.toLowerCase();
@@ -272,8 +161,11 @@ class Plugin {
      * Creates a new Plugin instance.
      */
     constructor() {
+        var _a, _b, _c, _d, _e;
+        this.data = null;
         this.projectId = -1;
         this.mode = DarkMode.Light;
+        this.project = null;
         let paramProject;
         let paramMode;
         let paramOrigin;
@@ -281,19 +173,19 @@ class Plugin {
             // core report, 3rd party will not have cross origin access
             // params stashed in dataset
             const ifx = window.parent.document.getElementById("report");
-            paramProject = parseInt(ifx.dataset.project, 10);
-            paramMode = parseInt(ifx.dataset.mode, 10);
-            paramOrigin = ifx.dataset.origin;
+            paramProject = parseInt((_a = ifx === null || ifx === void 0 ? void 0 : ifx.dataset.project) !== null && _a !== void 0 ? _a : "", 10);
+            paramMode = parseInt((_b = ifx === null || ifx === void 0 ? void 0 : ifx.dataset.mode) !== null && _b !== void 0 ? _b : "", 10);
+            paramOrigin = (_c = ifx === null || ifx === void 0 ? void 0 : ifx.dataset.origin) !== null && _c !== void 0 ? _c : null;
         }
         else {
             // proper iframe
             const urlSearchParams = new URLSearchParams(window.location.search);
-            paramProject = parseInt(urlSearchParams.get("project"), 10);
-            paramMode = parseInt(urlSearchParams.get("mode"), 10);
+            paramProject = parseInt((_d = urlSearchParams.get("project")) !== null && _d !== void 0 ? _d : "", 10);
+            paramMode = parseInt((_e = urlSearchParams.get("mode")) !== null && _e !== void 0 ? _e : "", 10);
             paramOrigin = urlSearchParams.get("origin");
         }
         // static functions will depend on this static variable
-        Plugin.connection = new PluginConnection(document.location.href, paramOrigin);
+        host_js_1.Host.setConnection(new host_js_1.PluginConnection(document.location.href, paramOrigin));
         // no salvaging this
         if (isNaN(paramProject)) {
             const errorMessage = `missing project url argument`;
@@ -316,7 +208,7 @@ class Plugin {
      */
     delay(ms) {
         // for ui to force painting
-        return new Promise(resolve => setTimeout(resolve, ms));
+        return Plugin.sleep(ms);
     }
     /**
      * Gets the current mode.
@@ -337,7 +229,7 @@ class Plugin {
      * @returns the class meta.
      */
     getInstanceMeta() {
-        return this.constructor["meta"];
+        return this.constructor.meta;
     }
     /**
      * Initializes the plugin data.
@@ -364,19 +256,35 @@ class Plugin {
         return this.data;
     }
     /**
-     * Gets the current project.
+     * Gets the plugin's project. Cached after first fetch.
      * @returns A promise that resolves with the current Project.
+     * @throws If the project can't be retrieved — an unrecoverable
+     *   state, the host supplied the project id at load.
      */
     async getProject() {
-        if (this.project === undefined) {
-            const project = await api_js_1.Project.getApiProject(this.projectId);
-            if (project === null) {
-                const errorMessage = `project id=${this.projectId} not found`;
-                throw new Error(errorMessage);
-            }
-            this.project = project;
+        if (this.project === null) {
+            this.project = await api_js_1.Project.getApiProject(this.projectId);
         }
         return this.project;
+    }
+    /**
+     * Streams search results for this plugin's project, paginating
+     * internally. The simplest path from query to results:
+     *
+     *     for await (const result of this.search("headers: text/html", { fields: ["name"] })) {
+     *         // result is a SearchResult
+     *     }
+     *
+     * @param query - The query, exactly as you'd type it into InterroBot search.
+     * @param options - Optional SearchQuery params (fields, type, sort, etc.); project and query come from context.
+     * @returns An async generator yielding each SearchResult.
+     */
+    search(query, options) {
+        return api_js_1.Search.results(new api_js_1.SearchQuery({
+            project: this.projectId,
+            query: query,
+            ...options,
+        }));
     }
     /**
      * Renders HTML content in the document body.
@@ -393,16 +301,17 @@ class Plugin {
         // it is here contain it to the example it will push meta
         // to the host page, and activate some resize handlers
         // this.init(Plugin.meta);
+        var _a;
         // this collects project information given the project id passed in
         // as url argument, there will always be a project id passed
-        const project = await api_js_1.Project.getApiProject(this.getProjectId());
+        const project = await this.getProject();
         const encodedTitle = html_js_1.HtmlUtils.htmlEncode(project.getDisplayTitle());
-        const encodedMetaTitle = html_js_1.HtmlUtils.htmlEncode(Plugin.meta["title"]);
+        const encodedMetaTitle = html_js_1.HtmlUtils.htmlEncode((_a = this.getInstanceMeta()["title"]) !== null && _a !== void 0 ? _a : "");
         // if you reuse InterroBot UI, please fork your own CSS, mine isn't stable
         this.render(`
             <div class="main__heading">
                 <div class="main__heading__icon">
-                    <img id="projectIcon" src="${project.getImageDataUri()}" alt="Icon for ${encodedTitle}" />
+                    <img id="projectIcon" src="${html_js_1.HtmlUtils.htmlEncode(project.getImageDataUri())}" alt="Icon for ${encodedTitle}" />
                 </div>
                 <div class="main__heading__title">
                     <h1>${encodedMetaTitle}</h1>
@@ -427,53 +336,21 @@ class Plugin {
      * Processes the plugin data.
      */
     async process() {
+        var _a;
         // as an example, collect page title word counts across all html pages
         // it's a contrived example, but let us keep things simple
         const titleWords = new Map();
-        // resultsMap is probably a property on your plugin IRL, but I don't want to pollute
-        // to pollute the Plugin namespace any more than necessary for the sake of example
-        // plugin screens
-        let resultsMap;
-        // the function to handle individual SearchResults
-        // in this example, counting term/word instances in the name field
-        const exampleResultHandler = async (result, titleWordsMap) => {
+        // stream each SearchResult for the query, counting term/word
+        // instances in the name field. the query is exactly as you'd type
+        // it into InterroBot search. id and url come with the base model,
+        // every field beyond ("name", here) costs time
+        for await (const result of this.search("headers: text/html", { fields: ["name"], includeExternal: false })) {
             const terms = result.name.trim().split(/[\s\-—]+/g);
-            for (let term of terms) {
-                if (!titleWordsMap.has(term)) {
-                    titleWordsMap.set(term, 1);
-                }
-                else {
-                    const currentCount = titleWordsMap.get(term);
-                    titleWordsMap.set(term, currentCount + 1);
-                }
+            for (const term of terms) {
+                titleWords.set(term, ((_a = titleWords.get(term)) !== null && _a !== void 0 ? _a : 0) + 1);
             }
-        };
-        // projectId comes for free as a member of Plugin
-        const projectId = this.getProjectId();
-        // build a query, these are exactly as you'd type them into InterroBot search
-        const freeQueryString = "headers: text/html";
-        // array of fields you want retrieved
-        // id and url come with the base model, everything else costs time
-        const fields = ["name"];
-        // const internalHtmlPagesQuery = new SearchQuery(projectId, freeQueryString, fields,
-        //     SearchQueryType.Any, false, false);
-        const internalHtmlPagesQuery = new api_js_1.SearchQuery({
-            project: projectId,
-            query: freeQueryString,
-            fields: fields,
-            type: api_js_1.SearchQueryType.Any,
-            includeExternal: false,
-            includeNoRobots: false,
-        });
-        // run each SearchResult through its handler, and we're done processing
-        const options = {
-            paginate: true,
-            showProgress: false,
-            progressMessage: "Processing…"
-        };
-        await api_js_1.Search.execute(internalHtmlPagesQuery, resultsMap, async (result) => {
-            await exampleResultHandler(result, titleWords);
-        }, options);
+        }
+        // for the callback/cache alternative, see Search.execute()
         // call for html presentation
         await this.report(titleWords);
     }
@@ -482,6 +359,7 @@ class Plugin {
      * @param titleWords - A map of title words and their counts.
      */
     async report(titleWords) {
+        var _a;
         // sort titleWords by count, then by term
         const titleWordsRemap = new Map([...titleWords.entries()].sort((a, b) => {
             const aVal = a[1];
@@ -498,16 +376,18 @@ class Plugin {
         // render html output from collected data
         const tableRows = [];
         for (let term of titleWordsRemap.keys()) {
-            const count = titleWordsRemap.get(term);
-            const truncatedTerm = term.length > 24 ? term.substring(24) + "…" : term;
+            const count = (_a = titleWordsRemap.get(term)) !== null && _a !== void 0 ? _a : 0;
+            const truncatedTerm = term.length > 24 ? term.substring(0, 24) + "…" : term;
             tableRows.push(`<tr><td>${html_js_1.HtmlUtils.htmlEncode(truncatedTerm)}</td><td>${count.toLocaleString()}</td></tr>`);
         }
         const resultsElement = document.querySelector(".main__results");
-        resultsElement.innerHTML = tableRows.length === 0 ? `<p>No results found.</p>` :
-            `<div><section><table style="max-width:340px">
-            <thead><tr><th>Term</th><th>Count</th></tr></thead>
-            <tbody>${tableRows.join("")}</tbody>
-            </table></section></div>`;
+        if (resultsElement) {
+            resultsElement.innerHTML = tableRows.length === 0 ? `<p>No results found.</p>` :
+                `<div><section><table style="max-width:340px">
+                <thead><tr><th>Term</th><th>Count</th></tr></thead>
+                <tbody>${tableRows.join("")}</tbody>
+                </table></section></div>`;
+        }
         // send signal back to iframe host to alot current page height
         Plugin.postContentHeight();
     }
@@ -516,11 +396,7 @@ class Plugin {
             if (!window.parent || window.parent === window) {
                 return false;
             }
-            let parentDocument = window.parent.document;
-            if (!parentDocument) {
-                return false;
-            }
-            return !parentDocument.hidden;
+            return Boolean(window.parent.document);
         }
         catch {
             return false;

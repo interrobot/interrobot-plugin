@@ -4,7 +4,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PluginData = exports.SearchResult = exports.Search = exports.SearchQuery = exports.SearchQueryType = exports.Crawl = exports.Project = void 0;
 const html_js_1 = require("./html.js");
-const plugin_js_1 = require("./plugin.js");
+const host_js_1 = require("./host.js");
 /**
  * Enumeration for different types of search queries.
  */
@@ -13,8 +13,7 @@ var SearchQueryType;
     SearchQueryType["Page"] = "page";
     SearchQueryType["Asset"] = "asset";
     SearchQueryType["Any"] = "any";
-})(SearchQueryType || (SearchQueryType = {}));
-exports.SearchQueryType = SearchQueryType;
+})(SearchQueryType || (exports.SearchQueryType = SearchQueryType = {}));
 /**
  * Container for plugin settings
  */
@@ -25,6 +24,7 @@ class PluginData {
      */
     constructor(params) {
         var _a;
+        this.dataLoaded = null;
         this.meta = params.meta;
         this.defaultData = params.defaultData;
         this.autoformInputs = (_a = params.autoformInputs) !== null && _a !== void 0 ? _a : [];
@@ -35,9 +35,6 @@ class PluginData {
             apiVersion: "1.1",
             autoform: {},
         };
-        if (this.data.autoform === null) {
-            this.data.autoform = [];
-        }
         this.data.autoform[this.project] = {};
         if (this.autoformInputs.length > 0) {
             const changeHandler = async (el) => {
@@ -60,7 +57,7 @@ class PluginData {
             const radioHandler = async (el) => {
                 let name = el.getAttribute("name");
                 const elInput = el;
-                const checkedRadios = document.querySelectorAll(`input[type=radio][name=${elInput.name}]:checked`);
+                const checkedRadios = document.querySelectorAll(`input[type=radio][name=${CSS.escape(elInput.name)}]:checked`);
                 if (checkedRadios.length !== 1) {
                     console.error("radio control failure");
                     return;
@@ -71,7 +68,7 @@ class PluginData {
             const pipedHandler = async (el) => {
                 let name = el.getAttribute("name");
                 const elInput = el;
-                const checkedCheckboxes = document.querySelectorAll(`input[type=checkbox][name=${elInput.name}]:checked`);
+                const checkedCheckboxes = document.querySelectorAll(`input[type=checkbox][name=${CSS.escape(elInput.name)}]:checked`);
                 const piperList = [];
                 for (let i = 0; i < checkedCheckboxes.length; i++) {
                     piperList.push(checkedCheckboxes[i].value);
@@ -95,45 +92,45 @@ class PluginData {
                             // either it is a single true/false or a multiple,
                             // in which it is piped|values|like|this, dig it?
                             const elInput = el;
-                            const allCheckboxes = document.querySelectorAll(`input[type=checkbox][name=${elInput.name}]`);
+                            const allCheckboxes = document.querySelectorAll(`input[type=checkbox][name=${CSS.escape(elInput.name)}]`);
                             if (allCheckboxes.length === 1) {
                                 // true/false branch start
-                                input.addEventListener("change", async (ev) => {
+                                input.addEventListener("change", async () => {
                                     await changeHandler(input);
                                 });
                             }
                             else if (allCheckboxes.length > 1) {
                                 // piped branch
-                                input.addEventListener("change", async (ev) => {
+                                input.addEventListener("change", async () => {
                                     await pipedHandler(input);
                                 });
                             }
                         }
                         else if (input.type == "radio") {
                             // just a text input
-                            input.addEventListener("change", async (ev) => {
+                            input.addEventListener("change", async () => {
                                 await radioHandler(input);
                             });
                         }
                         else {
                             // just a text input
-                            input.addEventListener("change", async (ev) => {
+                            input.addEventListener("change", async () => {
                                 await changeHandler(input);
                             });
                         }
                         break;
                     case "textarea":
                         const textarea = el;
-                        textarea.addEventListener("change", async (ev) => {
+                        textarea.addEventListener("change", async () => {
                             await changeHandler(textarea);
                         });
-                        textarea.addEventListener("input", async (ev) => {
+                        textarea.addEventListener("input", async () => {
                             await changeHandler(textarea);
                         });
                         break;
                     case "select":
                         const select = el;
-                        select.addEventListener("change", async (ev) => {
+                        select.addEventListener("change", async () => {
                             await changeHandler(select);
                         });
                         break;
@@ -175,32 +172,31 @@ class PluginData {
      * Loads the plugin data from the server.
      */
     async loadData() {
-        var _a, _b, _c;
+        var _a, _b;
+        var _c, _d, _e;
         let pluginUrl = window.location.href;
         // adjust for core reports, 3rd party will not hit this
         if (pluginUrl === "about:srcdoc") {
-            pluginUrl = `/reports/${window.parent.document.getElementById("report").dataset.report}/`;
+            pluginUrl = `/reports/${(_c = (_a = window.parent.document.getElementById("report")) === null || _a === void 0 ? void 0 : _a.dataset.report) !== null && _c !== void 0 ? _c : ""}/`;
         }
         // console.log(`${pluginUrl}`)
         const kwargs = {
             "pluginUrl": pluginUrl,
         };
         const startTime = new Date().getTime();
-        const result = await plugin_js_1.Plugin.postApiRequest("GetPluginData", kwargs);
+        const result = await host_js_1.Host.postApiRequest("GetPluginData", kwargs);
         const endTime = new Date().getTime();
         try {
-            plugin_js_1.Plugin.logTiming(`Loaded options: ${JSON.stringify(kwargs)}`, endTime - startTime);
+            host_js_1.Host.logTiming(`Loaded options: ${JSON.stringify(kwargs)}`, endTime - startTime);
             const jsonResponseData = result["data"];
             const jsonResponseDataEmpty = Object.keys(jsonResponseData).length === 0;
             const merged = {};
-            for (let k in this.defaultData) {
-                const val = this.defaultData[k];
-                merged[k] = this.defaultData[k];
+            for (const k in this.defaultData) {
+                merged[k] = (this.defaultData)[k];
             }
             // stored options overwrites default data, if available
-            for (let k in jsonResponseData) {
-                const val = this.defaultData[k];
-                merged[k] = jsonResponseData[k];
+            for (const k in jsonResponseData) {
+                merged[k] = (jsonResponseData)[k];
             }
             // if nothing is in the database, push the defaults (inc. meta)
             if (jsonResponseDataEmpty) {
@@ -230,7 +226,7 @@ class PluginData {
             }
             // init project level autoform, this is where input values stored
             if (!(this.project in this.data["autoform"])) {
-                const defaultProjectData = (_b = (_a = this.defaultData["autoform"]) === null || _a === void 0 ? void 0 : _a[this.project]) !== null && _b !== void 0 ? _b : {};
+                const defaultProjectData = (_d = (_b = this.defaultData["autoform"]) === null || _b === void 0 ? void 0 : _b[this.project]) !== null && _d !== void 0 ? _d : {};
                 this.data["autoform"][this.project] = defaultProjectData;
             }
         }
@@ -242,7 +238,7 @@ class PluginData {
                 continue;
             }
             const name = el.name;
-            const val = (_c = this.data["autoform"][this.project][name]) !== null && _c !== void 0 ? _c : null;
+            const val = (_e = this.data["autoform"][this.project][name]) !== null && _e !== void 0 ? _e : null;
             const lowerTag = el.tagName.toLowerCase();
             let input;
             let isBooleanCheckbox = false;
@@ -306,9 +302,9 @@ class PluginData {
         }
         // clean up unchecked radios
         radioGroups.forEach((inputName) => {
-            const hasCheck = document.querySelector(`input[name=${inputName}]:checked`) !== null;
+            const hasCheck = document.querySelector(`input[name=${CSS.escape(inputName)}]:checked`) !== null;
             if (!hasCheck) {
-                const firstRadio = document.querySelector(`input[name=${inputName}]`);
+                const firstRadio = document.querySelector(`input[name=${CSS.escape(inputName)}]`);
                 if (firstRadio) {
                     firstRadio.checked = true;
                 }
@@ -335,41 +331,25 @@ class PluginData {
      * Updates the plugin data on the server.
      */
     async updateData() {
-        // const updateEndpoint = this.getDataEndpoint();
         const data = await this.getData();
         data["meta"] = this.meta;
         const kwargs = {
             pluginUrl: window.location.href,
             pluginData: data,
         };
-        const result = await plugin_js_1.Plugin.postApiRequest("SetPluginData", kwargs);
+        const result = await host_js_1.Host.postApiRequest("SetPluginData", kwargs);
         return;
-    }
-    /**
-     * Gets the data slug for the plugin.
-     * @returns The base64 encoded plugin URL.
-     */
-    getDataSlug() {
-        const key = this.getPluginUrl();
-        const b64Key = btoa(key);
-        return b64Key;
-    }
-    /**
-     * Gets the current plugin URL.
-     * @returns The full URL of the plugin.
-     */
-    getPluginUrl() {
-        return `${window.location.protocol}//${window.location.host}${window.location.pathname}`;
     }
 }
 exports.PluginData = PluginData;
 class SearchQuery {
     /**
-     * Creates an instance of SearchQuery.
+     * Creates an instance of SearchQuery. Only project and query are
+     * required, remaining params have sensible defaults.
      * @param params - Configuration object containing project, query, fields, type, includeExternal, and includeNoRobots
      */
     constructor(params) {
-        var _a, _b, _c;
+        var _a, _b, _c, _d, _e;
         this.includeExternal = true;
         this.includeNoRobots = false;
         this.project = params.project;
@@ -379,13 +359,13 @@ class SearchQuery {
             this.fields = params.fields.split("|");
         }
         else {
-            this.fields = params.fields;
+            this.fields = (_a = params.fields) !== null && _a !== void 0 ? _a : [];
         }
-        this.type = params.type;
-        this.includeExternal = (_a = params.includeExternal) !== null && _a !== void 0 ? _a : true;
-        this.includeNoRobots = (_b = params.includeNoRobots) !== null && _b !== void 0 ? _b : false;
-        this.perPage = (_c = params.perPage) !== null && _c !== void 0 ? _c : SearchQuery.maxPerPage;
-        if (SearchQuery.validSorts.indexOf(params.sort) >= 0) {
+        this.type = (_b = params.type) !== null && _b !== void 0 ? _b : SearchQueryType.Any;
+        this.includeExternal = (_c = params.includeExternal) !== null && _c !== void 0 ? _c : true;
+        this.includeNoRobots = (_d = params.includeNoRobots) !== null && _d !== void 0 ? _d : false;
+        this.perPage = (_e = params.perPage) !== null && _e !== void 0 ? _e : SearchQuery.maxPerPage;
+        if (params.sort !== undefined && SearchQuery.validSorts.indexOf(params.sort) >= 0) {
             this.sort = params.sort;
         }
         else {
@@ -413,10 +393,11 @@ class Search {
      * @returns A promise that resolves to a boolean indicating if results were from cache
      */
     static async execute(query, resultsMap, resultHandler, options) {
+        host_js_1.Host.logWarning(Search.executeDeprecationWarning);
         const timeStart = new Date().getTime();
         const { paginate = false, showProgress = true, progressMessage = "Processing..." } = options !== null && options !== void 0 ? options : {};
         // Promise<boolean> returned is a from-cache flag, true if cached
-        if (query.getHaystackCacheKey() === Search.resultsHaystackCacheKey && resultsMap) {
+        if (resultsMap && Search.resultsCache.get(resultsMap) === query.getHaystackCacheKey()) {
             const resultTotal = resultsMap.size;
             // reuse api reuslts
             // print something to screen to inform user of operation
@@ -427,14 +408,13 @@ class Search {
                 document.dispatchEvent(eventStart);
             }
             // give main thread a short break to render progress
-            await Search.sleep(16);
+            await host_js_1.Host.sleep(16);
             // note for of loop with sleep mod 100 works, looks smooth, but slows the operation by > 20%
             // this is faster, but it can't paint progress well as it can saturate the main thread
-            let i = 0;
-            await resultsMap.forEach(async (result, resultId) => {
+            for (const result of resultsMap.values()) {
                 await resultHandler(result);
-            });
-            plugin_js_1.Plugin.logTiming(`Processed ${resultTotal.toLocaleString()} search result(s)`, new Date().getTime() - timeStart);
+            }
+            host_js_1.Host.logTiming(`Processed ${resultTotal.toLocaleString()} search result(s)`, new Date().getTime() - timeStart);
             if (showProgress === true) {
                 const msg = { detail: { action: "clear" } };
                 const eventFinished = new CustomEvent("ProcessingMessage", msg);
@@ -442,9 +422,10 @@ class Search {
             }
             return true;
         }
-        else {
-            Search.resultsHaystackCacheKey = query.getHaystackCacheKey();
-            Search.resultsCacheTotal = 0;
+        else if (resultsMap) {
+            // mark the map as loaded for this haystack, caller populates it
+            // via resultHandler for replay on the next same-haystack execute
+            Search.resultsCache.set(resultsMap, query.getHaystackCacheKey());
         }
         const kwargs = {
             "project": query.project,
@@ -457,13 +438,12 @@ class Search {
             "sort": query.sort,
             "perpage": query.perPage,
         };
-        let responseJson = await plugin_js_1.Plugin.postApiRequest("GetResources", kwargs);
+        let responseJson = await host_js_1.Host.postApiRequest("GetResources", kwargs);
         const resultTotal = responseJson["__meta__"]["results"]["total"];
-        Search.resultsCacheTotal = resultTotal;
         let results = responseJson.results;
         for (let i = 0; i < results.length; i++) {
             const result = results[i];
-            await Search.handleResult(result, resultTotal, resultHandler);
+            await Search.handleResult(result, resultTotal, resultHandler, showProgress);
         }
         while (responseJson["__meta__"]["results"]["pagination"]["nextOffset"] !== null && paginate === true) {
             const next = responseJson["__meta__"]["results"]["pagination"]["nextOffset"];
@@ -472,38 +452,93 @@ class Search {
                 console.warn("Random sort (?) with pagination generates fresh randomness on each page. " +
                     "Consider maxing perpage (100) and using 1 page of results when sampling.");
             }
-            responseJson = await plugin_js_1.Plugin.postApiRequest("GetResources", kwargs);
+            responseJson = await host_js_1.Host.postApiRequest("GetResources", kwargs);
             results = responseJson.results;
             for (let i = 0; i < results.length; i++) {
                 const result = results[i];
-                await Search.handleResult(result, resultTotal, resultHandler);
+                await Search.handleResult(result, resultTotal, resultHandler, showProgress);
             }
         }
-        plugin_js_1.Plugin.logTiming(`Loaded/processed ${resultTotal.toLocaleString()} search result(s)`, new Date().getTime() - timeStart);
+        host_js_1.Host.logTiming(`Loaded/processed ${resultTotal.toLocaleString()} search result(s)`, new Date().getTime() - timeStart);
         return false;
     }
     /**
-     * Sleeps for the specified number of milliseconds.
-     * @param millis - The number of milliseconds to sleep.
+     * Streams search results as an async iterator, paginating internally.
+     * The streamlined alternative to execute():
+     *
+     *     for await (const result of Search.results(query)) { ... }
+     *
+     * No implicit caching, progress events are opt-in — break out of the
+     * loop anytime to stop fetching.
+     * @param query - The search query to execute
+     * @param options - Optional; showProgress emits SearchResultHandled events
+     * @returns An async generator yielding each SearchResult
      */
-    static async sleep(millis) {
-        return new Promise((resolve) => setTimeout(() => resolve(), millis));
+    static async *results(query, options) {
+        var _a;
+        const showProgress = (_a = options === null || options === void 0 ? void 0 : options.showProgress) !== null && _a !== void 0 ? _a : false;
+        const kwargs = {
+            "project": query.project,
+            "query": query.query,
+            "external": query.includeExternal,
+            "type": query.type,
+            "offset": 0,
+            "fields": query.fields,
+            "norobots": query.includeNoRobots,
+            "sort": query.sort,
+            "perpage": query.perPage,
+        };
+        while (true) {
+            const responseJson = await host_js_1.Host.postApiRequest("GetResources", kwargs);
+            const resultTotal = responseJson["__meta__"]["results"]["total"];
+            for (const jsonResult of responseJson.results) {
+                const searchResult = new SearchResult(jsonResult);
+                yield searchResult;
+                if (showProgress) {
+                    Search.dispatchResultHandled(searchResult.result, resultTotal);
+                }
+            }
+            const nextOffset = responseJson["__meta__"]["results"]["pagination"]["nextOffset"];
+            if (nextOffset === null) {
+                return;
+            }
+            if (query.sort === "?" && kwargs["offset"] === 0) {
+                // once per query, not per page
+                console.warn("Random sort (?) with pagination generates fresh randomness on each page. " +
+                    "Consider maxing perpage (100) and using 1 page of results when sampling.");
+            }
+            kwargs["offset"] = nextOffset;
+        }
     }
     /**
      * Handles a single search result.
      * @param jsonResult - The JSON representation of the search result.
      * @param resultTotal - The total number of results.
      * @param resultHandler - Function to handle the search result.
+     * @param showProgress - Whether to emit a SearchResultHandled progress event.
      */
-    static async handleResult(jsonResult, resultTotal, resultHandler) {
+    static async handleResult(jsonResult, resultTotal, resultHandler, showProgress) {
         const searchResult = new SearchResult(jsonResult);
         await resultHandler(searchResult);
-        const resultNum = searchResult.result;
+        if (showProgress) {
+            Search.dispatchResultHandled(searchResult.result, resultTotal);
+        }
+    }
+    /**
+     * Dispatches the SearchResultHandled progress event.
+     * @param resultNum - The 1-based position of the handled result.
+     * @param resultTotal - The total number of results.
+     */
+    static dispatchResultHandled(resultNum, resultTotal) {
         const event = new CustomEvent("SearchResultHandled", { detail: { resultNum: resultNum, resultTotal: resultTotal } });
         document.dispatchEvent(event);
     }
 }
 exports.Search = Search;
+Search.executeDeprecationWarning = `"execute" search method is deprecated, use "results" instead.`;
+// haystack cache key is tracked per resultsMap instance, so that
+// multiple queries sharing a page can't contaminate each other
+Search.resultsCache = new WeakMap();
 /**
  * Class representing a search result.
  */
@@ -524,21 +559,20 @@ class SearchResult {
      * @param jsonResult - The JSON representation of the search result.
      */
     constructor(jsonResult) {
-        var _a;
-        this.optionalFields = ["created", "modified", "size", "status",
-            "time", "norobots", "name", "type", "content", "headers", "links", "assets", "origin"];
+        var _a, _b;
         this.result = jsonResult.result;
         this.id = jsonResult.id;
-        this.url = (_a = jsonResult.url) !== null && _a !== void 0 ? _a : null; // deprecated
-        this.name = jsonResult.name;
+        this.url = (_a = jsonResult.url) !== null && _a !== void 0 ? _a : ""; // deprecated
+        this.name = (_b = jsonResult.name) !== null && _b !== void 0 ? _b : "";
         this.processedContent = "";
-        for (let field of this.optionalFields) {
+        for (const field of SearchResult.optionalFields) {
             if (field in jsonResult) {
+                const value = jsonResult[field];
                 if (field === "created" || field === "modified") {
-                    this[field] = new Date(jsonResult[field]);
+                    this[field] = new Date(value);
                 }
                 else {
-                    this[field] = jsonResult[field];
+                    this[field] = value;
                 }
             }
         }
@@ -576,13 +610,14 @@ class SearchResult {
      * @returns The content as plain text.
      */
     getContentTextOnly() {
+        var _a;
         // out is the haystack string builder
         const out = [];
         let element = null;
         const texts = html_js_1.HtmlUtils.getDocumentCleanTextIterator(this.getContent());
         element = texts.iterateNext();
         while (element !== null) {
-            let elementValue = SearchResult.normalizeContentString(element.nodeValue);
+            let elementValue = SearchResult.normalizeContentString((_a = element.nodeValue) !== null && _a !== void 0 ? _a : "");
             if (elementValue !== "") {
                 // filter empties
                 const elementValueWords = elementValue.split(" ").filter((word) => word !== "");
@@ -626,6 +661,8 @@ class SearchResult {
 exports.SearchResult = SearchResult;
 SearchResult.wordPunctuationRe = /\s+(?=[\.,;:!\?] )/g;
 SearchResult.wordWhitespaceRe = /\s+/g;
+SearchResult.optionalFields = ["created", "modified", "size", "status",
+    "time", "norobots", "name", "type", "content", "headers", "links", "assets", "origin"];
 /**
  * Class representing a crawl.
  */
@@ -635,6 +672,7 @@ class Crawl {
      * @param params - Configuration object containing id, project, created, modified, complete, time, and report
      */
     constructor(params) {
+        var _a, _b, _c, _d, _e;
         this.id = -1;
         this.project = -1;
         this.created = null;
@@ -643,29 +681,29 @@ class Crawl {
         this.report = null;
         this.id = params.id;
         this.project = params.project;
-        this.created = params.created;
-        this.modified = params.modified;
-        this.complete = params.complete;
-        this.time = params.time;
-        this.report = params.report;
+        this.created = (_a = params.created) !== null && _a !== void 0 ? _a : null;
+        this.modified = (_b = params.modified) !== null && _b !== void 0 ? _b : null;
+        this.complete = (_c = params.complete) !== null && _c !== void 0 ? _c : false;
+        this.time = (_d = params.time) !== null && _d !== void 0 ? _d : -1;
+        this.report = (_e = params.report) !== null && _e !== void 0 ? _e : null;
     }
     /**
      * Gets the timings from the crawl report.
-     * @returns The timings object.
+     * @returns The timings object, or null (InterroBot pre-2.6).
      */
     getTimings() {
         return this.getReportDetailByKey("timings");
     }
     /**
      * Gets the sizes from the crawl report.
-     * @returns The sizes object.
+     * @returns The sizes object, or null (InterroBot pre-2.6).
      */
     getSizes() {
         return this.getReportDetailByKey("sizes");
     }
     /**
      * Gets the counts from the crawl report.
-     * @returns The counts object.
+     * @returns The counts object, or null (InterroBot pre-2.6).
      */
     getCounts() {
         return this.getReportDetailByKey("counts");
@@ -714,7 +752,8 @@ class Project {
      * @returns The image data URI.
      */
     getImageDataUri() {
-        return this.imageDataUri;
+        var _a;
+        return (_a = this.imageDataUri) !== null && _a !== void 0 ? _a : "";
     }
     /**
      * Gets the display title of the project.
@@ -725,11 +764,13 @@ class Project {
             return this.name;
         }
         else if (this.url) {
-            plugin_js_1.Plugin.logWarning(Project.urlDeprectionWarning);
+            host_js_1.Host.logWarning(Project.urlDeprecationWarning);
             return new URL(this.url).hostname;
         }
         else {
-            return "[error]";
+            // no fields to work with, better blank than a sentinel in the UI
+            host_js_1.Host.logWarning(`project ${this.id} display title unavailable, "name" empty`);
+            return "";
         }
     }
     getDisplayUrl() {
@@ -740,24 +781,27 @@ class Project {
             return `${firstUrl}${more}`;
         }
         else if (this.url) {
-            plugin_js_1.Plugin.logWarning(Project.urlDeprectionWarning);
+            host_js_1.Host.logWarning(Project.urlDeprecationWarning);
             return new URL(this.url).hostname;
         }
         else {
-            return "[error]";
+            // no fields to work with, better blank than a sentinel in the UI
+            host_js_1.Host.logWarning(`project ${this.id} display url unavailable, "urls" empty`);
+            return "";
         }
     }
     /**
      * Gets a project by its ID from the API.
      * @param id - The project ID.
-     * @returns A promise that resolves to a Project instance, or null if not found.
+     * @returns A promise that resolves to a Project instance.
+     * @throws If no project matches the id.
      */
     static async getApiProject(id) {
         const kwargs = {
             "projects": [id],
             "fields": ["image", "created", "modified", "urls"],
         };
-        const projects = await plugin_js_1.Plugin.postApiRequest("GetProjects", kwargs);
+        const projects = await host_js_1.Host.postApiRequest("GetProjects", kwargs);
         const results = projects.results;
         for (let i = 0; i < results.length; i++) {
             const project = results[i];
@@ -780,7 +824,7 @@ class Project {
             }
         }
         // not found
-        return null;
+        throw new Error(`project id=${id} not found`);
     }
     /**
      * Gets all crawls for a project from the API.
@@ -793,7 +837,7 @@ class Project {
             project: project,
             fields: ["created", "modified", "report", "time"],
         };
-        const response = await plugin_js_1.Plugin.postApiRequest("GetCrawls", kwargs);
+        const response = await host_js_1.Host.postApiRequest("GetCrawls", kwargs);
         const crawls = [];
         const crawlResults = response.results;
         for (let i = 0; i < crawlResults.length; i++) {
@@ -812,4 +856,6 @@ class Project {
     }
 }
 exports.Project = Project;
-Project.urlDeprectionWarning = `"url" field is deprecated, use "name" or "urls" instead.`;
+Project.urlDeprecationWarning = `"url" field is deprecated, use "name" or "urls" instead.`;
+/** @deprecated misspelling, use urlDeprecationWarning */
+Project.urlDeprectionWarning = Project.urlDeprecationWarning;

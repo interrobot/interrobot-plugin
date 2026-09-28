@@ -6,12 +6,6 @@
  */
 class HtmlUtils {
 
-    /** Regular expression for matching URLs in a string. */
-    private static readonly urlsRegex: RegExp = /((([A-Za-z]{3,9}:(?:\/\/)?)(?:[\-;:&=\+\$,\w]+@)?[A-Za-z0-9\.\-]+|(?:www\.|[\-;:&=\+\$,\w]+@)[A-Za-z0-9\.\-]+)((?:\/[\+~%\/\.\w\-_\:]*)?\??(?:[\-\+=&;%@\.\w_]*)#?(?:[\.\!\/\\\w]*))?)/g;
-
-    /** Regular expression for validating a single URL. */
-    private static readonly urlRegex: RegExp = /^((([A-Za-z]{3,9}:(?:\/\/)?)(?:[\-;:&=\+\$,\w]+@)?[A-Za-z0-9\.\-]+|(?:www\.|[\-;:&=\+\$,\w]+@)[A-Za-z0-9\.\-]+)((?:\/[\+~%\/\.\w\-_\:]*)?\??(?:[\-\+=&;%@\.\w_]*)#?(?:[\.\!\/\\\w]*))?)$/;
-
     /** Regular expression for matching style attributes in HTML. */
     private static readonly styleAttributeRegex: RegExp = /style\s*=\s*("([^"]*)"|'([^']*)')/gi;
 
@@ -29,6 +23,7 @@ class HtmlUtils {
             return new DOMParser().parseFromString(html, "text/html");
         } catch (ex) {
             console.warn(ex);
+            return null;
         }
 
         // return new DOMParser().parseFromString(html, "text/html");
@@ -42,16 +37,17 @@ class HtmlUtils {
     public static getDocumentCleanText(html: string): Document {
 
         // remove dom nodes that hurt more than they help wrt search
-        let dom: Document = this.getDocument(html);
+        let dom: Document | null = this.getDocument(html);
         if (dom === null) {
             // without which, nulls begin to cascade into all related functions
             dom = new Document();
         }
 
         // iframes can contain (invalid html) text... seen with own eyes, html treated as text
-        const textUnfriendly = dom.querySelectorAll("script, style, svg, noscript, iframe");
+        const textUnfriendly: NodeListOf<Element> = dom.querySelectorAll("script, style, svg, noscript, iframe");
         for (let i = textUnfriendly.length - 1; i >= 0; i--) {
-            textUnfriendly[i].parentElement.removeChild(textUnfriendly[i]);
+            const tu: Element = textUnfriendly[i]
+            tu.parentElement?.removeChild(textUnfriendly[i]);
         }
 
         return dom;
@@ -90,9 +86,9 @@ class HtmlUtils {
     public static getElementTextOnly(dom: Document, element: HTMLElement): string {
         const xpr: XPathResult = HtmlUtils.getElementTextIterator(dom, element);
         const texts = [];
-        let node: Node = xpr.iterateNext();
+        let node: Node | null = xpr.iterateNext();
         while (node) {
-            texts.push(node.nodeValue.trim());
+            texts.push(node.nodeValue?.trim());
             node = xpr.iterateNext();
         }
         return texts.join(" ");
@@ -104,17 +100,24 @@ class HtmlUtils {
      * @returns True if the string is a valid URL, false otherwise.
      */
     public static isUrl(str: string): boolean {
+        // cast required, canParse postdates the installed ts dom lib
         return (URL as any).canParse(str);
-        // return str.match(HtmlUtils.urlRegex) !== null;
     }
 
     /**
-     * Encodes HTML special characters in a string.
+     * Encodes HTML special characters in a string. Safe for use in
+     * text nodes and attribute values (escapes quotes, unlike
+     * text-node serialization).
      * @param str - The string to encode.
      * @returns An HTML-encoded string.
      */
-    public static htmlEncode(str: string) {
-        return new Option(str).innerHTML;
+    public static htmlEncode(str: string): string {
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
     }
 }
 

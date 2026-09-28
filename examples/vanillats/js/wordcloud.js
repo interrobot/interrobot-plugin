@@ -12,6 +12,7 @@
         return new DOMParser().parseFromString(html, "text/html");
       } catch (ex) {
         console.warn(ex);
+        return null;
       }
     }
     /**
@@ -20,13 +21,15 @@
      * @returns A cleaned Document object.
      */
     static getDocumentCleanText(html) {
+      var _a;
       let dom = this.getDocument(html);
       if (dom === null) {
         dom = new Document();
       }
       const textUnfriendly = dom.querySelectorAll("script, style, svg, noscript, iframe");
       for (let i = textUnfriendly.length - 1; i >= 0; i--) {
-        textUnfriendly[i].parentElement.removeChild(textUnfriendly[i]);
+        const tu = textUnfriendly[i];
+        (_a = tu.parentElement) === null || _a === void 0 ? void 0 : _a.removeChild(textUnfriendly[i]);
       }
       return dom;
     }
@@ -59,11 +62,12 @@
      * @returns A string containing the element's text content.
      */
     static getElementTextOnly(dom, element) {
+      var _a;
       const xpr = HtmlUtils.getElementTextIterator(dom, element);
       const texts = [];
       let node = xpr.iterateNext();
       while (node) {
-        texts.push(node.nodeValue.trim());
+        texts.push((_a = node.nodeValue) === null || _a === void 0 ? void 0 : _a.trim());
         node = xpr.iterateNext();
       }
       return texts.join(" ");
@@ -77,17 +81,181 @@
       return URL.canParse(str);
     }
     /**
-     * Encodes HTML special characters in a string.
+     * Encodes HTML special characters in a string. Safe for use in
+     * text nodes and attribute values (escapes quotes, unlike
+     * text-node serialization).
      * @param str - The string to encode.
      * @returns An HTML-encoded string.
      */
     static htmlEncode(str) {
-      return new Option(str).innerHTML;
+      return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
     }
   };
-  HtmlUtils.urlsRegex = /((([A-Za-z]{3,9}:(?:\/\/)?)(?:[\-;:&=\+\$,\w]+@)?[A-Za-z0-9\.\-]+|(?:www\.|[\-;:&=\+\$,\w]+@)[A-Za-z0-9\.\-]+)((?:\/[\+~%\/\.\w\-_\:]*)?\??(?:[\-\+=&;%@\.\w_]*)#?(?:[\.\!\/\\\w]*))?)/g;
-  HtmlUtils.urlRegex = /^((([A-Za-z]{3,9}:(?:\/\/)?)(?:[\-;:&=\+\$,\w]+@)?[A-Za-z0-9\.\-]+|(?:www\.|[\-;:&=\+\$,\w]+@)[A-Za-z0-9\.\-]+)((?:\/[\+~%\/\.\w\-_\:]*)?\??(?:[\-\+=&;%@\.\w_]*)#?(?:[\.\!\/\\\w]*))?)$/;
   HtmlUtils.styleAttributeRegex = /style\s*=\s*("([^"]*)"|'([^']*)')/gi;
+
+  // examples/vanillats/js/build/src/ts/core/host.js
+  var PluginConnection = class {
+    /**
+     * Creates a new PluginConnection instance.
+     * @param iframeSrc - The source URL of the iframe.
+     * @param hostOrigin - The origin of the host (optional).
+     */
+    constructor(iframeSrc, hostOrigin) {
+      this.iframeSrc = iframeSrc;
+      if (hostOrigin) {
+        this.hostOrigin = hostOrigin;
+      } else {
+        this.hostOrigin = "";
+      }
+      const url = new URL(iframeSrc);
+      if (iframeSrc === "about:srcdoc") {
+        this.pluginOrigin = "about:srcdoc";
+      } else {
+        this.pluginOrigin = url.origin;
+      }
+    }
+    /**
+     * Gets the iframe source URL.
+     * @returns The iframe source URL.
+     */
+    getIframeSrc() {
+      return this.iframeSrc;
+    }
+    /**
+     * Gets the host origin.
+     * @returns The host origin.
+     */
+    getHostOrigin() {
+      return this.hostOrigin;
+    }
+    /**
+     * Gets the plugin origin.
+     * @returns The plugin origin.
+     */
+    getPluginOrigin() {
+      return this.pluginOrigin;
+    }
+    /**
+     * Returns a string representation of the connection.
+     * @returns A string describing the host and plugin origins.
+     */
+    toString() {
+      return `host = ${this.hostOrigin}; plugin = ${this.pluginOrigin}`;
+    }
+  };
+  var Host = class {
+    /**
+     * Sets the connection used to pin messages to the host origin.
+     * @param connection - The plugin/host connection.
+     */
+    static setConnection(connection) {
+      Host.connection = connection;
+    }
+    /**
+     * Wraps data in the host message envelope and delivers it to the host
+     * frame, pinned to the host origin when known. All plugin-to-host
+     * traffic funnels through here — prefer this over raw
+     * window.parent.postMessage(msg, "*"), which delivers to any embedder.
+     * @param data - The payload, e.g. { reportHeight: 640 }.
+     */
+    static postToHost(data) {
+      Host.routeMessage({
+        target: "interrobot",
+        data
+      });
+    }
+    /**
+     * Sends an API request to the parent frame.
+     * @param apiMethod - The API method to call.
+     * @param apiKwargs - The arguments for the API call.
+     * @param timeoutMillis - Milliseconds before the request rejects (default 300000).
+     * @returns A promise that resolves with the API response.
+     */
+    static async postApiRequest(apiMethod, apiKwargs, timeoutMillis = 3e5) {
+      const seq = ++Host.apiRequestSeq;
+      return new Promise((resolve, reject) => {
+        let timer = 0;
+        const listener = (ev) => {
+          var _a, _b, _c;
+          var _d, _e, _f;
+          if (ev.source !== window.parent) {
+            return;
+          }
+          const hostOrigin = (_d = (_a = Host.connection) === null || _a === void 0 ? void 0 : _a.getHostOrigin()) !== null && _d !== void 0 ? _d : "";
+          if (hostOrigin !== "" && ev.origin !== hostOrigin && !Host.originMismatchWarned) {
+            Host.originMismatchWarned = true;
+            Host.logWarning(`api response origin '${ev.origin}' != expected '${hostOrigin}'`);
+          }
+          const evData = ev.data;
+          const evDataData = (_e = evData === null || evData === void 0 ? void 0 : evData.data) !== null && _e !== void 0 ? _e : {};
+          if (evDataData && typeof evDataData === "object" && evDataData.hasOwnProperty("apiResponse")) {
+            const requestMeta = (_f = (_c = (_b = evDataData.apiResponse) === null || _b === void 0 ? void 0 : _b["__meta__"]) === null || _c === void 0 ? void 0 : _c["request"]) !== null && _f !== void 0 ? _f : {};
+            const seqMatched = requestMeta["seq"] === void 0 || requestMeta["seq"] === seq;
+            if (apiMethod === requestMeta["method"] && seqMatched) {
+              window.clearTimeout(timer);
+              window.removeEventListener("message", listener);
+              resolve(evDataData.apiResponse);
+            }
+          }
+        };
+        timer = window.setTimeout(() => {
+          window.removeEventListener("message", listener);
+          reject(new Error(`api request '${apiMethod}' (seq=${seq}) timed out after ${timeoutMillis / 1e3}s`));
+        }, timeoutMillis);
+        window.addEventListener("message", listener);
+        Host.postToHost({
+          apiRequest: {
+            method: apiMethod,
+            kwargs: apiKwargs,
+            seq
+          }
+        });
+      });
+    }
+    /**
+     * Logs timing information to the console.
+     * @param msg - The message to log.
+     * @param millis - The time in milliseconds.
+     */
+    static logTiming(msg, millis) {
+      const seconds = (millis / 1e3).toFixed(3);
+      console.log(`\u{1F916} [${seconds}s] ${msg}`);
+    }
+    /**
+     * Logs warning information to the console.
+     * @param msg - The message to log.
+     */
+    static logWarning(msg, ex = null) {
+      const newlinedError = ex ? `
+${ex}` : "";
+      console.warn(`\u{1F916} ${msg}${newlinedError}`);
+    }
+    /**
+     * Delivers an enveloped message to the parent frame, pinned to the host
+     * origin when known. Use postToHost(), which builds the envelope.
+     * @param msg - The message to route.
+     */
+    static routeMessage(msg) {
+      let parentOrigin = "";
+      if (Host.connection) {
+        parentOrigin = Host.connection.getHostOrigin();
+        window.parent.postMessage(msg, parentOrigin);
+      } else {
+        window.parent.postMessage(msg);
+      }
+    }
+    /**
+     * Sleeps for the specified number of milliseconds. Useful to give the
+     * main thread a break to paint (e.g. progress ui) mid-processing.
+     * @param millis - The number of milliseconds to sleep.
+     */
+    static async sleep(millis) {
+      return new Promise((resolve) => setTimeout(() => resolve(), millis));
+    }
+  };
+  Host.connection = null;
+  Host.apiRequestSeq = 0;
+  Host.originMismatchWarned = false;
 
   // examples/vanillats/js/build/src/ts/core/api.js
   var SearchQueryType;
@@ -103,6 +271,7 @@
      */
     constructor(params) {
       var _a;
+      this.dataLoaded = null;
       this.meta = params.meta;
       this.defaultData = params.defaultData;
       this.autoformInputs = (_a = params.autoformInputs) !== null && _a !== void 0 ? _a : [];
@@ -111,9 +280,6 @@
         apiVersion: "1.1",
         autoform: {}
       };
-      if (this.data.autoform === null) {
-        this.data.autoform = [];
-      }
       this.data.autoform[this.project] = {};
       if (this.autoformInputs.length > 0) {
         const changeHandler = async (el) => {
@@ -134,7 +300,7 @@
         const radioHandler = async (el) => {
           let name = el.getAttribute("name");
           const elInput = el;
-          const checkedRadios = document.querySelectorAll(`input[type=radio][name=${elInput.name}]:checked`);
+          const checkedRadios = document.querySelectorAll(`input[type=radio][name=${CSS.escape(elInput.name)}]:checked`);
           if (checkedRadios.length !== 1) {
             console.error("radio control failure");
             return;
@@ -145,7 +311,7 @@
         const pipedHandler = async (el) => {
           let name = el.getAttribute("name");
           const elInput = el;
-          const checkedCheckboxes = document.querySelectorAll(`input[type=checkbox][name=${elInput.name}]:checked`);
+          const checkedCheckboxes = document.querySelectorAll(`input[type=checkbox][name=${CSS.escape(elInput.name)}]:checked`);
           const piperList = [];
           for (let i = 0; i < checkedCheckboxes.length; i++) {
             piperList.push(checkedCheckboxes[i].value);
@@ -163,38 +329,38 @@
               const input = el;
               if (input.type == "checkbox") {
                 const elInput = el;
-                const allCheckboxes = document.querySelectorAll(`input[type=checkbox][name=${elInput.name}]`);
+                const allCheckboxes = document.querySelectorAll(`input[type=checkbox][name=${CSS.escape(elInput.name)}]`);
                 if (allCheckboxes.length === 1) {
-                  input.addEventListener("change", async (ev) => {
+                  input.addEventListener("change", async () => {
                     await changeHandler(input);
                   });
                 } else if (allCheckboxes.length > 1) {
-                  input.addEventListener("change", async (ev) => {
+                  input.addEventListener("change", async () => {
                     await pipedHandler(input);
                   });
                 }
               } else if (input.type == "radio") {
-                input.addEventListener("change", async (ev) => {
+                input.addEventListener("change", async () => {
                   await radioHandler(input);
                 });
               } else {
-                input.addEventListener("change", async (ev) => {
+                input.addEventListener("change", async () => {
                   await changeHandler(input);
                 });
               }
               break;
             case "textarea":
               const textarea = el;
-              textarea.addEventListener("change", async (ev) => {
+              textarea.addEventListener("change", async () => {
                 await changeHandler(textarea);
               });
-              textarea.addEventListener("input", async (ev) => {
+              textarea.addEventListener("input", async () => {
                 await changeHandler(textarea);
               });
               break;
             case "select":
               const select = el;
-              select.addEventListener("change", async (ev) => {
+              select.addEventListener("change", async () => {
                 await changeHandler(select);
               });
               break;
@@ -234,28 +400,27 @@
      * Loads the plugin data from the server.
      */
     async loadData() {
-      var _a, _b, _c;
+      var _a, _b;
+      var _c, _d, _e;
       let pluginUrl = window.location.href;
       if (pluginUrl === "about:srcdoc") {
-        pluginUrl = `/reports/${window.parent.document.getElementById("report").dataset.report}/`;
+        pluginUrl = `/reports/${(_c = (_a = window.parent.document.getElementById("report")) === null || _a === void 0 ? void 0 : _a.dataset.report) !== null && _c !== void 0 ? _c : ""}/`;
       }
       const kwargs = {
         "pluginUrl": pluginUrl
       };
       const startTime = (/* @__PURE__ */ new Date()).getTime();
-      const result = await Plugin.postApiRequest("GetPluginData", kwargs);
+      const result = await Host.postApiRequest("GetPluginData", kwargs);
       const endTime = (/* @__PURE__ */ new Date()).getTime();
       try {
-        Plugin.logTiming(`Loaded options: ${JSON.stringify(kwargs)}`, endTime - startTime);
+        Host.logTiming(`Loaded options: ${JSON.stringify(kwargs)}`, endTime - startTime);
         const jsonResponseData = result["data"];
         const jsonResponseDataEmpty = Object.keys(jsonResponseData).length === 0;
         const merged = {};
-        for (let k in this.defaultData) {
-          const val = this.defaultData[k];
+        for (const k in this.defaultData) {
           merged[k] = this.defaultData[k];
         }
-        for (let k in jsonResponseData) {
-          const val = this.defaultData[k];
+        for (const k in jsonResponseData) {
           merged[k] = jsonResponseData[k];
         }
         if (jsonResponseDataEmpty) {
@@ -279,7 +444,7 @@ ${JSON.stringify(kwargs)}`);
           }
         }
         if (!(this.project in this.data["autoform"])) {
-          const defaultProjectData = (_b = (_a = this.defaultData["autoform"]) === null || _a === void 0 ? void 0 : _a[this.project]) !== null && _b !== void 0 ? _b : {};
+          const defaultProjectData = (_d = (_b = this.defaultData["autoform"]) === null || _b === void 0 ? void 0 : _b[this.project]) !== null && _d !== void 0 ? _d : {};
           this.data["autoform"][this.project] = defaultProjectData;
         }
       }
@@ -289,7 +454,7 @@ ${JSON.stringify(kwargs)}`);
           continue;
         }
         const name = el.name;
-        const val = (_c = this.data["autoform"][this.project][name]) !== null && _c !== void 0 ? _c : null;
+        const val = (_e = this.data["autoform"][this.project][name]) !== null && _e !== void 0 ? _e : null;
         const lowerTag = el.tagName.toLowerCase();
         let input;
         let isBooleanCheckbox = false;
@@ -346,9 +511,9 @@ ${JSON.stringify(kwargs)}`);
         }
       }
       radioGroups.forEach((inputName) => {
-        const hasCheck = document.querySelector(`input[name=${inputName}]:checked`) !== null;
+        const hasCheck = document.querySelector(`input[name=${CSS.escape(inputName)}]:checked`) !== null;
         if (!hasCheck) {
-          const firstRadio = document.querySelector(`input[name=${inputName}]`);
+          const firstRadio = document.querySelector(`input[name=${CSS.escape(inputName)}]`);
           if (firstRadio) {
             firstRadio.checked = true;
           }
@@ -381,33 +546,18 @@ ${JSON.stringify(kwargs)}`);
         pluginUrl: window.location.href,
         pluginData: data
       };
-      const result = await Plugin.postApiRequest("SetPluginData", kwargs);
+      const result = await Host.postApiRequest("SetPluginData", kwargs);
       return;
-    }
-    /**
-     * Gets the data slug for the plugin.
-     * @returns The base64 encoded plugin URL.
-     */
-    getDataSlug() {
-      const key = this.getPluginUrl();
-      const b64Key = btoa(key);
-      return b64Key;
-    }
-    /**
-     * Gets the current plugin URL.
-     * @returns The full URL of the plugin.
-     */
-    getPluginUrl() {
-      return `${window.location.protocol}//${window.location.host}${window.location.pathname}`;
     }
   };
   var SearchQuery = class {
     /**
-     * Creates an instance of SearchQuery.
+     * Creates an instance of SearchQuery. Only project and query are
+     * required, remaining params have sensible defaults.
      * @param params - Configuration object containing project, query, fields, type, includeExternal, and includeNoRobots
      */
     constructor(params) {
-      var _a, _b, _c;
+      var _a, _b, _c, _d, _e;
       this.includeExternal = true;
       this.includeNoRobots = false;
       this.project = params.project;
@@ -415,13 +565,13 @@ ${JSON.stringify(kwargs)}`);
       if (typeof params.fields === "string") {
         this.fields = params.fields.split("|");
       } else {
-        this.fields = params.fields;
+        this.fields = (_a = params.fields) !== null && _a !== void 0 ? _a : [];
       }
-      this.type = params.type;
-      this.includeExternal = (_a = params.includeExternal) !== null && _a !== void 0 ? _a : true;
-      this.includeNoRobots = (_b = params.includeNoRobots) !== null && _b !== void 0 ? _b : false;
-      this.perPage = (_c = params.perPage) !== null && _c !== void 0 ? _c : SearchQuery.maxPerPage;
-      if (SearchQuery.validSorts.indexOf(params.sort) >= 0) {
+      this.type = (_b = params.type) !== null && _b !== void 0 ? _b : SearchQueryType.Any;
+      this.includeExternal = (_c = params.includeExternal) !== null && _c !== void 0 ? _c : true;
+      this.includeNoRobots = (_d = params.includeNoRobots) !== null && _d !== void 0 ? _d : false;
+      this.perPage = (_e = params.perPage) !== null && _e !== void 0 ? _e : SearchQuery.maxPerPage;
+      if (params.sort !== void 0 && SearchQuery.validSorts.indexOf(params.sort) >= 0) {
         this.sort = params.sort;
       } else {
         this.sort = SearchQuery.validSorts[1];
@@ -447,29 +597,28 @@ ${JSON.stringify(kwargs)}`);
      * @returns A promise that resolves to a boolean indicating if results were from cache
      */
     static async execute(query, resultsMap, resultHandler, options) {
+      Host.logWarning(Search.executeDeprecationWarning);
       const timeStart = (/* @__PURE__ */ new Date()).getTime();
       const { paginate = false, showProgress = true, progressMessage = "Processing..." } = options !== null && options !== void 0 ? options : {};
-      if (query.getHaystackCacheKey() === Search.resultsHaystackCacheKey && resultsMap) {
+      if (resultsMap && Search.resultsCache.get(resultsMap) === query.getHaystackCacheKey()) {
         const resultTotal2 = resultsMap.size;
         if (showProgress === true) {
           const eventStart = new CustomEvent("ProcessingMessage", { detail: { action: "set", message: progressMessage } });
           document.dispatchEvent(eventStart);
         }
-        await Search.sleep(16);
-        let i = 0;
-        await resultsMap.forEach(async (result, resultId) => {
+        await Host.sleep(16);
+        for (const result of resultsMap.values()) {
           await resultHandler(result);
-        });
-        Plugin.logTiming(`Processed ${resultTotal2.toLocaleString()} search result(s)`, (/* @__PURE__ */ new Date()).getTime() - timeStart);
+        }
+        Host.logTiming(`Processed ${resultTotal2.toLocaleString()} search result(s)`, (/* @__PURE__ */ new Date()).getTime() - timeStart);
         if (showProgress === true) {
           const msg = { detail: { action: "clear" } };
           const eventFinished = new CustomEvent("ProcessingMessage", msg);
           document.dispatchEvent(eventFinished);
         }
         return true;
-      } else {
-        Search.resultsHaystackCacheKey = query.getHaystackCacheKey();
-        Search.resultsCacheTotal = 0;
+      } else if (resultsMap) {
+        Search.resultsCache.set(resultsMap, query.getHaystackCacheKey());
       }
       const kwargs = {
         "project": query.project,
@@ -482,13 +631,12 @@ ${JSON.stringify(kwargs)}`);
         "sort": query.sort,
         "perpage": query.perPage
       };
-      let responseJson = await Plugin.postApiRequest("GetResources", kwargs);
+      let responseJson = await Host.postApiRequest("GetResources", kwargs);
       const resultTotal = responseJson["__meta__"]["results"]["total"];
-      Search.resultsCacheTotal = resultTotal;
       let results = responseJson.results;
       for (let i = 0; i < results.length; i++) {
         const result = results[i];
-        await Search.handleResult(result, resultTotal, resultHandler);
+        await Search.handleResult(result, resultTotal, resultHandler, showProgress);
       }
       while (responseJson["__meta__"]["results"]["pagination"]["nextOffset"] !== null && paginate === true) {
         const next = responseJson["__meta__"]["results"]["pagination"]["nextOffset"];
@@ -496,37 +644,88 @@ ${JSON.stringify(kwargs)}`);
         if (query.sort === "?" && next > 0) {
           console.warn("Random sort (?) with pagination generates fresh randomness on each page. Consider maxing perpage (100) and using 1 page of results when sampling.");
         }
-        responseJson = await Plugin.postApiRequest("GetResources", kwargs);
+        responseJson = await Host.postApiRequest("GetResources", kwargs);
         results = responseJson.results;
         for (let i = 0; i < results.length; i++) {
           const result = results[i];
-          await Search.handleResult(result, resultTotal, resultHandler);
+          await Search.handleResult(result, resultTotal, resultHandler, showProgress);
         }
       }
-      Plugin.logTiming(`Loaded/processed ${resultTotal.toLocaleString()} search result(s)`, (/* @__PURE__ */ new Date()).getTime() - timeStart);
+      Host.logTiming(`Loaded/processed ${resultTotal.toLocaleString()} search result(s)`, (/* @__PURE__ */ new Date()).getTime() - timeStart);
       return false;
     }
     /**
-     * Sleeps for the specified number of milliseconds.
-     * @param millis - The number of milliseconds to sleep.
+     * Streams search results as an async iterator, paginating internally.
+     * The streamlined alternative to execute():
+     *
+     *     for await (const result of Search.results(query)) { ... }
+     *
+     * No implicit caching, progress events are opt-in — break out of the
+     * loop anytime to stop fetching.
+     * @param query - The search query to execute
+     * @param options - Optional; showProgress emits SearchResultHandled events
+     * @returns An async generator yielding each SearchResult
      */
-    static async sleep(millis) {
-      return new Promise((resolve) => setTimeout(() => resolve(), millis));
+    static async *results(query, options) {
+      var _a;
+      const showProgress = (_a = options === null || options === void 0 ? void 0 : options.showProgress) !== null && _a !== void 0 ? _a : false;
+      const kwargs = {
+        "project": query.project,
+        "query": query.query,
+        "external": query.includeExternal,
+        "type": query.type,
+        "offset": 0,
+        "fields": query.fields,
+        "norobots": query.includeNoRobots,
+        "sort": query.sort,
+        "perpage": query.perPage
+      };
+      while (true) {
+        const responseJson = await Host.postApiRequest("GetResources", kwargs);
+        const resultTotal = responseJson["__meta__"]["results"]["total"];
+        for (const jsonResult of responseJson.results) {
+          const searchResult = new SearchResult(jsonResult);
+          yield searchResult;
+          if (showProgress) {
+            Search.dispatchResultHandled(searchResult.result, resultTotal);
+          }
+        }
+        const nextOffset = responseJson["__meta__"]["results"]["pagination"]["nextOffset"];
+        if (nextOffset === null) {
+          return;
+        }
+        if (query.sort === "?" && kwargs["offset"] === 0) {
+          console.warn("Random sort (?) with pagination generates fresh randomness on each page. Consider maxing perpage (100) and using 1 page of results when sampling.");
+        }
+        kwargs["offset"] = nextOffset;
+      }
     }
     /**
      * Handles a single search result.
      * @param jsonResult - The JSON representation of the search result.
      * @param resultTotal - The total number of results.
      * @param resultHandler - Function to handle the search result.
+     * @param showProgress - Whether to emit a SearchResultHandled progress event.
      */
-    static async handleResult(jsonResult, resultTotal, resultHandler) {
+    static async handleResult(jsonResult, resultTotal, resultHandler, showProgress) {
       const searchResult = new SearchResult(jsonResult);
       await resultHandler(searchResult);
-      const resultNum = searchResult.result;
+      if (showProgress) {
+        Search.dispatchResultHandled(searchResult.result, resultTotal);
+      }
+    }
+    /**
+     * Dispatches the SearchResultHandled progress event.
+     * @param resultNum - The 1-based position of the handled result.
+     * @param resultTotal - The total number of results.
+     */
+    static dispatchResultHandled(resultNum, resultTotal) {
       const event = new CustomEvent("SearchResultHandled", { detail: { resultNum, resultTotal } });
       document.dispatchEvent(event);
     }
   };
+  Search.executeDeprecationWarning = `"execute" search method is deprecated, use "results" instead.`;
+  Search.resultsCache = /* @__PURE__ */ new WeakMap();
   var SearchResult = class {
     static normalizeContentWords(input) {
       const out = [];
@@ -544,33 +743,19 @@ ${JSON.stringify(kwargs)}`);
      * @param jsonResult - The JSON representation of the search result.
      */
     constructor(jsonResult) {
-      var _a;
-      this.optionalFields = [
-        "created",
-        "modified",
-        "size",
-        "status",
-        "time",
-        "norobots",
-        "name",
-        "type",
-        "content",
-        "headers",
-        "links",
-        "assets",
-        "origin"
-      ];
+      var _a, _b;
       this.result = jsonResult.result;
       this.id = jsonResult.id;
-      this.url = (_a = jsonResult.url) !== null && _a !== void 0 ? _a : null;
-      this.name = jsonResult.name;
+      this.url = (_a = jsonResult.url) !== null && _a !== void 0 ? _a : "";
+      this.name = (_b = jsonResult.name) !== null && _b !== void 0 ? _b : "";
       this.processedContent = "";
-      for (let field of this.optionalFields) {
+      for (const field of SearchResult.optionalFields) {
         if (field in jsonResult) {
+          const value = jsonResult[field];
           if (field === "created" || field === "modified") {
-            this[field] = new Date(jsonResult[field]);
+            this[field] = new Date(value);
           } else {
-            this[field] = jsonResult[field];
+            this[field] = value;
           }
         }
       }
@@ -608,12 +793,13 @@ ${JSON.stringify(kwargs)}`);
      * @returns The content as plain text.
      */
     getContentTextOnly() {
+      var _a;
       const out = [];
       let element = null;
       const texts = HtmlUtils.getDocumentCleanTextIterator(this.getContent());
       element = texts.iterateNext();
       while (element !== null) {
-        let elementValue = SearchResult.normalizeContentString(element.nodeValue);
+        let elementValue = SearchResult.normalizeContentString((_a = element.nodeValue) !== null && _a !== void 0 ? _a : "");
         if (elementValue !== "") {
           const elementValueWords = elementValue.split(" ").filter((word) => word !== "");
           if (elementValueWords.length > 0) {
@@ -652,12 +838,28 @@ ${JSON.stringify(kwargs)}`);
   };
   SearchResult.wordPunctuationRe = /\s+(?=[\.,;:!\?] )/g;
   SearchResult.wordWhitespaceRe = /\s+/g;
+  SearchResult.optionalFields = [
+    "created",
+    "modified",
+    "size",
+    "status",
+    "time",
+    "norobots",
+    "name",
+    "type",
+    "content",
+    "headers",
+    "links",
+    "assets",
+    "origin"
+  ];
   var Crawl = class {
     /**
      * Creates an instance of Crawl.
      * @param params - Configuration object containing id, project, created, modified, complete, time, and report
      */
     constructor(params) {
+      var _a, _b, _c, _d, _e;
       this.id = -1;
       this.project = -1;
       this.created = null;
@@ -666,29 +868,29 @@ ${JSON.stringify(kwargs)}`);
       this.report = null;
       this.id = params.id;
       this.project = params.project;
-      this.created = params.created;
-      this.modified = params.modified;
-      this.complete = params.complete;
-      this.time = params.time;
-      this.report = params.report;
+      this.created = (_a = params.created) !== null && _a !== void 0 ? _a : null;
+      this.modified = (_b = params.modified) !== null && _b !== void 0 ? _b : null;
+      this.complete = (_c = params.complete) !== null && _c !== void 0 ? _c : false;
+      this.time = (_d = params.time) !== null && _d !== void 0 ? _d : -1;
+      this.report = (_e = params.report) !== null && _e !== void 0 ? _e : null;
     }
     /**
      * Gets the timings from the crawl report.
-     * @returns The timings object.
+     * @returns The timings object, or null (InterroBot pre-2.6).
      */
     getTimings() {
       return this.getReportDetailByKey("timings");
     }
     /**
      * Gets the sizes from the crawl report.
-     * @returns The sizes object.
+     * @returns The sizes object, or null (InterroBot pre-2.6).
      */
     getSizes() {
       return this.getReportDetailByKey("sizes");
     }
     /**
      * Gets the counts from the crawl report.
-     * @returns The counts object.
+     * @returns The counts object, or null (InterroBot pre-2.6).
      */
     getCounts() {
       return this.getReportDetailByKey("counts");
@@ -729,7 +931,8 @@ ${JSON.stringify(kwargs)}`);
      * @returns The image data URI.
      */
     getImageDataUri() {
-      return this.imageDataUri;
+      var _a;
+      return (_a = this.imageDataUri) !== null && _a !== void 0 ? _a : "";
     }
     /**
      * Gets the display title of the project.
@@ -739,10 +942,11 @@ ${JSON.stringify(kwargs)}`);
       if (this.name) {
         return this.name;
       } else if (this.url) {
-        Plugin.logWarning(Project.urlDeprectionWarning);
+        Host.logWarning(Project.urlDeprecationWarning);
         return new URL(this.url).hostname;
       } else {
-        return "[error]";
+        Host.logWarning(`project ${this.id} display title unavailable, "name" empty`);
+        return "";
       }
     }
     getDisplayUrl() {
@@ -752,23 +956,25 @@ ${JSON.stringify(kwargs)}`);
         const more = urlCount > 1 ? ` + ${urlCount - 1} more` : "";
         return `${firstUrl}${more}`;
       } else if (this.url) {
-        Plugin.logWarning(Project.urlDeprectionWarning);
+        Host.logWarning(Project.urlDeprecationWarning);
         return new URL(this.url).hostname;
       } else {
-        return "[error]";
+        Host.logWarning(`project ${this.id} display url unavailable, "urls" empty`);
+        return "";
       }
     }
     /**
      * Gets a project by its ID from the API.
      * @param id - The project ID.
-     * @returns A promise that resolves to a Project instance, or null if not found.
+     * @returns A promise that resolves to a Project instance.
+     * @throws If no project matches the id.
      */
     static async getApiProject(id) {
       const kwargs = {
         "projects": [id],
         "fields": ["image", "created", "modified", "urls"]
       };
-      const projects = await Plugin.postApiRequest("GetProjects", kwargs);
+      const projects = await Host.postApiRequest("GetProjects", kwargs);
       const results = projects.results;
       for (let i = 0; i < results.length; i++) {
         const project = results[i];
@@ -788,7 +994,7 @@ ${JSON.stringify(kwargs)}`);
           });
         }
       }
-      return null;
+      throw new Error(`project id=${id} not found`);
     }
     /**
      * Gets all crawls for a project from the API.
@@ -801,7 +1007,7 @@ ${JSON.stringify(kwargs)}`);
         project,
         fields: ["created", "modified", "report", "time"]
       };
-      const response = await Plugin.postApiRequest("GetCrawls", kwargs);
+      const response = await Host.postApiRequest("GetCrawls", kwargs);
       const crawls = [];
       const crawlResults = response.results;
       for (let i = 0; i < crawlResults.length; i++) {
@@ -819,7 +1025,8 @@ ${JSON.stringify(kwargs)}`);
       return crawls;
     }
   };
-  Project.urlDeprectionWarning = `"url" field is deprecated, use "name" or "urls" instead.`;
+  Project.urlDeprecationWarning = `"url" field is deprecated, use "name" or "urls" instead.`;
+  Project.urlDeprectionWarning = Project.urlDeprecationWarning;
 
   // examples/vanillats/js/build/src/ts/core/touch.js
   var TouchProxy = class {
@@ -843,9 +1050,7 @@ ${JSON.stringify(kwargs)}`);
      * @param ev - The TouchEvent to be proxied.
      */
     async proxyToContainer(ev) {
-      var _a;
       let primeTouch;
-      let touches = (_a = ev.touches) !== null && _a !== void 0 ? _a : ev.changedTouches;
       if (ev.touches.length === 1) {
         primeTouch = ev.touches[0];
       } else if (ev.changedTouches.length === 1) {
@@ -868,17 +1073,9 @@ ${JSON.stringify(kwargs)}`);
         force: primeTouch.force,
         eventType: ev.type
       };
-      const msg = {
-        target: "interrobot",
-        data: {
-          reportTouch: touchData
-        }
-      };
-      window.parent.postMessage(msg, "*");
-    }
-    async touchEnd(ev) {
-    }
-    async touchMove(ev) {
+      Host.postToHost({
+        reportTouch: touchData
+      });
     }
   };
 
@@ -888,65 +1085,16 @@ ${JSON.stringify(kwargs)}`);
     DarkMode2[DarkMode2["Light"] = 0] = "Light";
     DarkMode2[DarkMode2["Dark"] = 1] = "Dark";
   })(DarkMode || (DarkMode = {}));
-  var PluginConnection = class {
-    /**
-     * Creates a new PluginConnection instance.
-     * @param iframeSrc - The source URL of the iframe.
-     * @param hostOrigin - The origin of the host (optional).
-     */
-    constructor(iframeSrc, hostOrigin) {
-      this.iframeSrc = iframeSrc;
-      if (hostOrigin) {
-        this.hostOrigin = hostOrigin;
-      } else {
-        this.hostOrigin = "";
-      }
-      const url = new URL(iframeSrc);
-      if (iframeSrc === "about:srcdoc") {
-        this.pluginOrigin = "about:srcdoc";
-      } else {
-        this.pluginOrigin = url.origin;
-      }
-    }
-    /**
-     * Gets the iframe source URL.
-     * @returns The iframe source URL.
-     */
-    getIframeSrc() {
-      return this.iframeSrc;
-    }
-    /**
-     * Gets the host origin.
-     * @returns The host origin.
-     */
-    getHostOrigin() {
-      return this.hostOrigin;
-    }
-    /**
-     * Gets the plugin origin.
-     * @returns The plugin origin.
-     */
-    getPluginOrigin() {
-      return this.pluginOrigin;
-    }
-    /**
-     * Returns a string representation of the connection.
-     * @returns A string describing the host and plugin origins.
-     */
-    toString() {
-      return `host = ${this.hostOrigin}; plugin = ${this.pluginOrigin}`;
-    }
-  };
   var Plugin = class {
     /**
      * Initializes the plugin class.
-     * @param classtype - The class type to initialize.
-     * @returns An instance of the initialized class.
+     * @param classtype - The plugin subclass to instantiate when the page is ready.
+     * @returns A promise resolving to the instance of the initialized class.
      */
     static async initialize(classtype) {
       const createAndConfigure = () => {
-        let instance = new classtype();
-        Plugin.postMeta(instance.constructor.meta);
+        const instance = new classtype();
+        Plugin.postMeta(instance.getInstanceMeta());
         window.addEventListener("load", () => Plugin.postContentHeight());
         window.addEventListener("resize", () => Plugin.postContentHeight());
         return instance;
@@ -972,13 +1120,9 @@ ${JSON.stringify(kwargs)}`);
       }
       if (currentScrollHeight !== Plugin.contentScrollHeight) {
         const constrainedHeight = constrainTo && constrainTo >= 1 ? Math.min(constrainTo, currentScrollHeight) : currentScrollHeight;
-        const msg = {
-          target: "interrobot",
-          data: {
-            reportHeight: constrainedHeight
-          }
-        };
-        Plugin.routeMessage(msg);
+        Plugin.postToHost({
+          reportHeight: constrainedHeight
+        });
       }
     }
     /**
@@ -987,72 +1131,39 @@ ${JSON.stringify(kwargs)}`);
      * @param openInBrowser - Whether to open the link in a browser.
      */
     static postOpenResourceLink(resource, openInBrowser) {
-      const msg = {
-        target: "interrobot",
-        data: {
-          reportLink: {
-            openInBrowser,
-            resource
-          }
+      Plugin.postToHost({
+        reportLink: {
+          openInBrowser,
+          resource
         }
-      };
-      Plugin.routeMessage(msg);
+      });
     }
     /**
      * Posts plugin metadata to the parent frame.
      * @param meta - The metadata object to post.
      */
     static postMeta(meta) {
-      const msg = {
-        target: "interrobot",
-        data: {
-          reportMeta: meta
-        }
-      };
-      Plugin.routeMessage(msg);
+      Plugin.postToHost({
+        reportMeta: meta
+      });
     }
     /**
-     * Sends an API request to the parent frame.
+     * Wraps data in the host message envelope and delivers it to the host
+     * frame. See Host.postToHost().
+     * @param data - The payload, e.g. { reportHeight: 640 }.
+     */
+    static postToHost(data) {
+      Host.postToHost(data);
+    }
+    /**
+     * Sends an API request to the parent frame. See Host.postApiRequest().
      * @param apiMethod - The API method to call.
      * @param apiKwargs - The arguments for the API call.
+     * @param timeoutMillis - Milliseconds before the request rejects (default 300000).
      * @returns A promise that resolves with the API response.
      */
-    static async postApiRequest(apiMethod, apiKwargs) {
-      let result = null;
-      const getPromisedResult = async () => {
-        return new Promise((resolve) => {
-          const listener = async (ev) => {
-            var _a;
-            if (ev === void 0) {
-              return;
-            }
-            const evData = ev.data;
-            const evDataData = (_a = evData.data) !== null && _a !== void 0 ? _a : {};
-            if (evDataData && typeof evDataData === "object" && evDataData.hasOwnProperty("apiResponse")) {
-              const resultMethod = evDataData.apiResponse["__meta__"]["request"]["method"];
-              if (apiMethod === resultMethod) {
-                result = evData.data.apiResponse;
-                window.removeEventListener("message", listener);
-                resolve();
-              } else {
-              }
-            }
-          };
-          const msg = {
-            target: "interrobot",
-            data: {
-              apiRequest: {
-                method: apiMethod,
-                kwargs: apiKwargs
-              }
-            }
-          };
-          window.addEventListener("message", listener);
-          Plugin.routeMessage(msg);
-        });
-      };
-      await getPromisedResult();
-      return result;
+    static async postApiRequest(apiMethod, apiKwargs, timeoutMillis = 3e5) {
+      return Host.postApiRequest(apiMethod, apiKwargs, timeoutMillis);
     }
     /**
      * Logs timing information to the console.
@@ -1060,32 +1171,28 @@ ${JSON.stringify(kwargs)}`);
      * @param millis - The time in milliseconds.
      */
     static logTiming(msg, millis) {
-      const seconds = (millis / 1e3).toFixed(3);
-      console.log(`\u{1F916} [${seconds}s] ${msg}`);
+      Host.logTiming(msg, millis);
     }
     /**
      * Logs warning information to the console.
      * @param msg - The message to log.
      */
     static logWarning(msg, ex = null) {
-      const newlinedError = ex ? `
-${ex}` : "";
-      console.warn(`\u{1F916} ${msg}${newlinedError}`);
+      Host.logWarning(msg, ex);
     }
     /**
-     * Routes a message to the parent frame.
-     * @param msg - The message to route.
+     * Sleeps for the specified number of milliseconds. Useful to give the
+     * main thread a break to paint (e.g. progress ui) mid-processing.
+     * @param millis - The number of milliseconds to sleep.
      */
-    static routeMessage(msg) {
-      let parentOrigin = "";
-      if (Plugin.connection) {
-        parentOrigin = Plugin.connection.getHostOrigin();
-        window.parent.postMessage(msg, parentOrigin);
-      } else {
-        window.parent.postMessage(msg);
-      }
+    static async sleep(millis) {
+      return Host.sleep(millis);
     }
+    /** @deprecated casing, use getStaticBasePath() */
     static GetStaticBasePath() {
+      return Plugin.getStaticBasePath();
+    }
+    static getStaticBasePath() {
       function isLinux() {
         if ("userAgentData" in navigator && navigator.userAgentData) {
           const platform = navigator.userAgentData.platform.toLowerCase();
@@ -1105,23 +1212,26 @@ ${ex}` : "";
      * Creates a new Plugin instance.
      */
     constructor() {
+      var _a, _b, _c, _d, _e;
+      this.data = null;
       this.projectId = -1;
       this.mode = DarkMode.Light;
+      this.project = null;
       let paramProject;
       let paramMode;
       let paramOrigin;
       if (this.parentIsOrigin()) {
         const ifx = window.parent.document.getElementById("report");
-        paramProject = parseInt(ifx.dataset.project, 10);
-        paramMode = parseInt(ifx.dataset.mode, 10);
-        paramOrigin = ifx.dataset.origin;
+        paramProject = parseInt((_a = ifx === null || ifx === void 0 ? void 0 : ifx.dataset.project) !== null && _a !== void 0 ? _a : "", 10);
+        paramMode = parseInt((_b = ifx === null || ifx === void 0 ? void 0 : ifx.dataset.mode) !== null && _b !== void 0 ? _b : "", 10);
+        paramOrigin = (_c = ifx === null || ifx === void 0 ? void 0 : ifx.dataset.origin) !== null && _c !== void 0 ? _c : null;
       } else {
         const urlSearchParams = new URLSearchParams(window.location.search);
-        paramProject = parseInt(urlSearchParams.get("project"), 10);
-        paramMode = parseInt(urlSearchParams.get("mode"), 10);
+        paramProject = parseInt((_d = urlSearchParams.get("project")) !== null && _d !== void 0 ? _d : "", 10);
+        paramMode = parseInt((_e = urlSearchParams.get("mode")) !== null && _e !== void 0 ? _e : "", 10);
         paramOrigin = urlSearchParams.get("origin");
       }
-      Plugin.connection = new PluginConnection(document.location.href, paramOrigin);
+      Host.setConnection(new PluginConnection(document.location.href, paramOrigin));
       if (isNaN(paramProject)) {
         const errorMessage = `missing project url argument`;
         throw new Error(errorMessage);
@@ -1141,7 +1251,7 @@ ${ex}` : "";
      * @returns A promise that resolves after the specified delay.
      */
     delay(ms) {
-      return new Promise((resolve) => setTimeout(resolve, ms));
+      return Plugin.sleep(ms);
     }
     /**
      * Gets the current mode.
@@ -1162,7 +1272,7 @@ ${ex}` : "";
      * @returns the class meta.
      */
     getInstanceMeta() {
-      return this.constructor["meta"];
+      return this.constructor.meta;
     }
     /**
      * Initializes the plugin data.
@@ -1189,19 +1299,35 @@ ${ex}` : "";
       return this.data;
     }
     /**
-     * Gets the current project.
+     * Gets the plugin's project. Cached after first fetch.
      * @returns A promise that resolves with the current Project.
+     * @throws If the project can't be retrieved — an unrecoverable
+     *   state, the host supplied the project id at load.
      */
     async getProject() {
-      if (this.project === void 0) {
-        const project = await Project.getApiProject(this.projectId);
-        if (project === null) {
-          const errorMessage = `project id=${this.projectId} not found`;
-          throw new Error(errorMessage);
-        }
-        this.project = project;
+      if (this.project === null) {
+        this.project = await Project.getApiProject(this.projectId);
       }
       return this.project;
+    }
+    /**
+     * Streams search results for this plugin's project, paginating
+     * internally. The simplest path from query to results:
+     *
+     *     for await (const result of this.search("headers: text/html", { fields: ["name"] })) {
+     *         // result is a SearchResult
+     *     }
+     *
+     * @param query - The query, exactly as you'd type it into InterroBot search.
+     * @param options - Optional SearchQuery params (fields, type, sort, etc.); project and query come from context.
+     * @returns An async generator yielding each SearchResult.
+     */
+    search(query, options) {
+      return Search.results(new SearchQuery({
+        project: this.projectId,
+        query,
+        ...options
+      }));
     }
     /**
      * Renders HTML content in the document body.
@@ -1214,13 +1340,14 @@ ${ex}` : "";
      * Initializes the plugin index page.
      */
     async index() {
-      const project = await Project.getApiProject(this.getProjectId());
+      var _a;
+      const project = await this.getProject();
       const encodedTitle = HtmlUtils.htmlEncode(project.getDisplayTitle());
-      const encodedMetaTitle = HtmlUtils.htmlEncode(Plugin.meta["title"]);
+      const encodedMetaTitle = HtmlUtils.htmlEncode((_a = this.getInstanceMeta()["title"]) !== null && _a !== void 0 ? _a : "");
       this.render(`
             <div class="main__heading">
                 <div class="main__heading__icon">
-                    <img id="projectIcon" src="${project.getImageDataUri()}" alt="Icon for ${encodedTitle}" />
+                    <img id="projectIcon" src="${HtmlUtils.htmlEncode(project.getImageDataUri())}" alt="Icon for ${encodedTitle}" />
                 </div>
                 <div class="main__heading__title">
                     <h1>${encodedMetaTitle}</h1>
@@ -1245,38 +1372,14 @@ ${ex}` : "";
      * Processes the plugin data.
      */
     async process() {
+      var _a;
       const titleWords = /* @__PURE__ */ new Map();
-      let resultsMap;
-      const exampleResultHandler = async (result, titleWordsMap) => {
+      for await (const result of this.search("headers: text/html", { fields: ["name"], includeExternal: false })) {
         const terms = result.name.trim().split(/[\s\-—]+/g);
-        for (let term of terms) {
-          if (!titleWordsMap.has(term)) {
-            titleWordsMap.set(term, 1);
-          } else {
-            const currentCount = titleWordsMap.get(term);
-            titleWordsMap.set(term, currentCount + 1);
-          }
+        for (const term of terms) {
+          titleWords.set(term, ((_a = titleWords.get(term)) !== null && _a !== void 0 ? _a : 0) + 1);
         }
-      };
-      const projectId = this.getProjectId();
-      const freeQueryString = "headers: text/html";
-      const fields = ["name"];
-      const internalHtmlPagesQuery = new SearchQuery({
-        project: projectId,
-        query: freeQueryString,
-        fields,
-        type: SearchQueryType.Any,
-        includeExternal: false,
-        includeNoRobots: false
-      });
-      const options = {
-        paginate: true,
-        showProgress: false,
-        progressMessage: "Processing\u2026"
-      };
-      await Search.execute(internalHtmlPagesQuery, resultsMap, async (result) => {
-        await exampleResultHandler(result, titleWords);
-      }, options);
+      }
       await this.report(titleWords);
     }
     /**
@@ -1284,6 +1387,7 @@ ${ex}` : "";
      * @param titleWords - A map of title words and their counts.
      */
     async report(titleWords) {
+      var _a;
       const titleWordsRemap = new Map([...titleWords.entries()].sort((a, b) => {
         const aVal = a[1];
         const bVal = b[1];
@@ -1295,15 +1399,17 @@ ${ex}` : "";
       }));
       const tableRows = [];
       for (let term of titleWordsRemap.keys()) {
-        const count = titleWordsRemap.get(term);
-        const truncatedTerm = term.length > 24 ? term.substring(24) + "\u2026" : term;
+        const count = (_a = titleWordsRemap.get(term)) !== null && _a !== void 0 ? _a : 0;
+        const truncatedTerm = term.length > 24 ? term.substring(0, 24) + "\u2026" : term;
         tableRows.push(`<tr><td>${HtmlUtils.htmlEncode(truncatedTerm)}</td><td>${count.toLocaleString()}</td></tr>`);
       }
       const resultsElement = document.querySelector(".main__results");
-      resultsElement.innerHTML = tableRows.length === 0 ? `<p>No results found.</p>` : `<div><section><table style="max-width:340px">
-            <thead><tr><th>Term</th><th>Count</th></tr></thead>
-            <tbody>${tableRows.join("")}</tbody>
-            </table></section></div>`;
+      if (resultsElement) {
+        resultsElement.innerHTML = tableRows.length === 0 ? `<p>No results found.</p>` : `<div><section><table style="max-width:340px">
+                <thead><tr><th>Term</th><th>Count</th></tr></thead>
+                <tbody>${tableRows.join("")}</tbody>
+                </table></section></div>`;
+      }
       Plugin.postContentHeight();
     }
     parentIsOrigin() {
@@ -1311,11 +1417,7 @@ ${ex}` : "";
         if (!window.parent || window.parent === window) {
           return false;
         }
-        let parentDocument = window.parent.document;
-        if (!parentDocument) {
-          return false;
-        }
-        return !parentDocument.hidden;
+        return Boolean(window.parent.document);
       } catch {
         return false;
       }
@@ -1334,7 +1436,7 @@ This is the default plugin description. Set meta: {} values
         in the source to update these display values.`
   };
 
-  // examples/vanillats/js/build/src/ts/ui/processing.js
+  // examples/vanillats/js/build/examples/vanillats/ts/ui/processing.js
   var HtmlProcessingWidget = class {
     /**
      * Creates a new HtmlProcessingWidget and appends it to the specified parent element.
@@ -1357,6 +1459,7 @@ This is the default plugin description. Set meta: {} values
      * @param {string} prefix - The prefix text to display before the progress information.
      */
     constructor(prefix) {
+      this.lastRenderedPercent = -1;
       this.prefix = prefix;
       this.total = 0;
       this.loaded = 0;
@@ -1369,26 +1472,32 @@ This is the default plugin description. Set meta: {} values
         if (this.active === false) {
           return;
         }
-        const evdTotal = ev.detail.resultTotal;
-        const evdLoaded = ev.detail.resultNum;
+        const detail = ev.detail;
+        const evdTotal = detail.resultTotal;
+        const evdLoaded = detail.resultNum;
         const evdPercent = Math.ceil(evdLoaded / evdTotal * 100);
-        const currentPercent = Math.ceil(this.loaded / this.total * 100);
-        if (evdPercent > 100 || currentPercent === 100) {
+        const currentPercent = this.total > 0 ? Math.ceil(this.loaded / this.total * 100) : 0;
+        const newRun = evdTotal !== this.total || evdLoaded === 1;
+        if (evdPercent > 100 || currentPercent === 100 && !newRun) {
           this.baseElement.classList.remove("throbbing");
           return;
         }
         this.total = evdTotal;
         this.loaded = evdLoaded;
+        if (evdPercent === this.lastRenderedPercent && evdLoaded !== evdTotal && !newRun) {
+          return;
+        }
+        this.lastRenderedPercent = evdPercent;
         this.baseElement.innerHTML = evdPercent > 100 ? "" : `${this.prefix}
                 <span class="resultNum">##</span>/<span class="resultTotal">##</span>
                 (<span class="percentTotal">##</span>)`;
         const resultNum = this.baseElement.querySelector(".resultNum");
         if (resultNum) {
-          resultNum.innerText = `${ev.detail.resultNum.toLocaleString()}`;
+          resultNum.innerText = `${detail.resultNum.toLocaleString()}`;
         }
         const resultTotal = this.baseElement.querySelector(".resultTotal");
         if (resultTotal) {
-          resultTotal.innerText = `${ev.detail.resultTotal.toLocaleString()}`;
+          resultTotal.innerText = `${detail.resultTotal.toLocaleString()}`;
         }
         const percentTotal = this.baseElement.querySelector(".percentTotal");
         if (percentTotal) {
@@ -1404,11 +1513,12 @@ This is the default plugin description. Set meta: {} values
         if (this.active === false) {
           return;
         }
-        const action = ev.detail.action;
+        const detail = ev.detail;
+        const action = detail.action;
         switch (action) {
           case "set":
             this.baseElement.innerHTML = ``;
-            this.baseElement.innerText = ev.detail.message;
+            this.baseElement.innerText = detail.message;
             this.baseElement.classList.add("throbbing");
             break;
           case "clear":
@@ -1455,7 +1565,7 @@ This is the default plugin description. Set meta: {} values
     }
   };
 
-  // examples/vanillats/js/build/src/ts/ui/templates.js
+  // examples/vanillats/js/build/examples/vanillats/ts/ui/templates.js
   var Templates = class {
     /**
      * Generates a standard heading HTML structure.
@@ -1466,7 +1576,7 @@ This is the default plugin description. Set meta: {} values
     static standardHeading(project, title) {
       return `<div class="main__heading">
             <div class="main__heading__icon">
-                <img id="projectIcon" src="${project.getImageDataUri()}" alt="Icon for @crawlView.DisplayTitle" />
+                <img id="projectIcon" src="${HtmlUtils.htmlEncode(project.getImageDataUri())}" alt="Icon for ${HtmlUtils.htmlEncode(project.getDisplayTitle())}" />
             </div>
             <div class="main__heading__title">
                 <h1><span>${HtmlUtils.htmlEncode(title)}</span></h1>
@@ -1561,9 +1671,11 @@ This is the default plugin description. Set meta: {} values
      */
     static cellRendererSameAsLastLink(cellValue, rowData, i) {
       const result = Templates.cellRendererSameAsLast(cellValue, rowData, i);
-      result["content"] = `<a tabindex="0" class= "ulink" 
-            data-id="${HtmlUtils.htmlEncode(rowData["ID"])}" 
-            href="${HtmlUtils.htmlEncode(cellValue)}">${HtmlUtils.htmlEncode(cellValue)}</a>`;
+      if (/^https?:\/\//i.test(cellValue)) {
+        result.content = `<a tabindex="0" class="ulink"
+                data-id="${HtmlUtils.htmlEncode(rowData["ID"])}"
+                href="${HtmlUtils.htmlEncode(cellValue)}">${HtmlUtils.htmlEncode(cellValue)}</a>`;
+      }
       return result;
     }
     /**
@@ -1583,9 +1695,9 @@ This is the default plugin description. Set meta: {} values
       }
       const interrobotPageDetail = `${origin}/search/${projectId}/resource/${cellValue}/`;
       const result = {
-        "classes": [],
-        "content": `<a tabindex="0" href="${HtmlUtils.htmlEncode(interrobotPageDetail)}"
-                data-id="${HtmlUtils.htmlEncode(rowData["ID"])}" 
+        classes: [],
+        content: `<a tabindex="0" href="${HtmlUtils.htmlEncode(interrobotPageDetail)}"
+                data-id="${HtmlUtils.htmlEncode(rowData["ID"])}"
                 class="ulink">${HtmlUtils.htmlEncode(cellValue)}</a>`
       };
       return result;
@@ -1599,23 +1711,1328 @@ This is the default plugin description. Set meta: {} values
      */
     static cellRendererWrappedContent(cellValue, rowData, i) {
       return {
-        "classes": ["wrap"],
-        "content": `${HtmlUtils.htmlEncode(cellValue)}`
+        classes: ["wrap"],
+        content: `${HtmlUtils.htmlEncode(cellValue)}`
       };
     }
   };
   Templates.cellHandlerSameAsLastMemo = {};
 
-  // examples/vanillats/js/build/src/ts/core/stopwords.js
+  // examples/vanillats/js/build/examples/vanillats/ts/ui/table.js
+  var SortOrder;
+  (function(SortOrder2) {
+    SortOrder2[SortOrder2["Ascending"] = 0] = "Ascending";
+    SortOrder2[SortOrder2["Descending"] = 1] = "Descending";
+  })(SortOrder || (SortOrder = {}));
+  var HTMLResultsTablePage = class {
+    constructor(label, offset, limit, extended) {
+      this.label = label;
+      this.offset = offset;
+      this.limit = limit;
+      this.extended = extended;
+    }
+  };
+  var HTMLResultsTableSort = class {
+    /**
+     * Creates a new instance of HTMLResultsTableSort.
+     * @param primaryHeading - The primary heading to sort by.
+     * @param primarySort - The sort order for the primary heading.
+     * @param secondaryHeading - The secondary heading to sort by.
+     * @param secondarySort - The sort order for the secondary heading.
+     */
+    constructor(primaryHeading, primarySort, secondaryHeading, secondarySort) {
+      this.primaryHeading = primaryHeading;
+      this.primarySort = primarySort;
+      this.secondaryHeading = secondaryHeading;
+      this.secondarySort = secondarySort;
+    }
+  };
+  var HtmlResultsTable = class {
+    /**
+     * Creates a new HtmlResultsTable and appends it to the parent element.
+     * @deprecated Use create() instead. This method will be removed at some point tbd.
+     * @param parentElement - The parent element to append the table to.
+     * @param project - The project number.
+     * @param perPage - The number of items per page.
+     * @param header - The header text for the table.
+     * @param headings - The column headings.
+     * @param results - The data to be displayed in the table.
+     * @param resultsSort - The initial sorting configuration.
+     * @param rowRenderer - A function to render custom rows.
+     * @param cellRenderer - An object with functions to render custom cells.
+     * @param cellHandler - A function to handle cell events.
+     * @param exportExtra - Additional data for export.
+     * @returns A new instance of HtmlResultsTable.
+     */
+    static createElement(parentElement, project, perPage, header, headings, results, resultsSort, rowRenderer, cellRenderer, cellHandler, exportExtra) {
+      console.warn("createElement() is deprecated, use create()");
+      const pagedTable = new HtmlResultsTable(project, perPage, header, headings, results, resultsSort, rowRenderer, cellRenderer, cellHandler, exportExtra);
+      parentElement === null || parentElement === void 0 ? void 0 : parentElement.appendChild(pagedTable.baseElement);
+      Plugin.postContentHeight();
+      return pagedTable;
+    }
+    static create(config) {
+      const {
+        container,
+        project,
+        headings,
+        results,
+        perPage = 20,
+        // sensible default
+        header = "",
+        resultsSort = new HTMLResultsTableSort("ID", SortOrder.Ascending, "ID", SortOrder.Ascending),
+        rowRenderer = null,
+        cellRenderer = null,
+        cellHandler = null,
+        exportExtra = null
+      } = config;
+      const pagedTable = new HtmlResultsTable(project, perPage, header, headings, results, resultsSort, rowRenderer, cellRenderer, cellHandler, exportExtra);
+      container === null || container === void 0 ? void 0 : container.appendChild(pagedTable.baseElement);
+      Plugin.postContentHeight();
+      return pagedTable;
+    }
+    /**
+     * Generates a formatted column number.
+     * @param num - The number to format.
+     * @returns A string representation of the formatted number.
+     */
+    static generateFormatedColumnNumber(num) {
+      return `${num.toString().padStart(2, "0")}.`;
+    }
+    /**
+     * Helper function for sorting results.
+     * @param a - First value to compare.
+     * @param aNum - Numeric representation of the first value.
+     * @param aIsNum - Indicates if the first value is a number.
+     * @param b - Second value to compare.
+     * @param bNum - Numeric representation of the second value.
+     * @param bIsNum - Indicates if the second value is a number.
+     * @param sortOrder - The sort order to apply.
+     * @returns A number indicating the sort order of the two values.
+     */
+    static sortResultsHelper(a, aNum, aIsNum, b, bNum, bIsNum, sortOrder) {
+      if (aIsNum && bIsNum) {
+        if (sortOrder === SortOrder.Ascending) {
+          return aNum - bNum;
+        } else {
+          return bNum - aNum;
+        }
+      } else if (a !== void 0 && b !== void 0) {
+        if (sortOrder === SortOrder.Ascending) {
+          return a.localeCompare(b);
+        } else {
+          return b.localeCompare(a);
+        }
+      } else {
+        console.warn(`sort failure: ${a}, ${b}`);
+        return 0;
+      }
+    }
+    /**
+     * Creates a new instance of HtmlResultsTable.
+     * @param project - The project number.
+     * @param perPage - The number of items per page.
+     * @param header - The header text for the table.
+     * @param headings - The column headings.
+     * @param results - The data to be displayed in the table.
+     * @param resultsSort - The initial sorting configuration.
+     * @param rowRenderer - A function to render custom rows.
+     * @param cellRenderer - An object with functions to render custom cells.
+     * @param cellHandler - A function to handle cell events.
+     * @param exportExtra - Additional data for export.
+     */
+    constructor(project, perPage, header, headings, results, resultsSort, rowRenderer, cellRenderer, cellHandler, exportExtra) {
+      this.paginationEdgeRangeDesktop = 2;
+      this.paginationEdgeRangeMobile = 1;
+      this.baseElement = document.createElement("div");
+      this.header = header;
+      this.results = results;
+      this.resultsSort = resultsSort;
+      this.headings = headings;
+      this.perPage = perPage;
+      this.project = project;
+      this.resultsCount = results.length;
+      this.resultsOffset = 0;
+      this.cellRenderer = cellRenderer;
+      this.rowRenderer = rowRenderer;
+      this.cellHandler = cellHandler;
+      this.exportExtra = exportExtra;
+      this.scrollHandler = (ev) => {
+        var _a;
+        const evData = ev.data;
+        if (evData == null) {
+          this.setStickyHeaders(0);
+          return;
+        }
+        const evDataData = evData.data;
+        const scrollY = (_a = evDataData === null || evDataData === void 0 ? void 0 : evDataData.reportScrollY) !== null && _a !== void 0 ? _a : null;
+        if (scrollY === null || (evData === null || evData === void 0 ? void 0 : evData.target) !== "interrobot") {
+          return;
+        }
+        this.setStickyHeaders(scrollY);
+      };
+      this.navHandler = (ev) => {
+        var _a;
+        this.resultsOffset = parseInt((_a = ev.target.dataset.offset) !== null && _a !== void 0 ? _a : "0");
+        this.renderSection();
+        Plugin.postContentHeight();
+      };
+      this.browserLinkHandler = (ev) => {
+        const anchor = ev.target;
+        const openInBrowser = true;
+        Plugin.postOpenResourceLink(Number(anchor.dataset.id), openInBrowser);
+        ev.preventDefault();
+        ev.stopPropagation();
+      };
+      this.appLinkHandler = (ev) => {
+        const anchor = ev.target;
+        const openInBrowser = false;
+        Plugin.postOpenResourceLink(Number(anchor.dataset.id), openInBrowser);
+        ev.preventDefault();
+        ev.stopPropagation();
+      };
+      this.sortableHandler = (ev) => {
+        var _a;
+        ev.preventDefault();
+        if (this.results.length === 0) {
+          return;
+        }
+        const anchor = ev.currentTarget;
+        let sortHeading = (_a = anchor.dataset["heading"]) !== null && _a !== void 0 ? _a : "";
+        let sortOrder;
+        if (this.resultsSort.primaryHeading === sortHeading) {
+          sortOrder = this.resultsSort.primarySort === SortOrder.Ascending ? SortOrder.Descending : SortOrder.Ascending;
+        } else {
+          sortOrder = SortOrder.Ascending;
+        }
+        this.resultsSort.primaryHeading = sortHeading;
+        this.resultsSort.primarySort = sortOrder;
+        this.resultsOffset = 0;
+        this.sortResults();
+        this.renderSection();
+        Plugin.postToHost({
+          reportScrollToTop: true
+        });
+      };
+      this.tableTouchStartHandler = (ev) => {
+        var _a;
+        (_a = document.querySelector(".wrap")) === null || _a === void 0 ? void 0 : _a.classList.add("dragging");
+        ev.stopPropagation();
+      };
+      this.tableTouchEndHandler = (ev) => {
+        var _a;
+        (_a = document.querySelector(".wrap")) === null || _a === void 0 ? void 0 : _a.classList.remove("dragging");
+        ev.stopPropagation();
+      };
+      this.tableTouchMoveHandler = (ev) => {
+        ev.stopPropagation();
+      };
+      this.downloadMenuHandler = (ev) => {
+        const dlLinks = this.baseElement.querySelector(".info__dl");
+        if (dlLinks !== null) {
+          dlLinks.classList.toggle("visible");
+          ev.preventDefault();
+        }
+      };
+      this.downloadHandler = (ev) => {
+        var _a, _b;
+        ev.preventDefault();
+        const dlLinks = this.baseElement.querySelector(".info__dl");
+        dlLinks.classList.remove("visible");
+        let exportHeaders = this.headings.concat(Object.keys((_a = this.exportExtra) !== null && _a !== void 0 ? _a : {}));
+        let truncatedExport = false;
+        if (exportHeaders[0] === "") {
+          truncatedExport = true;
+          exportHeaders.shift();
+        }
+        const exportRows = [];
+        for (let i = 0; i < this.results.length; i++) {
+          const result = this.results[i];
+          const resultValues = Object.values((_b = this.exportExtra) !== null && _b !== void 0 ? _b : {});
+          const textResultValues = [];
+          for (let resultValue of resultValues) {
+            if (typeof resultValue === "function") {
+              const returned = resultValue(i);
+              textResultValues.push(returned);
+            } else {
+              textResultValues.push(resultValue.toString());
+            }
+          }
+          if (truncatedExport) {
+            exportRows.push(result.slice(1).concat(textResultValues));
+          } else {
+            exportRows.push(result.concat(textResultValues));
+          }
+        }
+        Plugin.postToHost({
+          reportExport: {
+            format: ev.target.dataset.format,
+            headers: exportHeaders,
+            rows: exportRows
+          }
+        });
+      };
+      this.renderSection();
+    }
+    /**
+     * Gets the index of a heading in the headings array.
+     * @param headingLabel - The label of the heading to find.
+     * @returns The index of the heading, or -1 if not found.
+     */
+    getHeadingIndex(headingLabel) {
+      return this.headings.indexOf(headingLabel);
+    }
+    /**
+     * Gets the results data.
+     * @returns The results data as a 2D array of strings.
+     */
+    getResults() {
+      return this.results;
+    }
+    /**
+     * Gets the headings of the table.
+     * @returns An array of heading strings.
+     */
+    getHeadings() {
+      return this.headings;
+    }
+    /**
+     * Gets the current sorting configuration.
+     * @returns The current HTMLResultsTableSort object.
+     */
+    getResultsSort() {
+      return this.resultsSort;
+    }
+    /**
+     * Sets the sticky headers based on the current scroll position.
+     * @param scrollY - The current vertical scroll position.
+     */
+    setStickyHeaders(scrollY) {
+      const thead = this.baseElement.querySelector("thead");
+      const table = thead === null || thead === void 0 ? void 0 : thead.parentElement;
+      if (thead === null || table === null) {
+        return;
+      }
+      const rect = table.getBoundingClientRect();
+      const inTable = rect.top <= scrollY && scrollY <= rect.bottom;
+      if (inTable) {
+        thead.classList.add("sticky");
+        thead.style.top = `${scrollY - rect.top}px`;
+      } else {
+        thead.classList.remove("sticky");
+        thead.style.top = `auto`;
+      }
+      return;
+    }
+    /**
+     * Sets the current page offset.
+     * @param page - The page number to set (0-indexed).
+     */
+    setOffsetPage(page) {
+      const requestedPage = page * this.perPage;
+      if (requestedPage !== this.resultsOffset) {
+        this.resultsOffset = requestedPage;
+        this.renderSection();
+      }
+    }
+    sortResults() {
+      const primaryHeading = this.resultsSort.primaryHeading;
+      const primarySort = this.resultsSort.primarySort;
+      const primarySortOnIndex = this.getHeadingIndex(primaryHeading);
+      const secondaryHeading = this.resultsSort.secondaryHeading;
+      const secondarySort = this.resultsSort.secondarySort;
+      const secondarySortOnIndex = this.getHeadingIndex(secondaryHeading);
+      const naturalNumberRegex = /^[-+]?[0-9]+([,.]?[0-9]+)?$/;
+      if (primarySortOnIndex === -1) {
+        console.warn(`heading '${this.resultsSort.primaryHeading}' not found, aborting sort`);
+        return;
+      }
+      const compoundSort = (a, b) => {
+        const primaryAVal = a[primarySortOnIndex];
+        const primaryBVal = b[primarySortOnIndex];
+        const primaryAValNumber = naturalNumberRegex.test(primaryAVal) ? parseFloat(primaryAVal) : NaN;
+        const primaryBValNumber = naturalNumberRegex.test(primaryBVal) ? parseFloat(primaryBVal) : NaN;
+        const primaryAValIsNumber = !isNaN(primaryAValNumber);
+        const primaryBValIsNumber = !isNaN(primaryBValNumber);
+        if (primaryAVal === primaryBVal) {
+          const secondaryAVal = a[secondarySortOnIndex];
+          const secondaryAValNumber = parseFloat(secondaryAVal);
+          const secondaryAValIsNumber = !isNaN(secondaryAValNumber);
+          const secondaryBVal = b[secondarySortOnIndex];
+          const secondaryBValNumber = parseFloat(secondaryBVal);
+          const secondaryBValIsNumber = !isNaN(secondaryBValNumber);
+          return HtmlResultsTable.sortResultsHelper(secondaryAVal, secondaryAValNumber, secondaryAValIsNumber, secondaryBVal, secondaryBValNumber, secondaryBValIsNumber, secondarySort);
+        } else {
+          return HtmlResultsTable.sortResultsHelper(primaryAVal, primaryAValNumber, primaryAValIsNumber, primaryBVal, primaryBValNumber, primaryBValIsNumber, primarySort);
+        }
+      };
+      this.results.sort(compoundSort);
+      if (this.headings[0] === "") {
+        for (let i = 0; i < this.results.length; i++) {
+          this.results[i][0] = HtmlResultsTable.generateFormatedColumnNumber(i + 1);
+        }
+      }
+    }
+    getColumnClass(heading) {
+      return `column__${heading ? heading.replace(/[^\w]+/g, "").toLowerCase() : "empty"}`;
+    }
+    renderTableHeadings(headings) {
+      const out = [];
+      const svg = `<svg version="1.1" class="chevrons" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+            x="0px" y="0px" width="12px" height="20px" viewBox="6 2 12 20" enable-background="new 6 2 12 20" xml:space="preserve">
+            <title>north/south chevrons</title>
+            <polyline class="d2" fill="none" stroke="#000000" stroke-miterlimit="10" points="7.32,16.655 12.015,21.208 16.566,16.633"/>
+            <polyline class="d1" fill="none" stroke="#000000" stroke-miterlimit="10" points="7.314,13.274 12.01,17.827 16.561,13.253"/>
+            <polyline class="u2" fill="none" stroke="#000000" stroke-miterlimit="10" points="16.685,10.594 12.115,6.041 7.439,10.615"/>
+            <polyline class="u1" fill="none" stroke="#000000" stroke-miterlimit="10" points="16.679,7.345 12.11,2.792 7.434,7.365"/>
+        </svg>`;
+      for (let heading of headings) {
+        const encodedColumnClass = HtmlUtils.htmlEncode(this.getColumnClass(heading));
+        const encodedHeading = HtmlUtils.htmlEncode(heading);
+        const sortable = encodedColumnClass !== "column__empty";
+        let sortableLabel = encodedHeading;
+        let sortableChevronLink = "";
+        if (sortable) {
+          sortableLabel = `<a tabindex="0" class="sortable" data-heading="${encodedHeading}" href="#">${encodedHeading}</a>`;
+          sortableChevronLink = `<a tabindex="-1" title="${encodedHeading}" class="sortable" data-heading="${encodedHeading}" href="#">
+                    ${svg}<span class="reader">${encodedHeading}</span></a>`;
+        }
+        out.push(`<th class="${encodedColumnClass}">` + sortableLabel + " " + sortableChevronLink + `</th>`);
+      }
+      return out.join("");
+    }
+    renderTableData() {
+      const filteredExpandedRows = [];
+      const headingIdIndex = this.getHeadingIndex("ID");
+      const resultsSlice = this.results.slice(this.resultsOffset, this.resultsOffset + this.perPage);
+      for (let i = 0; i < resultsSlice.length; i++) {
+        const row = resultsSlice[i];
+        const rowHeadingMapped = {};
+        this.headings.forEach((heading, index) => {
+          rowHeadingMapped[heading] = row[index];
+        });
+        const rowCells = [];
+        const rowClasses = [];
+        if (this.rowRenderer) {
+          const result = this.rowRenderer(row, this.headings);
+          if (result.classes) {
+            rowClasses.push(...result.classes);
+          }
+        }
+        for (let j = 0; j < row.length; j++) {
+          const classes = [];
+          const cellHeading = this.headings[j];
+          classes.push(this.getColumnClass(cellHeading));
+          const cell = row[j];
+          const cellNum = Number(cell);
+          const cellIsNumeric = !isNaN(cellNum) || cell.match(/^\d+\/\d+$/) !== null;
+          if (cellIsNumeric) {
+            classes.push("numeric");
+          } else if (HtmlUtils.isUrl(cell)) {
+            classes.push("url");
+          }
+          let cellContents = `${cell}`;
+          const cellNumber = Number(cell);
+          const cellCallback = this.cellRenderer && cellHeading in this.cellRenderer ? this.cellRenderer[cellHeading] : null;
+          if (cellCallback) {
+            const callbackResult = cellCallback(cell, rowHeadingMapped, i);
+            cellContents = callbackResult.content;
+            classes.push(...callbackResult.classes);
+          } else if (cellIsNumeric && !isNaN(cellNumber) && cellHeading !== "" && cellHeading !== "ID") {
+            cellContents = `${Number(cell).toLocaleString()}`;
+          } else if (classes.indexOf("url") > -1 && /^https?:\/\//i.test(cell)) {
+            cellContents = `<a tabindex="0" 
+                        class="ulink" data-id="${HtmlUtils.htmlEncode(row[headingIdIndex])}" 
+                        href="${HtmlUtils.htmlEncode(cell)}">${HtmlUtils.htmlEncode(cell)}</a>`;
+          }
+          rowCells.push(`<td class="${HtmlUtils.htmlEncode(classes.join(" "))}">${cellContents}</td>`);
+        }
+        filteredExpandedRows.push(`<tr class="${HtmlUtils.htmlEncode(rowClasses.join(" "))}">${rowCells.join("")}</tr>`);
+      }
+      return filteredExpandedRows;
+    }
+    renderSection() {
+      this.removeHandlers();
+      if (this.resultsSort.primarySort !== null && this.resultsSort.primaryHeading !== null) {
+        this.sortResults();
+      }
+      const filteredExpandedRows = this.renderTableData();
+      if (filteredExpandedRows.length === 0) {
+        this.baseElement.innerHTML = `<section>${this.header}<p>No results found.</p></section>`;
+        return;
+      }
+      const expandedNavigation = [];
+      const resultPages = this.getPagination();
+      const navigationTest = { "\u25C0\u25C0": true, "\u25B6\u25B6": true };
+      for (let i = 0; i < resultPages.length; i++) {
+        const page = resultPages[i];
+        let classnames = [];
+        if (page.label in navigationTest) {
+          classnames.push(page.label == "\u25C0\u25C0" ? "rewind" : "fastforward");
+        } else if (page.offset === this.resultsOffset) {
+          classnames.push("current");
+        } else if (page.extended) {
+          classnames.push("extended");
+        }
+        expandedNavigation.push(`<button class="${classnames.join(" ")}" data-offset="${page.offset}">${page.label}</button>`);
+      }
+      const resultStart = this.resultsOffset + 1;
+      const resultEnd = Math.min(this.resultsCount, this.resultsOffset + this.perPage);
+      const exportIconChar = this.isCorePlugin() ? "`" : "\u229E";
+      let section = `<section>
+            ${this.header}
+            <hgroup>
+                <div class="info">
+                    <span class="info__dl export">
+                        <button class="icon">${exportIconChar}</button>
+                        <ul class="export__ulink">
+                            <li><a tabindex="0" class="ulink" href="#" data-format="csv">Export CSV</a></li>
+                            <li><a tabindex="0" class="ulink" href="#" data-format="xlsx">Export Excel</a></li>
+                        </ul>
+                    </span>
+                    <span class="info__results"><span class="info__results__nobr">
+                        ${resultStart.toLocaleString()} - ${resultEnd.toLocaleString()}</span> 
+                        <span class="info__results__nobr">of ${this.resultsCount.toLocaleString()}</span></span>
+                </div>
+                <nav>${expandedNavigation.join("")}</nav>
+            </hgroup>
+            <div class="datatable">
+                <table>
+                    <thead>
+                        <tr>
+                            ${this.renderTableHeadings(this.headings)}                        
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filteredExpandedRows.join("")}
+                    </tbody>
+                </table>
+            </div>`;
+      this.baseElement.innerHTML = section;
+      const sortables = this.baseElement.querySelectorAll(`a.sortable`);
+      for (let i = 0; i < sortables.length; i++) {
+        const sortAnchor = sortables[i];
+        sortAnchor.classList.remove("ascending", "descending");
+        if (sortAnchor.dataset.heading === this.resultsSort.primaryHeading) {
+          const sortClass = this.resultsSort.primarySort == SortOrder.Ascending ? "ascending" : "descending";
+          sortAnchor.classList.add(sortClass);
+        }
+      }
+      this.addHandlers();
+    }
+    /**
+     * Adds event handlers to the table elements.
+     */
+    addHandlers() {
+      this.applyHandlers(true);
+    }
+    /**
+     * Removes event handlers from the table elements.
+     */
+    removeHandlers() {
+      this.applyHandlers(false);
+    }
+    /**
+     * Identifies a core plugin (as true)
+     */
+    isCorePlugin() {
+      const iframed = window.self !== window.top;
+      let sameDomain = false;
+      if (iframed) {
+        try {
+          sameDomain = Boolean(window.parent.location.href);
+        } catch (e) {
+          sameDomain = false;
+        }
+      }
+      return iframed && sameDomain;
+    }
+    applyHandlers(add) {
+      const listen = (el, type, handler, options) => {
+        if (el === null) {
+          return;
+        }
+        if (add) {
+          el.addEventListener(type, handler, options);
+        } else {
+          el.removeEventListener(type, handler, options);
+        }
+      };
+      const navButtons = this.baseElement.querySelectorAll("nav button");
+      for (let i = 0; i < navButtons.length; i++) {
+        listen(navButtons[i], "click", this.navHandler);
+      }
+      const downloadLinks = this.baseElement.querySelectorAll(".info__dl .ulink");
+      for (let i = 0; i < downloadLinks.length; i++) {
+        listen(downloadLinks[i], "click", this.downloadHandler);
+      }
+      const downloadMenuToggle = this.baseElement.querySelector(".info__dl button");
+      if (downloadMenuToggle !== null) {
+        listen(downloadMenuToggle, "click", this.downloadMenuHandler);
+        const hasMouse = matchMedia("(pointer:fine)").matches && !/android/i.test(window.navigator.userAgent);
+        if (hasMouse) {
+          const dl = this.baseElement.querySelector(".info__dl");
+          dl === null || dl === void 0 ? void 0 : dl.classList.add("hasmouse");
+        }
+      }
+      const stickyHead = this.baseElement.querySelector("thead");
+      if (stickyHead !== null) {
+        listen(window, "message", this.scrollHandler);
+        listen(window, "resize", this.scrollHandler);
+      }
+      const table = this.baseElement.querySelector("table");
+      if (table !== null) {
+        listen(table, "touchstart", this.tableTouchStartHandler, { passive: true });
+        listen(table, "touchend", this.tableTouchEndHandler, { passive: true });
+        listen(table, "touchmove", this.tableTouchMoveHandler, { passive: true });
+      }
+      const customButtons = this.baseElement.querySelectorAll("button.custom");
+      if (this.cellHandler) {
+        for (const button of customButtons) {
+          listen(button, "click", this.cellHandler);
+        }
+      }
+      const browserLinks = this.baseElement.querySelectorAll("td.url a");
+      for (let i = 0; i < browserLinks.length; i++) {
+        listen(browserLinks[i], "click", this.browserLinkHandler);
+      }
+      const appLinks = this.baseElement.querySelectorAll("td.column__id a");
+      for (let i = 0; i < appLinks.length; i++) {
+        listen(appLinks[i], "click", this.appLinkHandler);
+      }
+      const sortables = this.baseElement.querySelectorAll("th a.sortable");
+      for (let i = 0; i < sortables.length; i++) {
+        listen(sortables[i], "click", this.sortableHandler);
+      }
+    }
+    /**
+     * Gets the pagination configuration.
+     * @returns An array of HTMLResultsTablePage objects representing the pagination.
+     */
+    getPagination() {
+      const pages = [];
+      let pagesAdded = 0;
+      let precedingPagesMaxDesktop = this.paginationEdgeRangeDesktop;
+      let precedingPagesMaxMobile = this.paginationEdgeRangeMobile;
+      const precedingPages = Math.ceil(this.resultsOffset / this.perPage);
+      const addPrecedingDesktopPages = Math.max(precedingPagesMaxDesktop - precedingPages, 0);
+      const addPrecedingMobilePages = Math.max(precedingPagesMaxMobile - precedingPages, 0);
+      precedingPagesMaxDesktop += Math.max(addPrecedingDesktopPages, 0);
+      precedingPagesMaxMobile += Math.max(addPrecedingMobilePages, 0);
+      let tempOffset = this.resultsOffset;
+      while (tempOffset > 0 && pagesAdded < precedingPagesMaxDesktop) {
+        tempOffset -= this.perPage;
+        const pageLinkLabel = `${tempOffset / this.perPage + 1}`;
+        const pageLink = new HTMLResultsTablePage(pageLinkLabel, tempOffset, this.perPage, pagesAdded >= precedingPagesMaxMobile);
+        pages.push(pageLink);
+        pagesAdded++;
+      }
+      if (this.resultsOffset > 0) {
+        pages.push(new HTMLResultsTablePage("\u25C0", this.resultsOffset - this.perPage, this.perPage, true));
+        pages.push(new HTMLResultsTablePage("\u25C0\u25C0", 0, this.perPage, false));
+      }
+      pages.reverse();
+      if (this.resultsCount > this.perPage) {
+        const pageLinkLabel = `${this.resultsOffset / this.perPage + 1}`;
+        const pageLink = new HTMLResultsTablePage(pageLinkLabel, this.resultsOffset, this.perPage, false);
+        pages.push(pageLink);
+      }
+      let followingPagesMaxDesktop = this.paginationEdgeRangeDesktop;
+      let followingPagesMaxMobile = this.paginationEdgeRangeMobile;
+      const followingPages = Math.ceil(this.resultsOffset / this.perPage);
+      const addFollowingDesktopPages = Math.max(followingPagesMaxDesktop - followingPages, 0);
+      const addFollowingMobilePages = Math.max(followingPagesMaxMobile - followingPages, 0);
+      followingPagesMaxDesktop += Math.max(addFollowingDesktopPages, 0);
+      followingPagesMaxMobile += Math.max(addFollowingMobilePages, 0);
+      pagesAdded = 0;
+      tempOffset = this.resultsOffset + this.perPage;
+      while (tempOffset < this.resultsCount && pagesAdded < followingPagesMaxDesktop) {
+        const pageLinkLabel = `${tempOffset / this.perPage + 1}`;
+        const pageLink = new HTMLResultsTablePage(pageLinkLabel, tempOffset, this.perPage, pagesAdded >= followingPagesMaxMobile);
+        pages.push(pageLink);
+        tempOffset += this.perPage;
+        pagesAdded++;
+      }
+      if (this.resultsCount > this.resultsOffset + this.perPage) {
+        pages.push(new HTMLResultsTablePage("\u25B6", this.resultsOffset + this.perPage, this.perPage, true));
+        let modLast = this.resultsCount - this.resultsCount % this.perPage;
+        modLast = modLast == this.resultsCount ? modLast - this.perPage : modLast;
+        pages.push(new HTMLResultsTablePage("\u25B6\u25B6", modLast, this.perPage, false));
+      }
+      return pages;
+    }
+  };
+
+  // examples/vanillats/js/build/examples/vanillats/ts/lib/typo/typo.js
+  var Rule = class {
+    /**
+     * Parses flag codes from a string representation.
+     * @param textCodes - The string containing flag codes.
+     * @param flags - An object containing flag definitions.
+     * @returns An array of parsed flag codes.
+     */
+    static parseCodes(textCodes, flags) {
+      let result = [];
+      if (!textCodes) {
+        result = [];
+      } else if (!("FLAG" in flags)) {
+        result = textCodes.split("");
+      } else if (flags.FLAG === "long") {
+        const newFlags = [];
+        for (var i = 0, _len = textCodes.length; i < _len; i += 2) {
+          newFlags.push(textCodes.substring(i, i + 2));
+        }
+        result = newFlags;
+      } else if (flags.FLAG === "num") {
+        result = textCodes.split(",");
+      } else if (flags.FLAG === "UTF-8") {
+        result = Array.from(textCodes);
+      } else {
+        result = textCodes.split("");
+      }
+      return result;
+    }
+    /**
+     * Creates a new Rule instance.
+     * @param code - The rule code.
+     * @param type - The rule type.
+     * @param combinable - Whether the rule is combinable.
+     * @param entries - An array of entries for the rule.
+     */
+    constructor(code, type, combinable, entries) {
+      this.code = code;
+      this.type = type;
+      this.combinable = combinable;
+      this.entries = entries;
+    }
+    /**
+     * Applies the rule to a word and generates new words.
+     * @param word - The base word to apply the rule to.
+     * @param rules - An object containing all available rules.
+     * @param resultWords - An array to store the generated words.
+     */
+    applyRule(word, rules, resultWords) {
+      for (let i = 0, entriesLength = this.entries.length; i < entriesLength; i++) {
+        let entry = this.entries[i];
+        if (!entry.match || entry.match.test(word)) {
+          let newWord = word;
+          if (entry.remove) {
+            newWord = newWord.replace(entry.remove, "");
+          }
+          if (this.type === "SFX") {
+            newWord = newWord + entry.add;
+          } else {
+            newWord = entry.add + newWord;
+          }
+          resultWords.push(newWord);
+          const continuationLength = entry.continuationClasses.length;
+          if (continuationLength > 0) {
+            for (let j = 0; j < continuationLength; j++) {
+              const continuationClass = entry.continuationClasses[j];
+              const continuationRule = rules[continuationClass];
+              if (continuationRule) {
+                continuationRule.applyRule(newWord, rules, resultWords);
+              }
+            }
+          }
+        }
+      }
+    }
+  };
+  var Entry = class {
+    /**
+     * Creates a new Entry instance.
+     * @param add - The string to add.
+     * @param matchStr - The match string.
+     * @param removeStr - The remove string.
+     * @param cont - An array of continuation classes.
+     */
+    constructor(add, matchStr, removeStr, cont) {
+      this.add = add ? add : null;
+      this.match = this.getMemoRegex(matchStr);
+      this.remove = this.getMemoRegex(removeStr);
+      this.continuationClasses = cont ? cont : [];
+    }
+    /**
+     * Creates an Entry instance from a line in the affix file.
+     * @param line - The line from the affix file.
+     * @param ruleType - The type of the rule.
+     * @param flags - An object containing flag definitions.
+     * @returns A new Entry instance.
+     */
+    static fromLine(line, ruleType, flags) {
+      const lineParts = line.split(/\s+/);
+      const charactersToRemove = lineParts[2];
+      const additionParts = lineParts[3] ? lineParts[3].split("/") : [];
+      const regexToMatch = lineParts[4];
+      let charactersToAdd = additionParts[0];
+      let continuations = additionParts[1];
+      if (charactersToAdd === "0") {
+        charactersToAdd = "";
+      }
+      let add = charactersToAdd;
+      let matchString = null;
+      if (regexToMatch && regexToMatch !== ".") {
+        if (ruleType === "SFX") {
+          matchString = `${regexToMatch}$`;
+        } else {
+          matchString = `^${regexToMatch}`;
+        }
+      }
+      let removeString = null;
+      if (charactersToRemove != "0") {
+        if (ruleType === "SFX") {
+          removeString = `${charactersToRemove}$`;
+        } else {
+          removeString = `${charactersToRemove}`;
+        }
+      }
+      var continuationClasses = Rule.parseCodes(continuations, flags);
+      return new Entry(add, matchString, removeString, continuationClasses);
+    }
+    getMemoRegex(reString) {
+      if (reString) {
+        if (Entry.regex[reString] === void 0) {
+          Entry.regex[reString] = this.getRegex(reString);
+        }
+      } else {
+        Entry.regex[reString] = null;
+      }
+      return Entry.regex[reString];
+    }
+    getRegex(reString) {
+      try {
+        return new RegExp(reString);
+      } catch {
+        return null;
+      }
+    }
+  };
+  Entry.regex = /* @__PURE__ */ Object.create(null);
+  var Typo = class {
+    /**
+     * Creates a new Typo instance.
+     * @param dictionary - The locale code of the dictionary.
+     * @param affData - The data from the dictionary's .aff file.
+     * @param wordsData - The data from the dictionary's .dic file.
+     * @param settings - Optional settings for the Typo instance.
+     */
+    constructor(dictionary, affData, wordsData, settings) {
+      if (!(dictionary && affData && wordsData)) {
+        const msg = `dictionary (${dictionary}) || affData (${affData}) || wordsData (${wordsData}) 
+				not provided.unlike Typo.js, all are required by the constructor.`;
+        throw new Error(msg);
+      }
+      this.dictionary = dictionary;
+      this.affData = affData;
+      this.wordsData = wordsData;
+      this.settings = settings !== null && settings !== void 0 ? settings : /* @__PURE__ */ Object.create(null);
+      this.rules = {};
+      this.combinableRules = {};
+      this.dictionaryMap = /* @__PURE__ */ new Map();
+      this.compoundRules = [];
+      this.compoundRuleCodes = {};
+      this.replacementTable = [];
+      this.flags = "flags" in this.settings ? this.settings["flags"] : /* @__PURE__ */ Object.create(null);
+      this.memoized = {};
+      this.loaded = false;
+      this.alphabet = "";
+      this.setup();
+    }
+    /**
+     * Checks whether a word exists exactly as given in the dictionary.
+     * @param word - The word to check.
+     * @returns True if the word is found, false otherwise.
+     */
+    checkExact(word) {
+      if (!this.loaded) {
+        throw "Dictionary not loaded.";
+      }
+      const ruleCodes = this.dictionaryMap.get(word);
+      let i, _len;
+      if (typeof ruleCodes === "undefined") {
+        if ("COMPOUNDMIN" in this.flags && word.length >= this.flags.COMPOUNDMIN) {
+          for (i = 0, _len = this.compoundRules.length; i < _len; i++) {
+            if (word.match(this.compoundRules[i])) {
+              return true;
+            }
+          }
+        }
+      } else if (ruleCodes === null) {
+        return true;
+      } else if (typeof ruleCodes === "object") {
+        for (i = 0, _len = ruleCodes.length; i < _len; i++) {
+          if (!this.hasFlag(word, "ONLYINCOMPOUND", [ruleCodes[i]])) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+    /**
+     * Returns a list of suggestions for a misspelled word.
+     * @see http://www.norvig.com/spell-correct.html for the basis of this suggestor.
+     * This suggestor is primitive, but it works.
+     * @param word - The misspelled word.
+     * @param limit - The maximum number of suggestions to return (default is 5).
+     * @returns An array of suggested corrections.
+     */
+    suggest(word, limit) {
+      if (!this.loaded) {
+        throw "Dictionary not loaded.";
+      }
+      let alphabet = "";
+      limit = limit || 5;
+      if (this.memoized.hasOwnProperty(word)) {
+        var memoizedLimit = this.memoized[word]["limit"];
+        if (limit <= memoizedLimit || this.memoized[word]["suggestions"].length < memoizedLimit) {
+          return this.memoized[word]["suggestions"].slice(0, limit);
+        }
+      }
+      if (this.check(word))
+        return [];
+      for (var i = 0, _len = this.replacementTable.length; i < _len; i++) {
+        var replacementEntry = this.replacementTable[i];
+        if (word.indexOf(replacementEntry[0]) !== -1) {
+          var correctedWord = word.replace(replacementEntry[0], replacementEntry[1]);
+          if (this.check(correctedWord)) {
+            return [correctedWord];
+          }
+        }
+      }
+      if (!this.alphabet) {
+        this.alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        if ("TRY" in this.flags) {
+          this.alphabet += this.flags["TRY"];
+        }
+        if ("WORDCHARS" in this.flags) {
+          this.alphabet += this.flags["WORDCHARS"];
+        }
+        var alphaArray = this.alphabet.split("");
+        alphaArray.sort();
+        var alphaHash = {};
+        for (var i = 0; i < alphaArray.length; i++) {
+          alphaHash[alphaArray[i]] = true;
+        }
+        this.alphabet = "";
+        for (var k in alphaHash) {
+          this.alphabet += k;
+        }
+      }
+      function edits1(words, known_only) {
+        var rv = {};
+        var i2, j, _iilen, _len2, _jlen, _edit;
+        var alphabetLength = this.alphabet.length;
+        if (typeof words == "string") {
+          var word2 = words;
+          words = {};
+          words[word2] = true;
+        }
+        for (var word2 in words) {
+          for (i2 = 0, _len2 = word2.length + 1; i2 < _len2; i2++) {
+            var s = [word2.substring(0, i2), word2.substring(i2)];
+            if (s[1]) {
+              _edit = s[0] + s[1].substring(1);
+              if (!known_only || this.check(_edit)) {
+                if (!(_edit in rv)) {
+                  rv[_edit] = 1;
+                } else {
+                  rv[_edit] += 1;
+                }
+              }
+            }
+            if (s[1].length > 1 && s[1][1] !== s[1][0]) {
+              _edit = s[0] + s[1][1] + s[1][0] + s[1].substring(2);
+              if (!known_only || this.check(_edit)) {
+                if (!(_edit in rv)) {
+                  rv[_edit] = 1;
+                } else {
+                  rv[_edit] += 1;
+                }
+              }
+            }
+            if (s[1]) {
+              var lettercase = s[1].substring(0, 1).toUpperCase() === s[1].substring(0, 1) ? "uppercase" : "lowercase";
+              for (j = 0; j < alphabetLength; j++) {
+                var replacementLetter = this.alphabet[j];
+                if ("uppercase" === lettercase) {
+                  replacementLetter = replacementLetter.toUpperCase();
+                }
+                if (replacementLetter != s[1].substring(0, 1)) {
+                  _edit = s[0] + replacementLetter + s[1].substring(1);
+                  if (!known_only || this.check(_edit)) {
+                    if (!(_edit in rv)) {
+                      rv[_edit] = 1;
+                    } else {
+                      rv[_edit] += 1;
+                    }
+                  }
+                }
+              }
+            }
+            if (s[1]) {
+              for (j = 0; j < alphabetLength; j++) {
+                var lettercase = s[0].substring(-1).toUpperCase() === s[0].substring(-1) && s[1].substring(0, 1).toUpperCase() === s[1].substring(0, 1) ? "uppercase" : "lowercase";
+                var replacementLetter = this.alphabet[j];
+                if ("uppercase" === lettercase) {
+                  replacementLetter = replacementLetter.toUpperCase();
+                }
+                _edit = s[0] + replacementLetter + s[1];
+                if (!known_only || this.check(_edit)) {
+                  if (!(_edit in rv)) {
+                    rv[_edit] = 1;
+                  } else {
+                    rv[_edit] += 1;
+                  }
+                }
+              }
+            }
+          }
+        }
+        return rv;
+      }
+      function correct(word2) {
+        const ed1 = edits1(word2, false);
+        const ed2 = edits1(ed1, true);
+        const weighted_corrections = ed2;
+        for (var ed1word in ed1) {
+          if (!this.check(ed1word)) {
+            continue;
+          }
+          if (ed1word in weighted_corrections) {
+            weighted_corrections[ed1word] += ed1[ed1word];
+          } else {
+            weighted_corrections[ed1word] = ed1[ed1word];
+          }
+        }
+        let i2, _len2;
+        const sorted_corrections = [];
+        for (i2 in weighted_corrections) {
+          if (weighted_corrections.hasOwnProperty(i2)) {
+            sorted_corrections.push([i2, weighted_corrections[i2]]);
+          }
+        }
+        function sorter(a, b) {
+          let a_val = a[1];
+          let b_val = b[1];
+          if (a_val < b_val) {
+            return -1;
+          } else if (a_val > b_val) {
+            return 1;
+          }
+          return b[0].localeCompare(a[0]);
+        }
+        sorted_corrections.sort(sorter).reverse();
+        const rv = [];
+        let capitalization_scheme = "lowercase";
+        if (word2.toUpperCase() === word2) {
+          capitalization_scheme = "uppercase";
+        } else if (word2.substr(0, 1).toUpperCase() + word2.substr(1).toLowerCase() === word2) {
+          capitalization_scheme = "capitalized";
+        }
+        let working_limit = limit;
+        for (i2 = 0; i2 < Math.min(working_limit, sorted_corrections.length); i2++) {
+          if ("uppercase" === capitalization_scheme) {
+            sorted_corrections[i2][0] = sorted_corrections[i2][0].toUpperCase();
+          } else if ("capitalized" === capitalization_scheme) {
+            sorted_corrections[i2][0] = sorted_corrections[i2][0].substr(0, 1).toUpperCase() + sorted_corrections[i2][0].substr(1);
+          }
+          if (!this.hasFlag(sorted_corrections[i2][0], "NOSUGGEST", null) && rv.indexOf(sorted_corrections[i2][0]) == -1) {
+            rv.push(sorted_corrections[i2][0]);
+          } else {
+            working_limit++;
+          }
+        }
+        return rv;
+      }
+      this.memoized[word] = {
+        "suggestions": correct(word),
+        "limit": limit
+      };
+      return this.memoized[word]["suggestions"];
+    }
+    setup() {
+      let i = 0;
+      let j = 0;
+      let _len = 0;
+      let _jlen = 0;
+      this.rules = this._parseAFF(this.affData);
+      this.combinableRules = Object.assign({}, ...Object.entries(this.rules).filter(([k, v]) => v.combinable).map(([k, v]) => ({ [k]: v })));
+      this.compoundRuleCodes = /* @__PURE__ */ Object.create(null);
+      for (i = 0, _len = this.compoundRules.length; i < _len; i++) {
+        var rule = this.compoundRules[i];
+        for (j = 0, _jlen = rule.length; j < _jlen; j++) {
+          this.compoundRuleCodes[rule[j]] = [];
+        }
+      }
+      if ("ONLYINCOMPOUND" in this.flags) {
+        this.compoundRuleCodes[this.flags.ONLYINCOMPOUND] = [];
+      }
+      const msg = `typo.ts loaded ${this.dictionary} dictionary`;
+      console.time(msg);
+      this.parseDIC(this.wordsData);
+      console.timeEnd(msg);
+      for (let k in this.compoundRuleCodes) {
+        if (this.compoundRuleCodes[k].length === 0) {
+          delete this.compoundRuleCodes[k];
+        }
+      }
+      for (i = 0; i < this.compoundRules.length; i++) {
+        const ruleText = this.compoundRules[i];
+        let expressionText = "";
+        for (j = 0, _jlen = ruleText.length; j < _jlen; j++) {
+          var character = ruleText[j];
+          if (character in this.compoundRuleCodes) {
+            expressionText += "(" + this.compoundRuleCodes[character].join("|") + ")";
+          } else {
+            expressionText += character;
+          }
+        }
+        this.compoundRules[i] = new RegExp(expressionText, "i");
+      }
+      this.loaded = true;
+    }
+    /**
+     * Parse the rules out from a .aff file.
+     *
+     * @param {String} data The contents of the affix file.
+     * @returns object The rules from the file.
+     */
+    _parseAFF(data) {
+      const lineSplitRe = /\r?\n/;
+      const definitionSplitRe = /\s+/;
+      const rules = /* @__PURE__ */ Object.create(null);
+      let line, subline, numEntries, lineParts;
+      let i, j, _len, _jlen;
+      const lines = data.split(lineSplitRe);
+      for (i = 0, _len = lines.length; i < _len; i++) {
+        line = this._removeAffixComments(lines[i]);
+        line = line.trim();
+        if (!line) {
+          continue;
+        }
+        const definitionParts = line.split(definitionSplitRe);
+        const ruleType = definitionParts[0];
+        const entries = [];
+        if (ruleType == "PFX" || ruleType == "SFX") {
+          var ruleCode = definitionParts[1];
+          var combinable = definitionParts[2];
+          let numEntries2 = parseInt(definitionParts[3], 10);
+          for (j = i + 1, _jlen = i + 1 + numEntries2; j < _jlen; j++) {
+            subline = lines[j];
+            entries.push(Entry.fromLine(subline, ruleType, this.flags));
+          }
+          rules[ruleCode] = new Rule(ruleCode, ruleType, combinable === "Y", entries);
+          i += numEntries2;
+        } else if (ruleType === "COMPOUNDRULE") {
+          numEntries = parseInt(definitionParts[1], 10);
+          for (j = i + 1, _jlen = i + 1 + numEntries; j < _jlen; j++) {
+            line = lines[j];
+            lineParts = line.split(/\s+/);
+            this.compoundRules.push(lineParts[1]);
+          }
+          i += numEntries;
+        } else if (ruleType === "REP") {
+          lineParts = line.split(/\s+/);
+          if (lineParts.length === 3) {
+            this.replacementTable.push([lineParts[1], lineParts[2]]);
+          }
+        } else {
+          this.flags[ruleType] = definitionParts[1];
+        }
+      }
+      return rules;
+    }
+    /**
+     * Removes comments.
+     *
+     * @param {String} data A line from an affix file.
+     * @return {String} The cleaned-up line.
+     */
+    _removeAffixComments(line) {
+      if (line.match(/^\s*#/)) {
+        return "";
+      }
+      return line;
+    }
+    addWord(word, rules) {
+      const result = this.dictionaryMap.get(word);
+      const hasRules = rules.length > 0;
+      if (result === void 0) {
+        if (hasRules) {
+          this.dictionaryMap.set(word, rules);
+        } else {
+          this.dictionaryMap.set(word, null);
+        }
+      } else if (result === null) {
+        if (hasRules) {
+          this.dictionaryMap.set(word, rules);
+        }
+      } else if (hasRules) {
+        result.push.apply(result, rules);
+      }
+    }
+    /**
+     * Parses the words out from the .dic file.
+     *
+     * @param {String} data The data from the dictionary file.
+     * @returns object The lookup table containing all of the words and
+     *                 word forms from the dictionary.
+     */
+    parseDIC(data) {
+      data = this.removeDicComments(data);
+      const lines = data.split(/\r?\n/);
+      this.dictionaryMap.clear();
+      const ruleCodeWords = [];
+      const ruleCodeOtherWords = [];
+      let ruleCodesArrayLength = 0;
+      let ruleCodesArray;
+      for (let i = 0, lineLength = lines.length; i < lineLength; i++) {
+        const [word, ruleCodesRaw] = lines[i].split("/", 2);
+        if (ruleCodesRaw) {
+          ruleCodesArray = Rule.parseCodes(ruleCodesRaw, this.flags);
+          ruleCodesArrayLength = ruleCodesArray.length;
+          ruleCodeWords.length = 0;
+          ruleCodeOtherWords.length = 0;
+          if (!("NEEDAFFIX" in this.flags) || ruleCodesArray.indexOf(this.flags.NEEDAFFIX) == -1) {
+            this.addWord(word, ruleCodesArray);
+          }
+          for (let j = 0; j < ruleCodesArrayLength; j++) {
+            const code = ruleCodesArray[j];
+            const rule = this.rules[code];
+            ruleCodeWords.length = 0;
+            ruleCodeOtherWords.length = 0;
+            if (rule) {
+              rule.applyRule(word, this.rules, ruleCodeWords);
+              if (rule.combinable) {
+                const ruleCodeWordsLength = ruleCodeWords.length;
+                for (let k = 0; k < ruleCodeWordsLength; k++) {
+                  const ruleCodeWord = ruleCodeWords[k];
+                  for (let l = 0; l < ruleCodesArrayLength; l++) {
+                    var combineRule = this.combinableRules[ruleCodesArray[l]];
+                    if (combineRule && rule.type !== combineRule.type) {
+                      combineRule.applyRule(ruleCodeWord, this.rules, ruleCodeOtherWords);
+                    }
+                  }
+                }
+              }
+            }
+            ruleCodeWords.push.apply(ruleCodeWords, ruleCodeOtherWords);
+            const uniques = new Set(ruleCodeWords);
+            let uniquesLength = uniques.size;
+            for (let unique of uniques) {
+              this.addWord(unique, []);
+            }
+            if (code in this.compoundRuleCodes) {
+              this.compoundRuleCodes[code].push(word);
+            }
+          }
+          ;
+        } else {
+          this.addWord(word.trim(), []);
+        }
+      }
+      ;
+    }
+    /**
+     * Removes comment lines and then cleans up blank lines and trailing whitespace.
+     *
+     * @param {String} data The data from a .dic file.
+     * @return {String} The cleaned-up data.
+     */
+    removeDicComments(data) {
+      data = data.replace(/^\t.*$/mg, "");
+      return data;
+    }
+    /**
+     * Checks whether a word or its capitalization variant exists in the dictionary.
+     * The word is trimmed and several variations of capitalizations are checked.
+     * If you want to check a word without any changes made to it, call checkExact()
+     *
+     * @see http://blog.stevenlevithan.com/archives/faster-trim-javascript re:trimming function
+     * @param aWord - The word to check.
+     * @returns True if the word is found, false otherwise.
+     */
+    check(aWord) {
+      if (!this.loaded) {
+        throw "Dictionary not loaded.";
+      }
+      var trimmedWord = aWord.replace(/^\s\s*/, "").replace(/\s\s*$/, "");
+      if (trimmedWord === "") {
+        return true;
+      }
+      if (this.checkExact(trimmedWord)) {
+        return true;
+      }
+      if (trimmedWord.toUpperCase() === trimmedWord) {
+        var capitalizedWord = trimmedWord[0] + trimmedWord.substring(1).toLowerCase();
+        if (this.hasFlag(capitalizedWord, "KEEPCASE", null)) {
+          return false;
+        }
+        if (this.checkExact(capitalizedWord)) {
+          return true;
+        }
+        if (this.checkExact(trimmedWord.toLowerCase())) {
+          return true;
+        }
+      }
+      var uncapitalizedWord = trimmedWord[0].toLowerCase() + trimmedWord.substring(1);
+      if (uncapitalizedWord !== trimmedWord) {
+        if (this.hasFlag(uncapitalizedWord, "KEEPCASE", null)) {
+          return false;
+        }
+        if (this.checkExact(uncapitalizedWord)) {
+          return true;
+        }
+      }
+      return false;
+    }
+    /**
+     * Looks up whether a given word is flagged with a given flag.
+     *
+     * @param {String} word The word in question.
+     * @param {String} flag The flag in question.
+     * @return {Boolean}
+     */
+    hasFlag(word, flag, wordFlags) {
+      if (!this.loaded) {
+        throw "Dictionary not loaded.";
+      }
+      if (flag in this.flags) {
+        if (typeof wordFlags === "undefined") {
+          const result = this.dictionaryMap.get(word);
+          wordFlags = Array.prototype.concat.apply([], result);
+        }
+        if (wordFlags && wordFlags.indexOf(this.flags[flag]) !== -1) {
+          return true;
+        }
+      }
+      return false;
+    }
+  };
+
+  // examples/vanillats/js/build/examples/vanillats/ts/utils/stopwords.js
   var Stopwords = class {
     /**
+     * Returns a Set of stopwords for constant-time membership checks.
+     * @param lang - The language code (e.g., "en" for English, "de" for German).
+     * @returns A Set containing the stopwords.
+     */
+    static getStopwordsSet(lang) {
+      return new Set(this.getStopwords(lang));
+    }
+    /**
      * Returns an object where keys are stopwords and values are true for quick lookup.
+     * Prefer getStopwordsSet() for new code.
      * @param lang - The language code (e.g., "en" for English, "de" for German).
      * @returns An object with stopwords as keys and true as values.
      */
     static getStopwordsTruth(lang) {
-      const words = this.getStopwords(lang);
-      return words.reduce((obj, key, index) => ({ ...obj, [key]: true }), {});
+      const truth = {};
+      for (const word of this.getStopwords(lang)) {
+        truth[word] = true;
+      }
+      return truth;
     }
     /**
      * Returns an array of stopwords for the specified language.
@@ -4469,1299 +5886,6 @@ This is the default plugin description. Set meta: {} values
     }
   };
 
-  // examples/vanillats/js/build/src/ts/lib/typo/typo.js
-  var Rule = class {
-    /**
-     * Parses flag codes from a string representation.
-     * @param textCodes - The string containing flag codes.
-     * @param flags - An object containing flag definitions.
-     * @returns An array of parsed flag codes.
-     */
-    static parseCodes(textCodes, flags) {
-      let result = [];
-      if (!textCodes) {
-        result = [];
-      } else if (!("FLAG" in flags)) {
-        result = textCodes.split("");
-      } else if (flags.FLAG === "long") {
-        const newFlags = [];
-        for (var i = 0, _len = textCodes.length; i < _len; i += 2) {
-          newFlags.push(textCodes.substring(i, i + 2));
-        }
-        result = newFlags;
-      } else if (flags.FLAG === "num") {
-        result = textCodes.split(",");
-      } else if (flags.FLAG === "UTF-8") {
-        result = Array.from(textCodes);
-      } else {
-        result = textCodes.split("");
-      }
-      return result;
-    }
-    /**
-     * Creates a new Rule instance.
-     * @param code - The rule code.
-     * @param type - The rule type.
-     * @param combinable - Whether the rule is combinable.
-     * @param entries - An array of entries for the rule.
-     */
-    constructor(code, type, combinable, entries) {
-      this.code = code;
-      this.type = type;
-      this.combinable = combinable;
-      this.entries = entries;
-    }
-    /**
-     * Applies the rule to a word and generates new words.
-     * @param word - The base word to apply the rule to.
-     * @param rules - An object containing all available rules.
-     * @param resultWords - An array to store the generated words.
-     */
-    applyRule(word, rules, resultWords) {
-      for (let i = 0, entriesLength = this.entries.length; i < entriesLength; i++) {
-        let entry = this.entries[i];
-        if (!entry.match || entry.match.test(word)) {
-          let newWord = word;
-          if (entry.remove) {
-            newWord = newWord.replace(entry.remove, "");
-          }
-          if (this.type === "SFX") {
-            newWord = newWord + entry.add;
-          } else {
-            newWord = entry.add + newWord;
-          }
-          resultWords.push(newWord);
-          const continuationLength = entry.continuationClasses.length;
-          if (continuationLength > 0) {
-            for (let j = 0; j < continuationLength; j++) {
-              const continuationClass = entry.continuationClasses[j];
-              const continuationRule = rules[continuationClass];
-              if (continuationRule) {
-                continuationRule.applyRule(newWord, rules, resultWords);
-              }
-            }
-          }
-        }
-      }
-    }
-  };
-  var Entry = class {
-    /**
-     * Creates a new Entry instance.
-     * @param add - The string to add.
-     * @param matchStr - The match string.
-     * @param removeStr - The remove string.
-     * @param cont - An array of continuation classes.
-     */
-    constructor(add, matchStr, removeStr, cont) {
-      this.add = add ? add : null;
-      this.match = this.getMemoRegex(matchStr);
-      this.remove = this.getMemoRegex(removeStr);
-      this.continuationClasses = cont ? cont : [];
-    }
-    /**
-     * Creates an Entry instance from a line in the affix file.
-     * @param line - The line from the affix file.
-     * @param ruleType - The type of the rule.
-     * @param flags - An object containing flag definitions.
-     * @returns A new Entry instance.
-     */
-    static fromLine(line, ruleType, flags) {
-      const lineParts = line.split(/\s+/);
-      const charactersToRemove = lineParts[2];
-      const additionParts = lineParts[3] ? lineParts[3].split("/") : [];
-      const regexToMatch = lineParts[4];
-      let charactersToAdd = additionParts[0];
-      let continuations = additionParts[1];
-      if (charactersToAdd === "0") {
-        charactersToAdd = "";
-      }
-      let add = charactersToAdd;
-      let matchString = null;
-      if (regexToMatch && regexToMatch !== ".") {
-        if (ruleType === "SFX") {
-          matchString = `${regexToMatch}$`;
-        } else {
-          matchString = `^${regexToMatch}`;
-        }
-      }
-      let removeString = null;
-      if (charactersToRemove != "0") {
-        if (ruleType === "SFX") {
-          removeString = `${charactersToRemove}$`;
-        } else {
-          removeString = `${charactersToRemove}`;
-        }
-      }
-      var continuationClasses = Rule.parseCodes(continuations, flags);
-      return new Entry(add, matchString, removeString, continuationClasses);
-    }
-    getMemoRegex(reString) {
-      if (reString) {
-        if (Entry.regex[reString] === void 0) {
-          Entry.regex[reString] = this.getRegex(reString);
-        }
-      } else {
-        Entry.regex[reString] = null;
-      }
-      return Entry.regex[reString];
-    }
-    getRegex(reString) {
-      try {
-        return new RegExp(reString);
-      } catch {
-        return null;
-      }
-    }
-  };
-  Entry.regex = /* @__PURE__ */ Object.create(null);
-  var Typo = class {
-    /**
-     * Creates a new Typo instance.
-     * @param dictionary - The locale code of the dictionary.
-     * @param affData - The data from the dictionary's .aff file.
-     * @param wordsData - The data from the dictionary's .dic file.
-     * @param settings - Optional settings for the Typo instance.
-     */
-    constructor(dictionary, affData, wordsData, settings) {
-      if (!(dictionary && affData && wordsData)) {
-        const msg = `dictionary (${dictionary}) || affData (${affData}) || wordsData (${wordsData}) 
-				not provided.unlike Typo.js, all are required by the constructor.`;
-        throw new Error(msg);
-      }
-      this.dictionary = dictionary;
-      this.affData = affData;
-      this.wordsData = wordsData;
-      this.settings = settings !== null && settings !== void 0 ? settings : /* @__PURE__ */ Object.create(null);
-      this.rules = {};
-      this.combinableRules = {};
-      this.dictionaryMap = /* @__PURE__ */ new Map();
-      this.compoundRules = [];
-      this.compoundRuleCodes = {};
-      this.replacementTable = [];
-      this.flags = "flags" in this.settings ? this.settings["flags"] : /* @__PURE__ */ Object.create(null);
-      this.memoized = {};
-      this.loaded = false;
-      this.alphabet = "";
-      this.setup();
-    }
-    /**
-     * Checks whether a word exists exactly as given in the dictionary.
-     * @param word - The word to check.
-     * @returns True if the word is found, false otherwise.
-     */
-    checkExact(word) {
-      if (!this.loaded) {
-        throw "Dictionary not loaded.";
-      }
-      const ruleCodes = this.dictionaryMap.get(word);
-      let i, _len;
-      if (typeof ruleCodes === "undefined") {
-        if ("COMPOUNDMIN" in this.flags && word.length >= this.flags.COMPOUNDMIN) {
-          for (i = 0, _len = this.compoundRules.length; i < _len; i++) {
-            if (word.match(this.compoundRules[i])) {
-              return true;
-            }
-          }
-        }
-      } else if (ruleCodes === null) {
-        return true;
-      } else if (typeof ruleCodes === "object") {
-        for (i = 0, _len = ruleCodes.length; i < _len; i++) {
-          if (!this.hasFlag(word, "ONLYINCOMPOUND", [ruleCodes[i]])) {
-            return true;
-          }
-        }
-      }
-      return false;
-    }
-    /**
-     * Returns a list of suggestions for a misspelled word.
-     * @see http://www.norvig.com/spell-correct.html for the basis of this suggestor.
-     * This suggestor is primitive, but it works.
-     * @param word - The misspelled word.
-     * @param limit - The maximum number of suggestions to return (default is 5).
-     * @returns An array of suggested corrections.
-     */
-    suggest(word, limit) {
-      if (!this.loaded) {
-        throw "Dictionary not loaded.";
-      }
-      let alphabet = "";
-      limit = limit || 5;
-      if (this.memoized.hasOwnProperty(word)) {
-        var memoizedLimit = this.memoized[word]["limit"];
-        if (limit <= memoizedLimit || this.memoized[word]["suggestions"].length < memoizedLimit) {
-          return this.memoized[word]["suggestions"].slice(0, limit);
-        }
-      }
-      if (this.check(word))
-        return [];
-      for (var i = 0, _len = this.replacementTable.length; i < _len; i++) {
-        var replacementEntry = this.replacementTable[i];
-        if (word.indexOf(replacementEntry[0]) !== -1) {
-          var correctedWord = word.replace(replacementEntry[0], replacementEntry[1]);
-          if (this.check(correctedWord)) {
-            return [correctedWord];
-          }
-        }
-      }
-      if (!this.alphabet) {
-        this.alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-        if ("TRY" in this.flags) {
-          this.alphabet += this.flags["TRY"];
-        }
-        if ("WORDCHARS" in this.flags) {
-          this.alphabet += this.flags["WORDCHARS"];
-        }
-        var alphaArray = this.alphabet.split("");
-        alphaArray.sort();
-        var alphaHash = {};
-        for (var i = 0; i < alphaArray.length; i++) {
-          alphaHash[alphaArray[i]] = true;
-        }
-        this.alphabet = "";
-        for (var k in alphaHash) {
-          this.alphabet += k;
-        }
-      }
-      function edits1(words, known_only) {
-        var rv = {};
-        var i2, j, _iilen, _len2, _jlen, _edit;
-        var alphabetLength = this.alphabet.length;
-        if (typeof words == "string") {
-          var word2 = words;
-          words = {};
-          words[word2] = true;
-        }
-        for (var word2 in words) {
-          for (i2 = 0, _len2 = word2.length + 1; i2 < _len2; i2++) {
-            var s = [word2.substring(0, i2), word2.substring(i2)];
-            if (s[1]) {
-              _edit = s[0] + s[1].substring(1);
-              if (!known_only || this.check(_edit)) {
-                if (!(_edit in rv)) {
-                  rv[_edit] = 1;
-                } else {
-                  rv[_edit] += 1;
-                }
-              }
-            }
-            if (s[1].length > 1 && s[1][1] !== s[1][0]) {
-              _edit = s[0] + s[1][1] + s[1][0] + s[1].substring(2);
-              if (!known_only || this.check(_edit)) {
-                if (!(_edit in rv)) {
-                  rv[_edit] = 1;
-                } else {
-                  rv[_edit] += 1;
-                }
-              }
-            }
-            if (s[1]) {
-              var lettercase = s[1].substring(0, 1).toUpperCase() === s[1].substring(0, 1) ? "uppercase" : "lowercase";
-              for (j = 0; j < alphabetLength; j++) {
-                var replacementLetter = this.alphabet[j];
-                if ("uppercase" === lettercase) {
-                  replacementLetter = replacementLetter.toUpperCase();
-                }
-                if (replacementLetter != s[1].substring(0, 1)) {
-                  _edit = s[0] + replacementLetter + s[1].substring(1);
-                  if (!known_only || this.check(_edit)) {
-                    if (!(_edit in rv)) {
-                      rv[_edit] = 1;
-                    } else {
-                      rv[_edit] += 1;
-                    }
-                  }
-                }
-              }
-            }
-            if (s[1]) {
-              for (j = 0; j < alphabetLength; j++) {
-                var lettercase = s[0].substring(-1).toUpperCase() === s[0].substring(-1) && s[1].substring(0, 1).toUpperCase() === s[1].substring(0, 1) ? "uppercase" : "lowercase";
-                var replacementLetter = this.alphabet[j];
-                if ("uppercase" === lettercase) {
-                  replacementLetter = replacementLetter.toUpperCase();
-                }
-                _edit = s[0] + replacementLetter + s[1];
-                if (!known_only || this.check(_edit)) {
-                  if (!(_edit in rv)) {
-                    rv[_edit] = 1;
-                  } else {
-                    rv[_edit] += 1;
-                  }
-                }
-              }
-            }
-          }
-        }
-        return rv;
-      }
-      function correct(word2) {
-        const ed1 = edits1(word2, false);
-        const ed2 = edits1(ed1, true);
-        const weighted_corrections = ed2;
-        for (var ed1word in ed1) {
-          if (!this.check(ed1word)) {
-            continue;
-          }
-          if (ed1word in weighted_corrections) {
-            weighted_corrections[ed1word] += ed1[ed1word];
-          } else {
-            weighted_corrections[ed1word] = ed1[ed1word];
-          }
-        }
-        let i2, _len2;
-        const sorted_corrections = [];
-        for (i2 in weighted_corrections) {
-          if (weighted_corrections.hasOwnProperty(i2)) {
-            sorted_corrections.push([i2, weighted_corrections[i2]]);
-          }
-        }
-        function sorter(a, b) {
-          let a_val = a[1];
-          let b_val = b[1];
-          if (a_val < b_val) {
-            return -1;
-          } else if (a_val > b_val) {
-            return 1;
-          }
-          return b[0].localeCompare(a[0]);
-        }
-        sorted_corrections.sort(sorter).reverse();
-        const rv = [];
-        let capitalization_scheme = "lowercase";
-        if (word2.toUpperCase() === word2) {
-          capitalization_scheme = "uppercase";
-        } else if (word2.substr(0, 1).toUpperCase() + word2.substr(1).toLowerCase() === word2) {
-          capitalization_scheme = "capitalized";
-        }
-        let working_limit = limit;
-        for (i2 = 0; i2 < Math.min(working_limit, sorted_corrections.length); i2++) {
-          if ("uppercase" === capitalization_scheme) {
-            sorted_corrections[i2][0] = sorted_corrections[i2][0].toUpperCase();
-          } else if ("capitalized" === capitalization_scheme) {
-            sorted_corrections[i2][0] = sorted_corrections[i2][0].substr(0, 1).toUpperCase() + sorted_corrections[i2][0].substr(1);
-          }
-          if (!this.hasFlag(sorted_corrections[i2][0], "NOSUGGEST", null) && rv.indexOf(sorted_corrections[i2][0]) == -1) {
-            rv.push(sorted_corrections[i2][0]);
-          } else {
-            working_limit++;
-          }
-        }
-        return rv;
-      }
-      this.memoized[word] = {
-        "suggestions": correct(word),
-        "limit": limit
-      };
-      return this.memoized[word]["suggestions"];
-    }
-    setup() {
-      let i = 0;
-      let j = 0;
-      let _len = 0;
-      let _jlen = 0;
-      this.rules = this._parseAFF(this.affData);
-      this.combinableRules = Object.assign({}, ...Object.entries(this.rules).filter(([k, v]) => v.combinable).map(([k, v]) => ({ [k]: v })));
-      this.compoundRuleCodes = /* @__PURE__ */ Object.create(null);
-      for (i = 0, _len = this.compoundRules.length; i < _len; i++) {
-        var rule = this.compoundRules[i];
-        for (j = 0, _jlen = rule.length; j < _jlen; j++) {
-          this.compoundRuleCodes[rule[j]] = [];
-        }
-      }
-      if ("ONLYINCOMPOUND" in this.flags) {
-        this.compoundRuleCodes[this.flags.ONLYINCOMPOUND] = [];
-      }
-      const msg = `typo.ts loaded ${this.dictionary} dictionary`;
-      console.time(msg);
-      this.parseDIC(this.wordsData);
-      console.timeEnd(msg);
-      for (let k in this.compoundRuleCodes) {
-        if (this.compoundRuleCodes[k].length === 0) {
-          delete this.compoundRuleCodes[k];
-        }
-      }
-      for (i = 0; i < this.compoundRules.length; i++) {
-        const ruleText = this.compoundRules[i];
-        let expressionText = "";
-        for (j = 0, _jlen = ruleText.length; j < _jlen; j++) {
-          var character = ruleText[j];
-          if (character in this.compoundRuleCodes) {
-            expressionText += "(" + this.compoundRuleCodes[character].join("|") + ")";
-          } else {
-            expressionText += character;
-          }
-        }
-        this.compoundRules[i] = new RegExp(expressionText, "i");
-      }
-      this.loaded = true;
-    }
-    /**
-     * Parse the rules out from a .aff file.
-     *
-     * @param {String} data The contents of the affix file.
-     * @returns object The rules from the file.
-     */
-    _parseAFF(data) {
-      const lineSplitRe = /\r?\n/;
-      const definitionSplitRe = /\s+/;
-      const rules = /* @__PURE__ */ Object.create(null);
-      let line, subline, numEntries, lineParts;
-      let i, j, _len, _jlen;
-      const lines = data.split(lineSplitRe);
-      for (i = 0, _len = lines.length; i < _len; i++) {
-        line = this._removeAffixComments(lines[i]);
-        line = line.trim();
-        if (!line) {
-          continue;
-        }
-        const definitionParts = line.split(definitionSplitRe);
-        const ruleType = definitionParts[0];
-        const entries = [];
-        if (ruleType == "PFX" || ruleType == "SFX") {
-          var ruleCode = definitionParts[1];
-          var combinable = definitionParts[2];
-          let numEntries2 = parseInt(definitionParts[3], 10);
-          for (j = i + 1, _jlen = i + 1 + numEntries2; j < _jlen; j++) {
-            subline = lines[j];
-            entries.push(Entry.fromLine(subline, ruleType, this.flags));
-          }
-          rules[ruleCode] = new Rule(ruleCode, ruleType, combinable === "Y", entries);
-          i += numEntries2;
-        } else if (ruleType === "COMPOUNDRULE") {
-          numEntries = parseInt(definitionParts[1], 10);
-          for (j = i + 1, _jlen = i + 1 + numEntries; j < _jlen; j++) {
-            line = lines[j];
-            lineParts = line.split(/\s+/);
-            this.compoundRules.push(lineParts[1]);
-          }
-          i += numEntries;
-        } else if (ruleType === "REP") {
-          lineParts = line.split(/\s+/);
-          if (lineParts.length === 3) {
-            this.replacementTable.push([lineParts[1], lineParts[2]]);
-          }
-        } else {
-          this.flags[ruleType] = definitionParts[1];
-        }
-      }
-      return rules;
-    }
-    /**
-     * Removes comments.
-     *
-     * @param {String} data A line from an affix file.
-     * @return {String} The cleaned-up line.
-     */
-    _removeAffixComments(line) {
-      if (line.match(/^\s*#/)) {
-        return "";
-      }
-      return line;
-    }
-    addWord(word, rules) {
-      const result = this.dictionaryMap.get(word);
-      const hasRules = rules.length > 0;
-      if (result === void 0) {
-        if (hasRules) {
-          this.dictionaryMap.set(word, rules);
-        } else {
-          this.dictionaryMap.set(word, null);
-        }
-      } else if (result === null) {
-        if (hasRules) {
-          this.dictionaryMap.set(word, rules);
-        }
-      } else if (hasRules) {
-        result.push.apply(result, rules);
-      }
-    }
-    /**
-     * Parses the words out from the .dic file.
-     *
-     * @param {String} data The data from the dictionary file.
-     * @returns object The lookup table containing all of the words and
-     *                 word forms from the dictionary.
-     */
-    parseDIC(data) {
-      data = this.removeDicComments(data);
-      const lines = data.split(/\r?\n/);
-      this.dictionaryMap.clear();
-      const ruleCodeWords = [];
-      const ruleCodeOtherWords = [];
-      let ruleCodesArrayLength = 0;
-      let ruleCodesArray;
-      for (let i = 0, lineLength = lines.length; i < lineLength; i++) {
-        const [word, ruleCodesRaw] = lines[i].split("/", 2);
-        if (ruleCodesRaw) {
-          ruleCodesArray = Rule.parseCodes(ruleCodesRaw, this.flags);
-          ruleCodesArrayLength = ruleCodesArray.length;
-          ruleCodeWords.length = 0;
-          ruleCodeOtherWords.length = 0;
-          if (!("NEEDAFFIX" in this.flags) || ruleCodesArray.indexOf(this.flags.NEEDAFFIX) == -1) {
-            this.addWord(word, ruleCodesArray);
-          }
-          for (let j = 0; j < ruleCodesArrayLength; j++) {
-            const code = ruleCodesArray[j];
-            const rule = this.rules[code];
-            ruleCodeWords.length = 0;
-            ruleCodeOtherWords.length = 0;
-            if (rule) {
-              rule.applyRule(word, this.rules, ruleCodeWords);
-              if (rule.combinable) {
-                const ruleCodeWordsLength = ruleCodeWords.length;
-                for (let k = 0; k < ruleCodeWordsLength; k++) {
-                  const ruleCodeWord = ruleCodeWords[k];
-                  for (let l = 0; l < ruleCodesArrayLength; l++) {
-                    var combineRule = this.combinableRules[ruleCodesArray[l]];
-                    if (combineRule && rule.type !== combineRule.type) {
-                      combineRule.applyRule(ruleCodeWord, this.rules, ruleCodeOtherWords);
-                    }
-                  }
-                }
-              }
-            }
-            ruleCodeWords.push.apply(ruleCodeWords, ruleCodeOtherWords);
-            const uniques = new Set(ruleCodeWords);
-            let uniquesLength = uniques.size;
-            for (let unique of uniques) {
-              this.addWord(unique, []);
-            }
-            if (code in this.compoundRuleCodes) {
-              this.compoundRuleCodes[code].push(word);
-            }
-          }
-          ;
-        } else {
-          this.addWord(word.trim(), []);
-        }
-      }
-      ;
-    }
-    /**
-     * Removes comment lines and then cleans up blank lines and trailing whitespace.
-     *
-     * @param {String} data The data from a .dic file.
-     * @return {String} The cleaned-up data.
-     */
-    removeDicComments(data) {
-      data = data.replace(/^\t.*$/mg, "");
-      return data;
-    }
-    /**
-     * Checks whether a word or its capitalization variant exists in the dictionary.
-     * The word is trimmed and several variations of capitalizations are checked.
-     * If you want to check a word without any changes made to it, call checkExact()
-     *
-     * @see http://blog.stevenlevithan.com/archives/faster-trim-javascript re:trimming function
-     * @param aWord - The word to check.
-     * @returns True if the word is found, false otherwise.
-     */
-    check(aWord) {
-      if (!this.loaded) {
-        throw "Dictionary not loaded.";
-      }
-      var trimmedWord = aWord.replace(/^\s\s*/, "").replace(/\s\s*$/, "");
-      if (trimmedWord === "") {
-        return true;
-      }
-      if (this.checkExact(trimmedWord)) {
-        return true;
-      }
-      if (trimmedWord.toUpperCase() === trimmedWord) {
-        var capitalizedWord = trimmedWord[0] + trimmedWord.substring(1).toLowerCase();
-        if (this.hasFlag(capitalizedWord, "KEEPCASE", null)) {
-          return false;
-        }
-        if (this.checkExact(capitalizedWord)) {
-          return true;
-        }
-        if (this.checkExact(trimmedWord.toLowerCase())) {
-          return true;
-        }
-      }
-      var uncapitalizedWord = trimmedWord[0].toLowerCase() + trimmedWord.substring(1);
-      if (uncapitalizedWord !== trimmedWord) {
-        if (this.hasFlag(uncapitalizedWord, "KEEPCASE", null)) {
-          return false;
-        }
-        if (this.checkExact(uncapitalizedWord)) {
-          return true;
-        }
-      }
-      return false;
-    }
-    /**
-     * Looks up whether a given word is flagged with a given flag.
-     *
-     * @param {String} word The word in question.
-     * @param {String} flag The flag in question.
-     * @return {Boolean}
-     */
-    hasFlag(word, flag, wordFlags) {
-      if (!this.loaded) {
-        throw "Dictionary not loaded.";
-      }
-      if (flag in this.flags) {
-        if (typeof wordFlags === "undefined") {
-          const result = this.dictionaryMap.get(word);
-          wordFlags = Array.prototype.concat.apply([], result);
-        }
-        if (wordFlags && wordFlags.indexOf(this.flags[flag]) !== -1) {
-          return true;
-        }
-      }
-      return false;
-    }
-  };
-
-  // examples/vanillats/js/build/src/ts/ui/table.js
-  var SortOrder;
-  (function(SortOrder2) {
-    SortOrder2[SortOrder2["Ascending"] = 0] = "Ascending";
-    SortOrder2[SortOrder2["Descending"] = 1] = "Descending";
-  })(SortOrder || (SortOrder = {}));
-  var HTMLResultsTablePage = class {
-    constructor(label, offset, limit, extended) {
-      this.label = label;
-      this.offset = offset;
-      this.limit = limit;
-      this.extended = extended;
-    }
-  };
-  var HTMLResultsTableSort = class {
-    /**
-     * Creates a new instance of HTMLResultsTableSort.
-     * @param primaryHeading - The primary heading to sort by.
-     * @param primarySort - The sort order for the primary heading.
-     * @param secondaryHeading - The secondary heading to sort by.
-     * @param secondarySort - The sort order for the secondary heading.
-     */
-    constructor(primaryHeading, primarySort, secondaryHeading, secondarySort) {
-      this.primaryHeading = primaryHeading;
-      this.primarySort = primarySort;
-      this.secondaryHeading = secondaryHeading;
-      this.secondarySort = secondarySort;
-    }
-  };
-  var HtmlResultsTable = class {
-    /**
-     * Creates a new HtmlResultsTable and appends it to the parent element.
-     * @deprecated Use create() instead. This method will be removed at some point tbd.
-     * @param parentElement - The parent element to append the table to.
-     * @param project - The project number.
-     * @param perPage - The number of items per page.
-     * @param header - The header text for the table.
-     * @param headings - The column headings.
-     * @param results - The data to be displayed in the table.
-     * @param resultsSort - The initial sorting configuration.
-     * @param rowRenderer - A function to render custom rows.
-     * @param cellRenderer - An object with functions to render custom cells.
-     * @param cellHandler - A function to handle cell events.
-     * @param exportExtra - Additional data for export.
-     * @returns A new instance of HtmlResultsTable.
-     */
-    static createElement(parentElement, project, perPage, header, headings, results, resultsSort, rowRenderer, cellRenderer, cellHandler, exportExtra) {
-      console.warn("createElement() is deprecated, use create()");
-      const pagedTable = new HtmlResultsTable(project, perPage, header, headings, results, resultsSort, rowRenderer, cellRenderer, cellHandler, exportExtra);
-      parentElement === null || parentElement === void 0 ? void 0 : parentElement.appendChild(pagedTable.baseElement);
-      Plugin.postContentHeight();
-      return pagedTable;
-    }
-    static create(config) {
-      const {
-        container,
-        project,
-        headings,
-        results,
-        perPage = 20,
-        // sensible default
-        header = "",
-        resultsSort = new HTMLResultsTableSort("ID", SortOrder.Ascending, "ID", SortOrder.Ascending),
-        rowRenderer = null,
-        cellRenderer = null,
-        cellHandler = null,
-        exportExtra = null
-      } = config;
-      const pagedTable = new HtmlResultsTable(project, perPage, header, headings, results, resultsSort, rowRenderer, cellRenderer, cellHandler, exportExtra);
-      container === null || container === void 0 ? void 0 : container.appendChild(pagedTable.baseElement);
-      Plugin.postContentHeight();
-      return pagedTable;
-    }
-    /**
-     * Generates a formatted column number.
-     * @param num - The number to format.
-     * @returns A string representation of the formatted number.
-     */
-    static generateFormatedColumnNumber(num) {
-      return `${num.toString().padStart(2, "0")}.`;
-    }
-    /**
-     * Helper function for sorting results.
-     * @param a - First value to compare.
-     * @param aNum - Numeric representation of the first value.
-     * @param aIsNum - Indicates if the first value is a number.
-     * @param b - Second value to compare.
-     * @param bNum - Numeric representation of the second value.
-     * @param bIsNum - Indicates if the second value is a number.
-     * @param sortOrder - The sort order to apply.
-     * @returns A number indicating the sort order of the two values.
-     */
-    static sortResultsHelper(a, aNum, aIsNum, b, bNum, bIsNum, sortOrder) {
-      if (aIsNum && bIsNum) {
-        if (sortOrder === SortOrder.Ascending) {
-          return aNum - bNum;
-        } else {
-          return bNum - aNum;
-        }
-      } else if (a !== void 0 && b !== void 0) {
-        if (sortOrder === SortOrder.Ascending) {
-          return a.localeCompare(b);
-        } else {
-          return b.localeCompare(a);
-        }
-      } else {
-        console.warn(`sort failure: ${a}, ${b}`);
-        return 0;
-      }
-    }
-    /**
-     * Creates a new instance of HtmlResultsTable.
-     * @param project - The project number.
-     * @param perPage - The number of items per page.
-     * @param header - The header text for the table.
-     * @param headings - The column headings.
-     * @param results - The data to be displayed in the table.
-     * @param resultsSort - The initial sorting configuration.
-     * @param rowRenderer - A function to render custom rows.
-     * @param cellRenderer - An object with functions to render custom cells.
-     * @param cellHandler - A function to handle cell events.
-     * @param exportExtra - Additional data for export.
-     */
-    constructor(project, perPage, header, headings, results, resultsSort, rowRenderer, cellRenderer, cellHandler, exportExtra) {
-      this.paginationEdgeRangeDesktop = 2;
-      this.paginationEdgeRangeMobile = 1;
-      this.baseElement = document.createElement("div");
-      this.header = header;
-      this.results = results;
-      this.resultsSort = resultsSort;
-      this.headings = headings;
-      this.perPage = perPage;
-      this.project = project;
-      this.resultsCount = results.length;
-      this.resultsOffset = 0;
-      this.cellRenderer = cellRenderer;
-      this.rowRenderer = rowRenderer;
-      this.cellHandler = cellHandler;
-      this.exportExtra = exportExtra;
-      this.scrollHandler = (ev) => {
-        var _a;
-        const evData = ev.data;
-        if (evData == null) {
-          this.setStickyHeaders(0);
-          return;
-        }
-        const evDataData = evData.data;
-        const scrollY = (_a = evDataData === null || evDataData === void 0 ? void 0 : evDataData.reportScrollY) !== null && _a !== void 0 ? _a : null;
-        if (scrollY === null || (evData === null || evData === void 0 ? void 0 : evData.target) !== "interrobot") {
-          return;
-        }
-        this.setStickyHeaders(scrollY);
-      };
-      this.navHandler = (ev) => {
-        this.resultsOffset = parseInt(ev.target.dataset.offset);
-        this.renderSection();
-        Plugin.postContentHeight();
-      };
-      this.browserLinkHandler = (ev) => {
-        const anchor = ev.target;
-        const openInBrowser = true;
-        Plugin.postOpenResourceLink(Number(anchor.dataset.id), openInBrowser);
-        ev.preventDefault();
-        ev.stopPropagation();
-      };
-      this.appLinkHandler = (ev) => {
-        const anchor = ev.target;
-        const openInBrowser = false;
-        Plugin.postOpenResourceLink(Number(anchor.dataset.id), openInBrowser);
-        ev.preventDefault();
-        ev.stopPropagation();
-      };
-      this.sortableHandler = (ev) => {
-        ev.preventDefault();
-        if (this.results.length === 0) {
-          return;
-        }
-        const anchor = ev.currentTarget;
-        let sortHeading = anchor.dataset["heading"];
-        let sortOrder;
-        if (this.resultsSort.primaryHeading === sortHeading) {
-          sortOrder = this.resultsSort.primarySort === SortOrder.Ascending ? SortOrder.Descending : SortOrder.Ascending;
-        } else {
-          sortOrder = SortOrder.Ascending;
-        }
-        this.resultsSort.primaryHeading = sortHeading;
-        this.resultsSort.primarySort = sortOrder;
-        this.resultsOffset = 0;
-        this.sortResults();
-        this.renderSection();
-        const msg = {
-          target: "interrobot",
-          data: {
-            reportScrollToTop: true
-          }
-        };
-        window.parent.postMessage(msg, "*");
-      };
-      this.downloadMenuHandler = (ev) => {
-        const dlLinks = this.baseElement.querySelector(".info__dl");
-        if (dlLinks !== null) {
-          dlLinks.classList.toggle("visible");
-          ev.preventDefault();
-        }
-      };
-      this.downloadHandler = (ev) => {
-        var _a, _b;
-        ev.preventDefault();
-        const dlLinks = this.baseElement.querySelector(".info__dl");
-        dlLinks.classList.remove("visible");
-        let exportHeaders = this.headings.concat(Object.keys((_a = this.exportExtra) !== null && _a !== void 0 ? _a : {}));
-        let truncatedExport = false;
-        if (exportHeaders[0] === "") {
-          truncatedExport = true;
-          exportHeaders.shift();
-        }
-        const exportRows = [];
-        for (let i = 0; i < this.results.length; i++) {
-          const result = this.results[i];
-          const resultValues = Object.values((_b = this.exportExtra) !== null && _b !== void 0 ? _b : {});
-          const textResultValues = [];
-          for (let resultValue of resultValues) {
-            if (typeof resultValue === "function") {
-              const returned = resultValue(i);
-              textResultValues.push(returned);
-            } else {
-              textResultValues.push(resultValue.toString());
-            }
-          }
-          if (truncatedExport) {
-            exportRows.push(result.slice(1).concat(textResultValues));
-          } else {
-            exportRows.push(result.concat(textResultValues));
-          }
-        }
-        const msg = {
-          target: "interrobot",
-          data: {
-            reportExport: {
-              format: ev.target.dataset.format,
-              headers: exportHeaders,
-              rows: exportRows
-            }
-          }
-        };
-        window.parent.postMessage(msg, "*");
-      };
-      this.renderSection();
-    }
-    /**
-     * Gets the index of a heading in the headings array.
-     * @param headingLabel - The label of the heading to find.
-     * @returns The index of the heading, or -1 if not found.
-     */
-    getHeadingIndex(headingLabel) {
-      return this.headings.indexOf(headingLabel);
-    }
-    /**
-     * Gets the results data.
-     * @returns The results data as a 2D array of strings.
-     */
-    getResults() {
-      return this.results;
-    }
-    /**
-     * Gets the headings of the table.
-     * @returns An array of heading strings.
-     */
-    getHeadings() {
-      return this.headings;
-    }
-    /**
-     * Gets the current sorting configuration.
-     * @returns The current HTMLResultsTableSort object.
-     */
-    getResultsSort() {
-      return this.resultsSort;
-    }
-    /**
-     * Sets the sticky headers based on the current scroll position.
-     * @param scrollY - The current vertical scroll position.
-     */
-    setStickyHeaders(scrollY) {
-      const thead = this.baseElement.querySelector("thead");
-      const table = thead === null || thead === void 0 ? void 0 : thead.parentElement;
-      if (thead === null || table === null) {
-        return;
-      }
-      const rect = table.getBoundingClientRect();
-      const inTable = rect.top <= scrollY && scrollY <= rect.bottom;
-      if (inTable) {
-        thead.classList.add("sticky");
-        thead.style.top = `${scrollY - rect.top}px`;
-      } else {
-        thead.classList.remove("sticky");
-        thead.style.top = `auto`;
-      }
-      return;
-    }
-    /**
-     * Sets the current page offset.
-     * @param page - The page number to set (0-indexed).
-     */
-    setOffsetPage(page) {
-      const requestedPage = page * this.perPage;
-      if (requestedPage !== this.resultsOffset) {
-        this.resultsOffset = requestedPage;
-        this.renderSection();
-      }
-    }
-    sortResults() {
-      const primaryHeading = this.resultsSort.primaryHeading;
-      const primarySort = this.resultsSort.primarySort;
-      const primarySortOnIndex = this.getHeadingIndex(primaryHeading);
-      const secondaryHeading = this.resultsSort.secondaryHeading;
-      const secondarySort = this.resultsSort.secondarySort;
-      const secondarySortOnIndex = this.getHeadingIndex(secondaryHeading);
-      const naturalNumberRegex = /^[-+]?[0-9]+([,.]?[0-9]+)?$/;
-      if (primarySortOnIndex === -1) {
-        console.warn(`heading '${this.resultsSort.primaryHeading}' not found, aborting sort`);
-        return;
-      }
-      const compoundSort = (a, b) => {
-        const primaryAVal = a[primarySortOnIndex];
-        const primaryAValNumber = naturalNumberRegex.test(primaryAVal) ? parseFloat(primaryAVal) : null;
-        const primaryAValIsNumber = primaryAValNumber !== null && !isNaN(primaryAValNumber);
-        const primaryBVal = b[primarySortOnIndex];
-        const primaryBValNumber = naturalNumberRegex.test(primaryBVal) ? parseFloat(primaryBVal) : null;
-        const primaryBValIsNumber = primaryBValNumber !== null && !isNaN(primaryBValNumber);
-        if (primaryAVal === primaryBVal) {
-          const secondaryAVal = a[secondarySortOnIndex];
-          const secondaryAValNumber = parseFloat(secondaryAVal);
-          const secondaryAValIsNumber = !isNaN(secondaryAValNumber);
-          const secondaryBVal = b[secondarySortOnIndex];
-          const secondaryBValNumber = parseFloat(secondaryBVal);
-          const secondaryBValIsNumber = !isNaN(secondaryBValNumber);
-          return HtmlResultsTable.sortResultsHelper(secondaryAVal, secondaryAValNumber, secondaryAValIsNumber, secondaryBVal, secondaryBValNumber, secondaryBValIsNumber, secondarySort);
-        } else {
-          return HtmlResultsTable.sortResultsHelper(primaryAVal, primaryAValNumber, primaryAValIsNumber, primaryBVal, primaryBValNumber, primaryBValIsNumber, primarySort);
-        }
-      };
-      this.results.sort(compoundSort);
-      if (this.headings[0] === "") {
-        for (let i = 0; i < this.results.length; i++) {
-          this.results[i][0] = HtmlResultsTable.generateFormatedColumnNumber(i + 1);
-        }
-      }
-    }
-    getColumnClass(heading) {
-      return `column__${heading ? heading.replace(/[^\w]+/g, "").toLowerCase() : "empty"}`;
-    }
-    renderTableHeadings(headings) {
-      const out = [];
-      const svg = `<svg version="1.1" class="chevrons" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
-	        x="0px" y="0px" width="12px" height="20px" viewBox="6 2 12 20" enable-background="new 6 2 12 20" xml:space="preserve">
-            <title>north/south chevrons</title>
-	        <polyline class="d2" fill="none" stroke="#000000" stroke-miterlimit="10" points="7.32,16.655 12.015,21.208 16.566,16.633"/>
-	        <polyline class="d1" fill="none" stroke="#000000" stroke-miterlimit="10" points="7.314,13.274 12.01,17.827 16.561,13.253"/>
-	        <polyline class="u2" fill="none" stroke="#000000" stroke-miterlimit="10" points="16.685,10.594 12.115,6.041 7.439,10.615"/>
-	        <polyline class="u1" fill="none" stroke="#000000" stroke-miterlimit="10" points="16.679,7.345 12.11,2.792 7.434,7.365"/>
-        </svg>`;
-      for (let heading of headings) {
-        const encodedColumnClass = HtmlUtils.htmlEncode(this.getColumnClass(heading));
-        const encodedLabel = `${HtmlUtils.htmlEncode(heading)}`;
-        const sortable = encodedColumnClass !== "column__empty";
-        let sortableLabel = "";
-        let sortableChevronLink = "";
-        if (sortable) {
-          sortableLabel = `<a tabindex="0" class="sortable" data-heading="${HtmlUtils.htmlEncode(heading)}" href="#">${HtmlUtils.htmlEncode(encodedLabel)}</a>`;
-          sortableChevronLink = `<a tabindex="-1" title="${encodedLabel}" class="sortable" data-heading="${HtmlUtils.htmlEncode(heading)}" href="#">
-                    ${svg}<span class="reader">${encodedLabel}</span></a>`;
-        } else {
-          sortableLabel = `${HtmlUtils.htmlEncode(encodedLabel)}`;
-        }
-        out.push(`<th class="${encodedColumnClass}">` + sortableLabel + " " + sortableChevronLink + `</th>`);
-      }
-      return out.join("");
-    }
-    renderTableData() {
-      const filteredExpandedRows = [];
-      const headingIdIndex = this.getHeadingIndex("ID");
-      const resultsSlice = this.results.slice(this.resultsOffset, this.resultsOffset + this.perPage);
-      for (let i = 0; i < resultsSlice.length; i++) {
-        const row = resultsSlice[i];
-        const rowHeadingMapped = this.headings.reduce((obj, key, index) => ({ ...obj, [key]: row[index] }), {});
-        const rowCells = [];
-        const rowClasses = [];
-        if (this.rowRenderer) {
-          const result = this.rowRenderer(row, this.headings);
-          if ("classes" in result) {
-            rowClasses.push.apply(rowClasses, result["classes"]);
-          }
-        }
-        for (let j = 0; j < row.length; j++) {
-          const classes = [];
-          const cellHeading = this.headings[j];
-          classes.push(this.getColumnClass(cellHeading));
-          const cell = row[j];
-          const cellNum = Number(cell);
-          const cellIsNumeric = !isNaN(cellNum) || cell.match(/^\d+\/\d+$/) !== null;
-          if (cellIsNumeric) {
-            classes.push("numeric");
-          } else if (HtmlUtils.isUrl(cell)) {
-            classes.push("url");
-          }
-          let cellContents = `${cell}`;
-          const cellNumber = Number(cell);
-          const cellCallback = this.cellRenderer && cellHeading in this.cellRenderer ? this.cellRenderer[cellHeading] : null;
-          if (cellCallback) {
-            const callbackResult = cellCallback(cell, rowHeadingMapped, i);
-            cellContents = callbackResult.content;
-            classes.push(...callbackResult.classes);
-          } else if (cellIsNumeric && !isNaN(cellNumber) && cellHeading !== "" && cellHeading !== "ID") {
-            cellContents = `${Number(cell).toLocaleString()}`;
-          } else if (classes.indexOf("url") > -1) {
-            cellContents = `<a tabindex="0" class="ulink" data-id="${HtmlUtils.htmlEncode(row[headingIdIndex])}" 
-                        href="${HtmlUtils.htmlEncode(cell)}">${HtmlUtils.htmlEncode(cell)}</a>`;
-          }
-          rowCells.push(`<td class="${HtmlUtils.htmlEncode(classes.join(" "))}">${cellContents}</td>`);
-        }
-        filteredExpandedRows.push(`<tr class="${HtmlUtils.htmlEncode(rowClasses.join(" "))}">${rowCells.join("")}</tr>`);
-      }
-      return filteredExpandedRows;
-    }
-    renderSection() {
-      this.removeHandlers();
-      if (this.resultsSort.primarySort !== null && this.resultsSort.primaryHeading !== null) {
-        this.sortResults();
-      }
-      const filteredExpandedRows = this.renderTableData();
-      if (filteredExpandedRows.length === 0) {
-        this.baseElement.innerHTML = `<section>${this.header}<p>No results found.</p></section>`;
-        return;
-      }
-      const expandedNavigation = [];
-      const resultPages = this.getPagination();
-      const navigationTest = { "\u25C0\u25C0": true, "\u25B6\u25B6": true };
-      for (let i = 0; i < resultPages.length; i++) {
-        const page = resultPages[i];
-        let classnames = [];
-        if (page.label in navigationTest) {
-          classnames.push(page.label == "\u25C0\u25C0" ? "rewind" : "fastforward");
-        } else if (page.offset === this.resultsOffset) {
-          classnames.push("current");
-        } else if (page.extended) {
-          classnames.push("extended");
-        }
-        expandedNavigation.push(`<button class="${classnames.join(" ")}" data-offset="${page.offset}">${page.label}</button>`);
-      }
-      const resultStart = this.resultsOffset + 1;
-      const resultEnd = Math.min(this.resultsCount, this.resultsOffset + this.perPage);
-      const exportIconChar = this.isCorePlugin() ? "`" : "\u229E";
-      let section = `<section>
-            ${this.header}
-            <hgroup>
-                <div class="info">
-                    <span class="info__dl export">
-                        <button class="icon">${exportIconChar}</button>
-                        <ul class="export__ulink">
-                            <li><a tabindex="0" class="ulink" href="#" data-format="csv">Export CSV</a></li>
-                            <li><a tabindex="0" class="ulink" href="#" data-format="xlsx">Export Excel</a></li>
-                        </ul>
-                    </span>
-                    <span class="info__results"><span class="info__results__nobr">
-                        ${resultStart.toLocaleString()} - ${resultEnd.toLocaleString()}</span> 
-                        <span class="info__results__nobr">of ${this.resultsCount.toLocaleString()}</span></span>
-                </div>
-                <nav>${expandedNavigation.join("")}</nav>
-            </hgroup>
-            <div class="datatable">
-                <table>
-                    <thead>
-                        <tr>
-                            ${this.renderTableHeadings(this.headings)}                        
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${filteredExpandedRows.join("")}
-                    </tbody>
-                </table>
-            </div>`;
-      this.baseElement.innerHTML = section;
-      const sortables = this.baseElement.querySelectorAll(`a.sortable`);
-      for (let i = 0; i < sortables.length; i++) {
-        const sortAnchor = sortables[i];
-        sortAnchor.classList.remove("ascending", "descending");
-        if (sortAnchor.dataset.heading === this.resultsSort.primaryHeading) {
-          const sortClass = this.resultsSort.primarySort == SortOrder.Ascending ? "ascending" : "descending";
-          sortAnchor.classList.add(sortClass);
-        }
-      }
-      this.addHandlers();
-    }
-    /**
-     * Adds event handlers to the table elements.
-     */
-    addHandlers() {
-      this.applyHandlers(true);
-    }
-    /**
-     * Removes event handlers from the table elements.
-     */
-    removeHandlers() {
-      this.applyHandlers(false);
-    }
-    /**
-     * Identifies a core plugin (as true)
-     */
-    isCorePlugin() {
-      const iframed = window.self !== window.top;
-      let sameDomain = false;
-      if (iframed) {
-        try {
-          sameDomain = Boolean(window.parent.location.href);
-        } catch (e) {
-          sameDomain = false;
-        }
-      }
-      return iframed && sameDomain;
-    }
-    applyHandlers(add) {
-      const navLinkMethod = add ? "addEventListener" : "removeEventListener";
-      const navButtons = this.baseElement.querySelectorAll("nav button");
-      for (let i = 0; i < navButtons.length; i++) {
-        const navButton = navButtons[i];
-        navButton[navLinkMethod]("click", this.navHandler);
-      }
-      const downloadLinks = this.baseElement.querySelectorAll(".info__dl .ulink");
-      for (let i = 0; i < downloadLinks.length; i++) {
-        const dlLink = downloadLinks[i];
-        dlLink[navLinkMethod]("click", this.downloadHandler);
-      }
-      const downloadMenuToggle = this.baseElement.querySelector(".info__dl button");
-      if (downloadMenuToggle !== null) {
-        downloadMenuToggle[navLinkMethod]("click", this.downloadMenuHandler);
-        const hasMouse = matchMedia("(pointer:fine)").matches && !/android/i.test(window.navigator.userAgent);
-        if (hasMouse) {
-          const dl = this.baseElement.querySelector(".info__dl");
-          dl === null || dl === void 0 ? void 0 : dl.classList.add("hasmouse");
-        }
-      }
-      const stickyHead = this.baseElement.querySelector("thead");
-      if (stickyHead) {
-        window[navLinkMethod]("message", this.scrollHandler);
-        window[navLinkMethod]("resize", this.scrollHandler);
-      }
-      const table = this.baseElement.querySelector("table");
-      if (table) {
-        const wrap = document.querySelector(".wrap");
-        table[navLinkMethod]("touchstart", (ev) => {
-          wrap === null || wrap === void 0 ? void 0 : wrap.classList.add("dragging");
-          ev.stopPropagation();
-        }, { passive: true });
-        table[navLinkMethod]("touchend", (ev) => {
-          wrap === null || wrap === void 0 ? void 0 : wrap.classList.remove("dragging");
-          ev.stopPropagation();
-        }, { passive: true });
-        table[navLinkMethod]("touchmove", (ev) => {
-          ev.stopPropagation();
-        }, { passive: true });
-      }
-      const customButtons = this.baseElement.querySelectorAll("button.custom");
-      if (this.cellHandler) {
-        for (let button of customButtons) {
-          button[navLinkMethod]("click", this.cellHandler);
-        }
-      }
-      const browserLinks = this.baseElement.querySelectorAll("td.url a");
-      for (let i = 0; i < browserLinks.length; i++) {
-        const browserLink = browserLinks[i];
-        browserLink[navLinkMethod]("click", this.browserLinkHandler);
-      }
-      for (let i = 0; i < navButtons.length; i++) {
-        const navButton = navButtons[i];
-        navButton[navLinkMethod]("click", this.navHandler);
-      }
-      const appLinks = this.baseElement.querySelectorAll("td.column__id a");
-      for (let i = 0; i < appLinks.length; i++) {
-        const appLink = appLinks[i];
-        appLink[navLinkMethod]("click", this.appLinkHandler);
-      }
-      const sortables = this.baseElement.querySelectorAll("th a.sortable");
-      for (let i = 0; i < sortables.length; i++) {
-        const sortable = sortables[i];
-        sortable[navLinkMethod]("click", this.sortableHandler);
-      }
-    }
-    /**
-     * Gets the pagination configuration.
-     * @returns An array of HTMLResultsTablePage objects representing the pagination.
-     */
-    getPagination() {
-      const pages = [];
-      let pagesAdded = 0;
-      let precedingPagesMaxDesktop = this.paginationEdgeRangeDesktop;
-      let precedingPagesMaxMobile = this.paginationEdgeRangeMobile;
-      const precedingPages = Math.ceil(this.resultsOffset / this.perPage);
-      const addPrecedingDesktopPages = Math.max(precedingPagesMaxDesktop - precedingPages, 0);
-      const addPrecedingMobilePages = Math.max(precedingPagesMaxMobile - precedingPages, 0);
-      precedingPagesMaxDesktop += Math.max(addPrecedingDesktopPages, 0);
-      precedingPagesMaxMobile += Math.max(addPrecedingMobilePages, 0);
-      let tempOffset = this.resultsOffset;
-      while (tempOffset > 0 && pagesAdded < precedingPagesMaxDesktop) {
-        tempOffset -= this.perPage;
-        const pageLinkLabel = `${tempOffset / this.perPage + 1}`;
-        const pageLink = new HTMLResultsTablePage(pageLinkLabel, tempOffset, this.perPage, pagesAdded >= precedingPagesMaxMobile);
-        pages.push(pageLink);
-        pagesAdded++;
-      }
-      if (this.resultsOffset > 0) {
-        pages.push(new HTMLResultsTablePage("\u25C0", this.resultsOffset - this.perPage, this.perPage, true));
-        pages.push(new HTMLResultsTablePage("\u25C0\u25C0", 0, this.perPage, false));
-      }
-      pages.reverse();
-      if (this.resultsCount > this.perPage) {
-        const pageLinkLabel = `${this.resultsOffset / this.perPage + 1}`;
-        const pageLink = new HTMLResultsTablePage(pageLinkLabel, this.resultsOffset, this.perPage, false);
-        pages.push(pageLink);
-      }
-      let followingPagesMaxDesktop = this.paginationEdgeRangeDesktop;
-      let followingPagesMaxMobile = this.paginationEdgeRangeMobile;
-      const followingPages = Math.ceil(this.resultsOffset / this.perPage);
-      const addFollowingDesktopPages = Math.max(followingPagesMaxDesktop - followingPages, 0);
-      const addFollowingMobilePages = Math.max(followingPagesMaxMobile - followingPages, 0);
-      followingPagesMaxDesktop += Math.max(addFollowingDesktopPages, 0);
-      followingPagesMaxMobile += Math.max(addFollowingMobilePages, 0);
-      pagesAdded = 0;
-      tempOffset = this.resultsOffset + this.perPage;
-      while (tempOffset < this.resultsCount && pagesAdded < followingPagesMaxDesktop) {
-        const pageLinkLabel = `${tempOffset / this.perPage + 1}`;
-        const pageLink = new HTMLResultsTablePage(pageLinkLabel, tempOffset, this.perPage, pagesAdded >= followingPagesMaxMobile);
-        pages.push(pageLink);
-        tempOffset += this.perPage;
-        pagesAdded++;
-      }
-      if (this.resultsCount > this.resultsOffset + this.perPage) {
-        pages.push(new HTMLResultsTablePage("\u25B6", this.resultsOffset + this.perPage, this.perPage, true));
-        let modLast = this.resultsCount - this.resultsCount % this.perPage;
-        modLast = modLast == this.resultsCount ? modLast - this.perPage : modLast;
-        pages.push(new HTMLResultsTablePage("\u25B6\u25B6", modLast, this.perPage, false));
-      }
-      return pages;
-    }
-  };
-
   // examples/vanillats/js/build/examples/vanillats/ts/wordcloud.js
   var WordcloudLayout = class {
     constructor(id, name, spiral, separated) {
@@ -5833,6 +5957,7 @@ This is the default plugin description. Set meta: {} values
       this.wordMap = /* @__PURE__ */ new Map();
       this.wordMapPresentation = [];
       this.resultsMap = /* @__PURE__ */ new Map();
+      this.resultsMapComplete = false;
       this.perPage = 25;
       this.table = null;
       this.progress = null;
@@ -6072,7 +6197,8 @@ This is the default plugin description. Set meta: {} values
       Plugin.postContentHeight();
     }
     async process() {
-      await this.data.updateData();
+      var _a;
+      await ((_a = this.data) === null || _a === void 0 ? void 0 : _a.updateData());
       const basePath = "/hunspell";
       const requestOptions = {
         method: "GET",
@@ -6097,14 +6223,17 @@ This is the default plugin description. Set meta: {} values
         includeExternal: false,
         includeNoRobots: false
       });
-      const options = {
-        paginate: true,
-        showProgress: false,
-        progressMessage: "Finding jargon\u2026"
-      };
-      await Search.execute(internalHtmlPagesQuery, this.resultsMap, async (result) => {
-        await this.wordcloudResultHandler(result);
-      }, options);
+      if (this.resultsMapComplete) {
+        for (const result of this.resultsMap.values()) {
+          await this.wordcloudResultHandler(result);
+        }
+      } else {
+        this.resultsMap.clear();
+        for await (const result of Search.results(internalHtmlPagesQuery, { showProgress: true })) {
+          await this.wordcloudResultHandler(result);
+        }
+        this.resultsMapComplete = true;
+      }
       let wordcloudWordList = [...this.wordMap.values()];
       this.wordMapPresentation = this.sortAndTruncatePresentation(wordcloudWordList);
       await this.report();
@@ -6219,8 +6348,9 @@ This is the default plugin description. Set meta: {} values
         ]);
       }
       const exportExtra = {};
-      const cellHandler = async (ev) => {
-        const button = ev.target;
+      const cellHandler = (ev) => {
+        const target = ev.target;
+        const button = target === null || target === void 0 ? void 0 : target.closest("button.custom");
         if (!button) {
           return;
         }
@@ -6228,7 +6358,7 @@ This is the default plugin description. Set meta: {} values
       };
       const rowRenderer = null;
       const cellRenderer = {
-        "TERM": (cellValue, rowData) => {
+        "TERM": (cellValue, rowData, index) => {
           return {
             "classes": ["term"],
             "content": `<strong>${cellValue}</strong>
@@ -6456,13 +6586,6 @@ This is the default plugin description. Set meta: {} values
   Wordcloud.wordsMaxOutput = 55;
   Plugin.initialize(Wordcloud);
 })();
-/*!
- * Stopwords themselves (c)?2023:
- * Source: NLTK (python natural language toolkit)
- * Apache License 2.0
- * from nltk.corpus import stopwords
- * print(json.dumps(stopwords.words('english'), ensure_ascii=False))
- */
 /**
  * @license
  * This code may be useful for anyone trying to escape the
@@ -6499,4 +6622,11 @@ This is the default plugin description. Set meta: {} values
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+/*!
+ * Stopwords themselves (c)?2023:
+ * Source: NLTK (python natural language toolkit)
+ * Apache License 2.0
+ * from nltk.corpus import stopwords
+ * print(json.dumps(stopwords.words('english'), ensure_ascii=False))
  */

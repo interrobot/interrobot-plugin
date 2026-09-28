@@ -6,14 +6,22 @@ declare enum SearchQueryType {
     Asset = "asset",
     Any = "any"
 }
+/**
+ * Valid sort orders for search queries. Prefix "-" for descending,
+ * "?" for random.
+ */
+type SearchQuerySort = "?" | "id" | "-id" | "time" | "-time" | "status" | "-status" | "url" | "-url";
 interface SearchQueryParams {
     project: number;
     query: string;
-    fields: string[];
-    type: SearchQueryType;
+    /** Additional fields to fetch. id and url come free, everything else costs time. Default []. */
+    fields?: string[];
+    /** Result type filter. Default SearchQueryType.Any. */
+    type?: SearchQueryType;
     includeExternal?: boolean;
     includeNoRobots?: boolean;
-    sort?: string;
+    /** `(string & {})` preserves autocomplete without breaking untyped callers */
+    sort?: SearchQuerySort | (string & {});
     perPage?: number;
 }
 interface SearchResultJson {
@@ -35,9 +43,16 @@ interface SearchResultJson {
     origin?: string;
 }
 interface SearchExecuteOptions {
+    /** Fetch all pages of results, not just the first. Default false. */
     paginate?: boolean;
+    /** Emit progress events (SearchResultHandled/ProcessingMessage) as results process. Default true. */
     showProgress?: boolean;
+    /** Message displayed while replaying cached results. Default "Processing...". */
     progressMessage?: string;
+}
+interface SearchResultsOptions {
+    /** Emit a SearchResultHandled progress event after each result is consumed. Default false. */
+    showProgress?: boolean;
 }
 interface CrawlParams {
     id: number;
@@ -60,8 +75,8 @@ interface ProjectParams {
 }
 interface PluginDataParams {
     projectId: number;
-    meta: {};
-    defaultData: {};
+    meta: Record<string, string>;
+    defaultData: Record<string, any>;
     autoformInputs: HTMLElement[];
 }
 /**
@@ -90,7 +105,7 @@ declare class PluginData {
      * Gets the current plugin data.
      * @returns A promise that resolves to the plugin data.
      */
-    getData(): Promise<{}>;
+    getData(): Promise<Record<string, any>>;
     /**
      * Loads the plugin data from the server.
      */
@@ -105,16 +120,6 @@ declare class PluginData {
      * Updates the plugin data on the server.
      */
     updateData(): Promise<void>;
-    /**
-     * Gets the data slug for the plugin.
-     * @returns The base64 encoded plugin URL.
-     */
-    private getDataSlug;
-    /**
-     * Gets the current plugin URL.
-     * @returns The full URL of the plugin.
-     */
-    private getPluginUrl;
 }
 declare class SearchQuery {
     static readonly maxPerPage: number;
@@ -128,7 +133,8 @@ declare class SearchQuery {
     readonly sort: string;
     readonly perPage: number;
     /**
-     * Creates an instance of SearchQuery.
+     * Creates an instance of SearchQuery. Only project and query are
+     * required, remaining params have sensible defaults.
      * @param params - Configuration object containing project, query, fields, type, includeExternal, and includeNoRobots
      */
     constructor(params: SearchQueryParams);
@@ -139,8 +145,8 @@ declare class SearchQuery {
     getHaystackCacheKey(): string;
 }
 declare class Search {
-    private static resultsCacheTotal;
-    private static resultsHaystackCacheKey;
+    private static readonly executeDeprecationWarning;
+    private static resultsCache;
     /**
      * Executes a search query.
      * @param query - The search query to execute
@@ -151,17 +157,32 @@ declare class Search {
      */
     static execute(query: SearchQuery, resultsMap: Map<number, SearchResult>, resultHandler: (result: SearchResult) => Promise<void>, options?: SearchExecuteOptions): Promise<boolean>;
     /**
-     * Sleeps for the specified number of milliseconds.
-     * @param millis - The number of milliseconds to sleep.
+     * Streams search results as an async iterator, paginating internally.
+     * The streamlined alternative to execute():
+     *
+     *     for await (const result of Search.results(query)) { ... }
+     *
+     * No implicit caching, progress events are opt-in — break out of the
+     * loop anytime to stop fetching.
+     * @param query - The search query to execute
+     * @param options - Optional; showProgress emits SearchResultHandled events
+     * @returns An async generator yielding each SearchResult
      */
-    private static sleep;
+    static results(query: SearchQuery, options?: SearchResultsOptions): AsyncGenerator<SearchResult, void, undefined>;
     /**
      * Handles a single search result.
      * @param jsonResult - The JSON representation of the search result.
      * @param resultTotal - The total number of results.
      * @param resultHandler - Function to handle the search result.
+     * @param showProgress - Whether to emit a SearchResultHandled progress event.
      */
     private static handleResult;
+    /**
+     * Dispatches the SearchResultHandled progress event.
+     * @param resultNum - The 1-based position of the handled result.
+     * @param resultTotal - The total number of results.
+     */
+    private static dispatchResultHandled;
 }
 /**
  * Class representing a search result.
@@ -185,7 +206,7 @@ declare class SearchResult {
     protected content: string;
     protected headers: string;
     private processedContent;
-    private optionalFields;
+    private static readonly optionalFields;
     private static normalizeContentWords;
     private static normalizeContentString;
     /**
@@ -240,8 +261,8 @@ declare class Crawl {
     id: number;
     project: number;
     complete: boolean;
-    created?: Date;
-    modified?: Date;
+    created: Date | null;
+    modified: Date | null;
     time?: number;
     report?: any;
     /**
@@ -251,19 +272,19 @@ declare class Crawl {
     constructor(params: CrawlParams);
     /**
      * Gets the timings from the crawl report.
-     * @returns The timings object.
+     * @returns The timings object, or null (InterroBot pre-2.6).
      */
-    getTimings(): {};
+    getTimings(): Record<string, any> | null;
     /**
      * Gets the sizes from the crawl report.
-     * @returns The sizes object.
+     * @returns The sizes object, or null (InterroBot pre-2.6).
      */
-    getSizes(): {};
+    getSizes(): Record<string, any> | null;
     /**
      * Gets the counts from the crawl report.
-     * @returns The counts object.
+     * @returns The counts object, or null (InterroBot pre-2.6).
      */
-    getCounts(): {};
+    getCounts(): Record<string, any> | null;
     private getReportDetailByKey;
 }
 /**
@@ -271,13 +292,15 @@ declare class Crawl {
  */
 declare class Project {
     id: number;
-    created?: Date;
-    modified?: Date;
-    name?: string;
-    type?: string;
-    url?: string;
-    urls?: string[];
-    imageDataUri?: string;
+    created?: Date | null;
+    modified?: Date | null;
+    name?: string | null;
+    type?: string | null;
+    url?: string | null;
+    urls?: string[] | null;
+    imageDataUri?: string | null;
+    static readonly urlDeprecationWarning: string;
+    /** @deprecated misspelling, use urlDeprecationWarning */
     static readonly urlDeprectionWarning: string;
     /**
      * Creates an instance of Project.
@@ -298,7 +321,8 @@ declare class Project {
     /**
      * Gets a project by its ID from the API.
      * @param id - The project ID.
-     * @returns A promise that resolves to a Project instance, or null if not found.
+     * @returns A promise that resolves to a Project instance.
+     * @throws If no project matches the id.
      */
     static getApiProject(id: number): Promise<Project>;
     /**
@@ -308,4 +332,4 @@ declare class Project {
      */
     static getApiCrawls(project: number): Promise<Crawl[]>;
 }
-export { Project, ProjectParams, Crawl, CrawlParams, SearchQueryType, SearchQuery, SearchQueryParams, Search, SearchExecuteOptions, SearchResult, SearchResultJson, PluginData, PluginDataParams };
+export { Project, ProjectParams, Crawl, CrawlParams, SearchQueryType, SearchQuery, SearchQueryParams, SearchQuerySort, Search, SearchExecuteOptions, SearchResultsOptions, SearchResult, SearchResultJson, PluginData, PluginDataParams };

@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TouchProxy = void 0;
+const host_js_1 = require("./host.js");
 /**
  * A class that proxies touch events from the iframe to its container.
  */
@@ -21,9 +22,7 @@ class TouchProxy {
      * @param ev - The TouchEvent to be proxied.
      */
     async proxyToContainer(ev) {
-        var _a;
         let primeTouch;
-        let touches = (_a = ev.touches) !== null && _a !== void 0 ? _a : ev.changedTouches;
         if (ev.touches.length === 1) {
             primeTouch = ev.touches[0];
         }
@@ -50,17 +49,9 @@ class TouchProxy {
             force: primeTouch.force,
             eventType: ev.type,
         };
-        const msg = {
-            target: "interrobot",
-            data: {
-                reportTouch: touchData,
-            },
-        };
-        window.parent.postMessage(msg, "*");
-    }
-    async touchEnd(ev) {
-    }
-    async touchMove(ev) {
+        host_js_1.Host.postToHost({
+            reportTouch: touchData,
+        });
     }
 }
 exports.TouchProxy = TouchProxy;

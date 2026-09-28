@@ -18,6 +18,7 @@ class HtmlUtils {
         }
         catch (ex) {
             console.warn(ex);
+            return null;
         }
         // return new DOMParser().parseFromString(html, "text/html");
     }
@@ -27,6 +28,7 @@ class HtmlUtils {
      * @returns A cleaned Document object.
      */
     static getDocumentCleanText(html) {
+        var _a;
         // remove dom nodes that hurt more than they help wrt search
         let dom = this.getDocument(html);
         if (dom === null) {
@@ -36,7 +38,8 @@ class HtmlUtils {
         // iframes can contain (invalid html) text... seen with own eyes, html treated as text
         const textUnfriendly = dom.querySelectorAll("script, style, svg, noscript, iframe");
         for (let i = textUnfriendly.length - 1; i >= 0; i--) {
-            textUnfriendly[i].parentElement.removeChild(textUnfriendly[i]);
+            const tu = textUnfriendly[i];
+            (_a = tu.parentElement) === null || _a === void 0 ? void 0 : _a.removeChild(textUnfriendly[i]);
         }
         return dom;
     }
@@ -69,11 +72,12 @@ class HtmlUtils {
      * @returns A string containing the element's text content.
      */
     static getElementTextOnly(dom, element) {
+        var _a;
         const xpr = HtmlUtils.getElementTextIterator(dom, element);
         const texts = [];
         let node = xpr.iterateNext();
         while (node) {
-            texts.push(node.nodeValue.trim());
+            texts.push((_a = node.nodeValue) === null || _a === void 0 ? void 0 : _a.trim());
             node = xpr.iterateNext();
         }
         return texts.join(" ");
@@ -84,22 +88,25 @@ class HtmlUtils {
      * @returns True if the string is a valid URL, false otherwise.
      */
     static isUrl(str) {
+        // cast required, canParse postdates the installed ts dom lib
         return URL.canParse(str);
-        // return str.match(HtmlUtils.urlRegex) !== null;
     }
     /**
-     * Encodes HTML special characters in a string.
+     * Encodes HTML special characters in a string. Safe for use in
+     * text nodes and attribute values (escapes quotes, unlike
+     * text-node serialization).
      * @param str - The string to encode.
      * @returns An HTML-encoded string.
      */
     static htmlEncode(str) {
-        return new Option(str).innerHTML;
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
     }
 }
-/** Regular expression for matching URLs in a string. */
-HtmlUtils.urlsRegex = /((([A-Za-z]{3,9}:(?:\/\/)?)(?:[\-;:&=\+\$,\w]+@)?[A-Za-z0-9\.\-]+|(?:www\.|[\-;:&=\+\$,\w]+@)[A-Za-z0-9\.\-]+)((?:\/[\+~%\/\.\w\-_\:]*)?\??(?:[\-\+=&;%@\.\w_]*)#?(?:[\.\!\/\\\w]*))?)/g;
-/** Regular expression for validating a single URL. */
-HtmlUtils.urlRegex = /^((([A-Za-z]{3,9}:(?:\/\/)?)(?:[\-;:&=\+\$,\w]+@)?[A-Za-z0-9\.\-]+|(?:www\.|[\-;:&=\+\$,\w]+@)[A-Za-z0-9\.\-]+)((?:\/[\+~%\/\.\w\-_\:]*)?\??(?:[\-\+=&;%@\.\w_]*)#?(?:[\.\!\/\\\w]*))?)$/;
 /** Regular expression for matching style attributes in HTML. */
 HtmlUtils.styleAttributeRegex = /style\s*=\s*("([^"]*)"|'([^']*)')/gi;
 export { HtmlUtils };

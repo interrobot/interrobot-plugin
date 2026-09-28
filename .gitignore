@@ -23,11 +23,15 @@
 *.ssleay
 *.smime
 
-*.log
-node_modules/
+/*.txt
+/*.md
 
-notes.txt
+*.diff
+*.log
+
+node_modules/
+archive/
 
 examples/vanillats/js/build/*
-dist/readme.md
+dist/README.md
 docs-rtd/build/

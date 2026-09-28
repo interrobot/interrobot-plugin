@@ -17,9 +17,18 @@ class BasicExamplePlugin extends InterroBot.Core.Plugin {
 
     async index() {
         const project = await InterroBot.Core.Project.getApiProject(this.getProjectId());
+        const enc = InterroBot.Core.HtmlUtils.htmlEncode;
         this.render(`
-            ${InterroBot.Ui.Templates.standardHeading(project, BasicExamplePlugin.meta["title"])}
-            ${InterroBot.Ui.Templates.standardForm(`
+        <div class="main__heading">
+            <div class="main__heading__icon">
+                <img id="projectIcon" src="${enc(project.getImageDataUri())}" alt="Icon for ${enc(project.getDisplayTitle())}" />
+            </div>
+            <div class="main__heading__title">
+                <h1><span>${enc(BasicExamplePlugin.meta["title"])}</span></h1>
+                <div><span>${enc(project.getDisplayTitle())}</span></div>
+            </div>
+        </div>
+        <div class="main__form">
             <p>Welcome, from the index() of the BasicExamplePlugin. This page exists as a placeholder, 
                 but in your hands it could be so much more. The Example Report form below will count and 
                 present page title terms used across the website, by count.
@@ -28,9 +37,8 @@ class BasicExamplePlugin extends InterroBot.Core.Plugin {
             <form class="main__form__standard main__form__ltr" id="LinkForm">
                 <div><button class="submit">Report</button></div>
             </form>
-            <div id="LinkFormProgress"></div>`)}
-            ${InterroBot.Ui.Templates.standardResults()}
-        `);
+        </div>
+        <div class="main__results"></div>`);
 
         await this.initData({}, []);
 
@@ -49,71 +57,34 @@ class BasicExamplePlugin extends InterroBot.Core.Plugin {
     }
 
     async process() {
-
-        // as an example, collect page title word counts across all html pages
-        // it's a contrived example, but let us keep things simple
         const titleWords = new Map();
-        let resultsMap;
 
-        // the function to handle individual SearchResults
-        // in this example, counting term/word instances in the name field
-        const exampleResultHandler = async (result, titleWordsMap) => {
-            const terms = result.name.trim().split(/[\s\-—]+/g);
-            for (let term of terms) {
-                if (!titleWordsMap.has(term)) {
-                    titleWordsMap.set(term, 1);
-                }
-                else {
-                    const currentCount = titleWordsMap.get(term);
-                    titleWordsMap.set(term, currentCount + 1);
-                }
-            }
-        };
-
-        // projectId comes for free as a member of Plugin
-        const projectId = this.getProjectId();
-
-        // build a query, these are exactly as you'd type them into InterroBot search
-        const freeQueryString = "headers: text/html";
-
-        // id and url come with the base model, everything else costs time
-        // here, I just grab the "name" field
-        let internalHtmlPagesQuery = new InterroBot.Core.SearchQuery({
-            project: projectId,
-            query: freeQueryString,
+        // Queries are exactly what you'd type into InterroBot search.
+        // id and url come with the base model; request only the fields
+        // you need — here just "name" (the page title). Pagination is
+        // handled for you, and you can break out of the loop any time.
+        for await (const result of this.search("headers: text/html", {
             fields: ["name"],
-            type: InterroBot.Core.SearchQueryType.Any,
             includeExternal: false,
-            includeNoRobots: false,
-        });
+        })) {
+            const terms = result.name.trim().split(/[\s\-—]+/g);
+            for (const term of terms) {
+                titleWords.set(term, (titleWords.get(term) ?? 0) + 1);
+            }
+        }
 
-        // run each SearchResult through its handler, and we're done processing
-        const options = {
-            paginate: true,
-            showProgress: false,
-            progressMessage: "Processing…"
-        };
-        await InterroBot.Core.Search.execute(internalHtmlPagesQuery, this.resultsMap, async (result) => {
-            await exampleResultHandler(result, titleWords);
-        }, options);
-
-        // call for html presentation
         await this.report(titleWords);
     }
 
     async report(titleWords) {
-        // sort titleWords by count, then by term
         const titleWordsRemap = new Map([...titleWords.entries()].sort((a, b) => {
             const aVal = a[1];
             const bVal = b[1];
             if (aVal === bVal) {
-                // secondary sort is term, alpha ascending
                 return a[0].toLowerCase().localeCompare(b[0].toLowerCase());
             }
-            // primary sort is term count, numeric descending
             return bVal - aVal;
         }));
-        // render html output from collected data
         const tableRows = [];
         for (let term of titleWordsRemap.keys()) {
             const count = titleWordsRemap.get(term);
@@ -126,7 +97,6 @@ class BasicExamplePlugin extends InterroBot.Core.Plugin {
             <thead><tr><th>Term</th><th>Count</th></tr></thead>
             <tbody>${tableRows.join("")}</tbody>
             </table></section></div>`;
-        // send signal back to iframe host to alot current page height
         InterroBot.Core.Plugin.postContentHeight();
     }
 }

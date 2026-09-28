@@ -3,5 +3,4 @@
 // gods will lead to needless confusion. namespacing can be done with a wrapper.
 // see examples/vanillats/interrobot-plugin.ts for a classic recipe
 
-console.warn('This package is designed for direct imports, e.g. import * as api from "./core/api.js".');
-export {};
+export * from "./core/index.js";

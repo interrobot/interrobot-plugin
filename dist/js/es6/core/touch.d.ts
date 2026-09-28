@@ -11,7 +11,5 @@ declare class TouchProxy {
      * @param ev - The TouchEvent to be proxied.
      */
     private proxyToContainer;
-    private touchEnd;
-    private touchMove;
 }
 export { TouchProxy };

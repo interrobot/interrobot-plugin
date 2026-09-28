@@ -1,15 +1,16 @@
 {
     "name": "interrobot-plugin",
-    "version": "0.18.0",
+    "version": "1.0.0",
     "description": "Used in the creation of plugins (aka reports) that present data or visualizations for a website in aggregate, across site content. For use with InterroBot application.",
-    "main": "js/commonjs/interrobot-plugin.js",
-    "module": "js/es6/interrobot-plugin.js",
+    "main": "js/commonjs/index.js",
+    "module": "js/es6/index.js",
+    "types": "js/es6/index.d.ts",
     "repository": {
       "type": "git",
       "url": "git+https://github.com/interrobot/interrobot-plugin.git"
     },
     "scripts": {
-        "docs": "typedoc --entryPointStrategy expand --entryPoints \"src/**/*.ts\" --customCss ./docs-theme/interrobot-plugin.css"
+        "docs": "typedoc --entryPointStrategy expand --entryPoints \"src/**/*.ts\" --customCss ./docs.css"
     },
     "files": [
       "js"

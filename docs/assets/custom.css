@@ -28,20 +28,14 @@ p[align=center] {
         
     }
 }
+
+#tsd-toolbar-links a {   
+    font-size: 90%;
+}
+
 .tsd-typography {
     line-height: 1.75;
 }
-#tsd-toolbar-links a {
-   
-    font-size: 90%;
-  }
-#tsd-search .title {
-    
-  }
-
-
-
-
 
 @font-face {
     font-family: 'Montserrat';

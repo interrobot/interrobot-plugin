@@ -1,5 +1,4 @@
-﻿import { Project } from "./api.js";
-import { HtmlUtils } from "./html.js";
+﻿import { Host } from "./host.js";
 
 /**
  * A class that proxies touch events from the iframe to its container. 
@@ -25,8 +24,6 @@ class TouchProxy {
     private async proxyToContainer(ev: TouchEvent) {
 
         let primeTouch: Touch;
-        let touches: TouchList = ev.touches ?? ev.changedTouches;
-
         if (ev.touches.length === 1) {
             primeTouch = ev.touches[0];
         } else if (ev.changedTouches.length === 1) {
@@ -53,21 +50,9 @@ class TouchProxy {
             eventType: ev.type,
         };
 
-        const msg = {
-            target: "interrobot",
-            data: {
-                reportTouch: touchData,
-            },
-        };
-        window.parent.postMessage(msg, "*");
-    }
-
-    private async touchEnd(ev: TouchEvent) {
-
-    }
-
-    private async touchMove(ev: TouchEvent) {
-
+        Host.postToHost({
+            reportTouch: touchData,
+        });
     }
 }
 

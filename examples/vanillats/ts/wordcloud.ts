@@ -1,11 +1,14 @@
 import { Plugin } from "../../../src/ts/core/plugin";
-import { Project, Search, SearchExecuteOptions, SearchQuery, SearchQueryType, SearchResult } from "../../../src/ts/core/api";
-import { HtmlProcessingWidget } from "../../../src/ts/ui/processing";
-import { Templates } from "../../../src/ts/ui/templates";
-import { Stopwords } from "../../../src/ts/core/stopwords";
-import { Typo } from "../../../src/ts/lib/typo/typo";
+import { Project, Search, SearchQuery, SearchQueryType, SearchResult } from "../../../src/ts/core/api";
 import { HtmlUtils } from "../../../src/ts/core/html";
-import { HtmlResultsTable, HTMLResultsTableSort, SortOrder } from "../../../src/ts/ui/table";
+
+import { HtmlProcessingWidget } from "./ui/processing";
+import { Templates } from "./ui/templates";
+import { HtmlResultsTable, HTMLResultsTableSort, SortOrder, CellRenderer, RowRenderer } from "./ui/table";
+
+import { Typo } from "./lib/typo/typo";
+
+import { Stopwords } from "./utils/stopwords";
 
 // d3 is modular, and not friendly outside npm
 // don't bother, not worth the effort to reconcile types
@@ -90,7 +93,7 @@ class WordcloudWord {
 
 class Wordcloud extends Plugin {
 
-    public static override readonly meta: PluginMeta = {
+    public static override readonly meta: Record<string, string> = {
         "title": "Website Word Cloud",
         "category": "Visualization",
         "version": "1.0.1",
@@ -106,7 +109,7 @@ class Wordcloud extends Plugin {
             \n\n
             InterroBot Word Cloud utilizes the d3 and d3-cloud open-source visualization libraries to bring
             your word clouds to life.`,
-    }
+    } satisfies PluginMeta;
 
     public static layouts: WordcloudLayout[] = [
         new WordcloudLayout(1, "Rectangle", "rectangular", true),
@@ -183,6 +186,7 @@ class Wordcloud extends Plugin {
     private wordMap = new Map<string, WordcloudWord>();
     private wordMapPresentation: WordcloudWord[] = [];
     private resultsMap: Map<number, SearchResult> = new Map<number, SearchResult>();
+    private resultsMapComplete: boolean = false;
     private deleteWordHandler: Function;
     private addWordHandler: Function;
 
@@ -505,7 +509,7 @@ class Wordcloud extends Plugin {
 
     protected async process() {
 
-        await this.data.updateData();
+        await this.data?.updateData();
         const basePath: string = "/hunspell";
         const requestOptions: { [key: string]: any } = {
             method: "GET",
@@ -532,14 +536,20 @@ class Wordcloud extends Plugin {
             includeNoRobots: false,
         });
 
-        const options: SearchExecuteOptions = {
-            paginate: true,
-            showProgress: false,
-            progressMessage: "Finding jargon…"
-        };
-        await Search.execute(internalHtmlPagesQuery, this.resultsMap, async (result: SearchResult) => {
-            await this.wordcloudResultHandler(result);
-        }, options);
+        // content is expensive to fetch, the query never changes, so
+        // reprocessing (e.g. new strategy) replays from resultsMap
+        if (this.resultsMapComplete) {
+            for (const result of this.resultsMap.values()) {
+                await this.wordcloudResultHandler(result);
+            }
+        } else {
+            // start clean, a previous fetch may have died partway
+            this.resultsMap.clear();
+            for await (const result of Search.results(internalHtmlPagesQuery, { showProgress: true })) {
+                await this.wordcloudResultHandler(result);
+            }
+            this.resultsMapComplete = true;
+        }
 
         let wordcloudWordList: WordcloudWord[] = [...this.wordMap.values()];
         this.wordMapPresentation = this.sortAndTruncatePresentation(wordcloudWordList);
@@ -675,24 +685,25 @@ class Wordcloud extends Plugin {
 
         // augmented csv, these are unnecessary with the form context, but useful
         const exportExtra: {} = {};
-        const cellHandler: Function = async (ev: MouseEvent) => {
-            const button: HTMLButtonElement = ev.target as HTMLButtonElement;
-            if (!button){
+        const cellHandler: EventListener = (ev: Event) => {
+            const target = ev.target as HTMLElement | null;
+            const button = target?.closest("button.custom");
+            if (!button) {
                 return;
             }
-            this.deleteWordHandler(ev);
+            this.deleteWordHandler(ev as MouseEvent);
         };
-        const rowRenderer: Function | null = null;
+        const rowRenderer: RowRenderer | null = null;
 
         // delete term buttons in cellRenderer
-        const cellRenderer: { [id: string]: Function } = {
-            "TERM": (cellValue: string, rowData: {}) => {
+        const cellRenderer: { [heading: string]: CellRenderer } = {
+            "TERM": (cellValue: string, rowData: Record<string, string>, index: number) => {
                 return {
                     "classes": ["term"],
                     "content": `<strong>${cellValue}</strong>
                         <button class="custom" data-word="${cellValue}">
                         <span>×</span> Remove</button>`
-                    };
+                };
             },
         };
         const resultsSort: HTMLResultsTableSort = new HTMLResultsTableSort("COUNT", SortOrder.Descending, "TERM", SortOrder.Ascending);

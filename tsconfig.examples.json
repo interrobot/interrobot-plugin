@@ -7,7 +7,8 @@
         "lib": ["ES2019", "DOM", "DOM.Iterable"],
         "declaration": true,
         "outDir": "./examples/vanillats/js/build/",
-        "moduleResolution": "node"
+        "rootDir": ".",
+        "moduleResolution": "bundler"
     },
     "include": ["src/**/*", "examples/vanillats/ts/*.ts"],
     "exclude": ["node_modules", "examples/vanillats/js/lib"]

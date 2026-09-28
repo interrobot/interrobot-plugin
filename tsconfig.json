@@ -6,7 +6,8 @@
         "lib": ["ES2019", "DOM", "DOM.Iterable"],
         "declaration": true,
         "outDir": "./dist/js/es6",
-        "moduleResolution": "node"
+        "rootDir": "./src/ts",
+        "moduleResolution": "bundler"
     },
     "include": ["src/**/*"],
     "exclude": ["node_modules"]
