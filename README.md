@@ -142,4 +142,3 @@ Retrieves a list of crawls using the Plugin API.
 | report | Crawl details as JSON |
 | time | Crawl time in millis |
 
-.
