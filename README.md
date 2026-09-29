@@ -1,5 +1,5 @@
 <p align="center">
-    <img alt="InterroBot logo" src="https://interro.bot/media/static/images/icons/interrobot.webp">
+    <img alt="InterroBot logo" width="128"  height="128" src="https://interro.bot/media/static/images/icons/interrobot.webp">
 </p>
 
 <p align="center">
@@ -10,17 +10,13 @@
    <a href="https://interro.bot/">InterroBot</a>
 </p>
 
-InterroBot plugins transform your web crawler into, well... anything you want. With unrestricted API crawl data access, Interrobot plugins can bring your website analysis concepts to life.
-
-InterroBot plugins are simple HTML/JS/CSS pages that turn crawl data into insights, stunning visualizations, and interactive dashboards. With our flexible API, you can create custom plugins that analyze website content across entire domains, connecting with analytics, LLMs, or your favorite SaaS for deeper insights.
-
-The InterroBot plugin ecosystem is designed for power users. Whether you're building proprietary tools, developing plugins for clients, or contributing to the open-source community, InterroBot plugins adapt to your needs. Available for Windows 10/11, macOS, Linux, and Android, InterroBot plugins are everywhere you need them.
+InterroBot plugins transform your web crawler into, well... anything you want. With broad API crawl data access, Interrobot plugins can bring website analysis to life. InterroBot plugins are simple HTML/JS/CSS pages that turn crawl data into website reports, visualizations, or interactive dashboards. 
 
 ## How Does it Work?
 
 InterroBot hosts an iframe of your webpage and exposes an API from which you can pull data down for analysis.
 
-If you're familiar with vanilla TypeScript or JavaScript, creating a custom plugin script for InterroBot is remarkably straight forward. First you start with a [bare-bones HTML file](https://raw.githubusercontent.com/interrobot/interrobot-plugin/refs/heads/master/examples/vanillajs/basic.html) and a script extending the Plugin base class.
+If you're familiar with vanilla TypeScript or JavaScript, creating a custom plugin script for InterroBot is straight forward. Start with a [bare-bones HTML file](https://raw.githubusercontent.com/interrobot/interrobot-plugin/refs/heads/master/examples/vanillajs/basic.html) and a script extending the Plugin base class.
 ```javascript
 // TypeScript vs. JavaScript, both are fine. See examples.
 import { Plugin } from "./src/ts/core/plugin";
@@ -96,7 +92,7 @@ For working plugins and more ideas getting started, check out the [examples](htt
 
 ## What data is available via API?
 
-InterroBot's API provides developers with access to crawled data, enabling analysis and useful customizations. This data allows you to create insightful visualizations, perform complex analysis, or build interactive tools. Whether you're tracking SEO metrics, analyzing content structures, or developing custom reporting tools, our API offers the flexibility and depth you need. Below is an overview of the key data points available, organized by API endpoint:
+InterroBot's API provides developers with access to crawled data, enabling analysis and useful customizations. Whether you're tracking SEO metrics, analyzing content structures, or developing custom reporting tools, our API offers the flexibility and depth you need. 
 
 ### GetProjects
 
@@ -146,7 +142,4 @@ Retrieves a list of crawls using the Plugin API.
 | report | Crawl details as JSON |
 | time | Crawl time in millis |
 
-
-## Licensing
-
-MPL 2.0. Earlier releases (0.18 and prior) additionally bundled JavaScript to TypeScript ports within `./src/lib` — *Typo.js* ([Modified BSD License](https://raw.githubusercontent.com/cfinke/Typo.js/master/license.txt)) and *Snowball.js* ([MPL 1.1](https://raw.githubusercontent.com/fortnightlabs/snowball-js/master/LICENSE)) — which remain under their original licenses where they appear in release history.
+.
